@@ -9,8 +9,8 @@ from urllib.parse import parse_qs, urlparse
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.components.calendar.const import CalendarEntityFeature
 from homeassistant.core import callback
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import (
@@ -187,32 +187,52 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         from .export import item_id
 
         coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
-        students = {item_id(s): str(s.get("roepnaam") or item_id(s))
-                    for s in coordinator.data.get("students", []) if item_id(s)}
+        students = {
+            item_id(student): str(student.get("roepnaam") or item_id(student))
+            for student in coordinator.data.get("students", [])
+            if item_id(student)
+        }
         if user_input is not None:
-            self.student = user_input["student_id"]
+            student = user_input.get("student_id")
+            if student not in students:
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=vol.Schema(
+                        {vol.Required("student_id"): vol.In(students)}
+                    ),
+                    errors={"base": "invalid_student"},
+                )
+            self.student = student
             return await self.async_step_settings()
-        return self.async_show_form(step_id="init", data_schema=vol.Schema({
-            vol.Required("student_id"): vol.In(students),
-        }))
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {vol.Required("student_id"): vol.In(students)}
+            ),
+        )
 
     async def async_step_settings(self, user_input=None):
         from .export import item_id
-        from .sync import target_entity
 
         coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
-        students = {item_id(s): str(s.get("roepnaam") or s.get("achternaam") or item_id(s))
-                    for s in coordinator.data.get("students", [])}
+        students = {
+            item_id(student): str(
+                student.get("roepnaam")
+                or student.get("achternaam")
+                or item_id(student)
+            )
+            for student in coordinator.data.get("students", [])
+        }
         students.pop("", None)
         choices = {"": "Disabled"}
-        registry = er.async_get(self.hass)
+        required = (
+            CalendarEntityFeature.CREATE_EVENT | CalendarEntityFeature.DELETE_EVENT
+        )
         for state in self.hass.states.async_all("calendar"):
-            registered = registry.async_get(state.entity_id)
-            if registered and registered.platform == DOMAIN:
+            supported = state.attributes.get("supported_features", 0)
+            if not isinstance(supported, int):
                 continue
-            try:
-                target_entity(self.hass, state.entity_id)
-            except ValueError:
+            if (supported & required) != required:
                 continue
             choices[state.entity_id] = state.name
         errors = {}
