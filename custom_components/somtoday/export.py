@@ -1,5 +1,7 @@
 """Pure calendar export planning; no credentials or provider-specific API calls."""
 
+from datetime import date, timedelta
+
 from hashlib import sha256
 
 from .models import is_active_school_appointment, parse_datetime, school_day_bounds
@@ -62,6 +64,41 @@ def desired_events(appointments, options, student, start, end):
                 "summary": options.get("lesson_prefix", "") + str(subject or item.get("titel") or "Lesson"),
                 "location": str(item.get("locatie") or ""),
             }
+    return result
+
+
+def desired_holiday_events(holidays, options, student, start, end):
+    """Build one all-day event for every published Somtoday holiday range."""
+    target = options.get("holiday_calendar")
+    if not target:
+        return {}
+    result = {}
+    first_day = start.date()
+    last_day = end.date()
+    for item in holidays:
+        identifier = item_id(item)
+        if not identifier:
+            raise ValueError("Holiday has no stable ID; synchronization paused")
+        try:
+            begin = date.fromisoformat(str(item["beginDatum"])[:10])
+            inclusive_end = date.fromisoformat(str(item["eindDatum"])[:10])
+        except (KeyError, TypeError, ValueError) as err:
+            raise ValueError("Invalid holiday range; synchronization paused") from err
+        if inclusive_end < begin:
+            raise ValueError("Invalid holiday range; synchronization paused")
+        if inclusive_end < first_day or begin >= last_day:
+            continue
+        name = str(item.get("naam") or item.get("titel") or "Holiday")
+        summary = options.get("holiday_title", "{student} · {holiday}").replace(
+            "{holiday}", name
+        )
+        result[(target, f"{student}:holiday:{identifier}")] = {
+            "dtstart": begin,
+            # HA calendar actions use an exclusive end date for all-day events.
+            "dtend": inclusive_end + timedelta(days=1),
+            "summary": summary,
+            "location": "",
+        }
     return result
 
 

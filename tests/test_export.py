@@ -1,10 +1,16 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.somtoday.export import desired_events, select_student, marker, scope_marker
+from custom_components.somtoday.export import (
+    desired_events,
+    desired_holiday_events,
+    marker,
+    scope_marker,
+    select_student,
+)
 from custom_components.somtoday.sync import CalendarSync
 
 START = datetime.fromisoformat("2026-09-10T00:00:00+02:00")
@@ -48,8 +54,10 @@ class MemoryStore:
 class FakeCalendar:
     available = True
     supported_features = 3
-    def __init__(self): self.events = []; self.creates = 0; self.fail = False
-    async def async_get_events(self, hass, start, end): return list(self.events)
+    def __init__(self): self.events = []; self.creates = 0; self.reads = 0; self.fail = False
+    async def async_get_events(self, hass, start, end):
+        self.reads += 1
+        return list(self.events)
     async def async_create_event(self, **values):
         self.creates += 1
         self.events.append(SimpleNamespace(uid=str(self.creates), start=values["dtstart"],
@@ -67,8 +75,6 @@ class DelayedCalendar(FakeCalendar):
     def __init__(self):
         super().__init__()
         self.hidden = []
-        self.reads = 0
-
     async def async_get_events(self, hass, start, end):
         self.reads += 1
         if self.reads >= 3:
@@ -94,8 +100,8 @@ class FakeServices:
     ):
         self.calls.append((domain, service, data, target, blocking))
         await self.calendar.async_create_event(
-            dtstart=data["start_date_time"],
-            dtend=data["end_date_time"],
+            dtstart=data.get("start_date_time", data.get("start_date")),
+            dtend=data.get("end_date_time", data.get("end_date")),
             summary=data["summary"],
             description=data["description"],
             location=data.get("location", ""),
@@ -217,6 +223,78 @@ async def test_create_uses_provider_appropriate_ha_action(
     assert target == {"entity_id": "calendar.family"}
     assert blocking is True
     assert data["description"].startswith("[somtoday:")
+
+
+def test_one_all_day_event_is_created_per_published_holiday():
+    holidays = [
+        {
+            "links": [{"id": "autumn-2026"}],
+            "naam": "Herfstvakantie",
+            "beginDatum": "2026-09-12",
+            "eindDatum": "2026-09-18",
+        }
+    ]
+    desired = desired_holiday_events(
+        holidays,
+        {
+            "holiday_calendar": "calendar.family",
+            "holiday_title": "Seth · {holiday}",
+        },
+        "a",
+        START,
+        END,
+    )
+
+    assert len(desired) == 1
+    event = desired[("calendar.family", "a:holiday:autumn-2026")]
+    assert event["summary"] == "Seth · Herfstvakantie"
+    assert event["dtstart"] == date(2026, 9, 12)
+    assert event["dtend"] == date(2026, 9, 19)
+
+
+@pytest.mark.asyncio
+async def test_holiday_uses_all_day_action_fields(monkeypatch):
+    calendar = FakeCalendar()
+    sync = synchronizer(calendar, monkeypatch, provider="google")
+    targets = {"calendar.family": {scope_marker("test", "a:holiday")}}
+    desired = desired_holiday_events(
+        [{
+            "links": [{"id": "summer"}],
+            "naam": "Zomervakantie",
+            "beginDatum": "2026-09-10",
+            "eindDatum": "2026-09-11",
+        }],
+        {"holiday_calendar": "calendar.family"},
+        "a",
+        START,
+        END,
+    )
+
+    await sync.run(desired, targets, START, END, False)
+
+    data = sync.test_services.calls[0][2]
+    assert data["start_date"] == date(2026, 9, 10)
+    assert data["end_date"] == date(2026, 9, 12)
+    assert "start_date_time" not in data
+
+
+@pytest.mark.asyncio
+async def test_multiple_creates_use_one_initial_and_one_verification_read(monkeypatch):
+    calendar = FakeCalendar()
+    sync = synchronizer(calendar, monkeypatch)
+    targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
+    desired = desired_events(
+        [lesson("1", 9), lesson("2", 11), lesson("3", 13)],
+        {"lesson_calendar": "calendar.family"},
+        "a",
+        START,
+        END,
+    )
+
+    await sync.run(desired, targets, START, END, False)
+
+    assert calendar.creates == 3
+    assert calendar.reads == 2
 
 
 @pytest.mark.asyncio

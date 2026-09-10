@@ -76,9 +76,13 @@ class CalendarSync:
         data = {
             "summary": value["summary"],
             "description": description,
-            "start_date_time": value["dtstart"],
-            "end_date_time": value["dtend"],
         }
+        if isinstance(value["dtstart"], datetime):
+            data["start_date_time"] = value["dtstart"]
+            data["end_date_time"] = value["dtend"]
+        else:
+            data["start_date"] = value["dtstart"]
+            data["end_date"] = value["dtend"]
         if value.get("location"):
             data["location"] = value["location"]
         await self.hass.services.async_call(
@@ -126,6 +130,7 @@ class CalendarSync:
                         owned.setdefault(description, []).append(event)
                 expected = {marker(self.entry.entry_id, key): value
                             for (calendar, key), value in desired.items() if calendar == target}
+                staged = []
                 for tag, value in expected.items():
                     existing = owned.pop(tag, [])
                     pending_key = target + "|" + tag
@@ -158,19 +163,33 @@ class CalendarSync:
                                 if definitely_rejected(err):
                                     await self._clear_pending(pending_key)
                                 raise
-                            # Verify visibility before deleting the previous version.
-                            refreshed = await entity.async_get_events(self.hass, start, end)
-                            exact = next((e for e in refreshed
-                                          if e.description == tag and same_event(e, value)), None)
-                            if exact is None:
-                                counts["pending"] += 1
-                                continue
-                            await self._clear_pending(pending_key)
+                            staged.append((tag, value, existing, pending_key))
+                            continue
                     for old in existing:
                         if exact is not None and old.uid == exact.uid:
                             continue
                         if not preview:
                             await entity.async_delete_event(old.uid)
+                if staged:
+                    # Calendar providers can be slow to query. Verify the complete
+                    # batch with one refresh instead of one query per created event.
+                    refreshed = await entity.async_get_events(self.hass, start, end)
+                    for tag, value, existing, pending_key in staged:
+                        exact = next(
+                            (
+                                event
+                                for event in refreshed
+                                if event.description == tag and same_event(event, value)
+                            ),
+                            None,
+                        )
+                        if exact is None:
+                            counts["pending"] += 1
+                            continue
+                        await self._clear_pending(pending_key)
+                        for old in existing:
+                            if old.uid != exact.uid:
+                                await entity.async_delete_event(old.uid)
                 for obsolete in owned.values():
                     for old in obsolete:
                         # Preserve past events and events outside the configured window.

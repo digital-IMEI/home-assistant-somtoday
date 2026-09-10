@@ -54,11 +54,13 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
     defaults = settings["data_schema"]({})
     assert defaults["enable_day"] is False
     assert defaults["enable_lessons"] is False
+    assert defaults["enable_holidays"] is False
 
     destinations = await flow.async_step_settings(
         {
             "enable_day": True,
             "enable_lessons": False,
+            "enable_holidays": False,
             "preview": False,
             "days_ahead": 14,
             "scan_interval": 15,
@@ -83,8 +85,10 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
     assert result["data"]["exports"]["a"] == {
         "day_calendar": "calendar.family",
         "lesson_calendar": "",
+        "holiday_calendar": "",
         "day_title": "School · {student}",
         "lesson_prefix": "{student} · ",
+        "holiday_title": "{student} · {holiday}",
     }
     assert result["data"]["preview"] is False
 
@@ -107,10 +111,12 @@ async def test_disabling_both_exports_saves_without_destination_step():
     defaults = settings["data_schema"]({})
     assert defaults["enable_day"] is True
     assert defaults["enable_lessons"] is True
+    assert defaults["enable_holidays"] is False
     result = await flow.async_step_settings(
         {
             "enable_day": False,
             "enable_lessons": False,
+            "enable_holidays": False,
             "preview": True,
             "days_ahead": 14,
             "scan_interval": 15,
@@ -120,6 +126,46 @@ async def test_disabling_both_exports_saves_without_destination_step():
     assert result["data"]["exports"]["a"] == {
         "day_calendar": "",
         "lesson_calendar": "",
+        "holiday_calendar": "",
         "day_title": "Seth school",
         "lesson_prefix": "Seth · ",
+        "holiday_title": "{student} · {holiday}",
     }
+
+
+@pytest.mark.asyncio
+async def test_holiday_export_has_its_own_calendar_and_title():
+    flow, _ = make_flow(
+        calendar_states=[
+            SimpleNamespace(
+                entity_id="calendar.school_holidays",
+                name="School holidays",
+                attributes={"supported_features": 3},
+            )
+        ]
+    )
+    await flow.async_step_init({"student_id": "a"})
+
+    destinations = await flow.async_step_settings(
+        {
+            "enable_day": False,
+            "enable_lessons": False,
+            "enable_holidays": True,
+            "preview": False,
+            "days_ahead": 30,
+            "scan_interval": 30,
+        }
+    )
+
+    fields = {key.schema for key in destinations["data_schema"].schema}
+    assert fields == {"holiday_calendar", "holiday_title"}
+    result = await flow.async_step_destinations(
+        {
+            "holiday_calendar": "calendar.school_holidays",
+            "holiday_title": "{student} · {holiday}",
+        }
+    )
+    assert result["data"]["exports"]["a"]["holiday_calendar"] == (
+        "calendar.school_holidays"
+    )
+    assert result["data"]["days_ahead"] == 30

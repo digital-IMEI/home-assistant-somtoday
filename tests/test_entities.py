@@ -49,6 +49,7 @@ def test_each_child_has_lesson_and_school_day_calendar_entities():
     assert schedule_events[0].summary == "Math"
     assert school_day._attr_unique_id == "entry_school_day"
     assert school_day._attr_name == "Seth · Schooldag"
+    assert school_day._attr_icon == "mdi:school"
     assert len(school_day_events) == 1
     assert school_day_events[0].summary == "Schooldag"
     assert school_day_events[0].start == START

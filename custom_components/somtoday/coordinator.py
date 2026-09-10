@@ -15,7 +15,13 @@ from homeassistant.helpers import issue_registry as ir
 from .api import SomtodayApiError, SomtodayClient, SomtodayAuthenticationError
 from .const import CONF_TOKEN, DOMAIN, SCHEDULE_DAYS, UPDATE_INTERVAL
 from .models import school_day_bounds
-from .export import desired_events, select_student, item_id, scope_marker
+from .export import (
+    desired_events,
+    desired_holiday_events,
+    item_id,
+    scope_marker,
+    select_student,
+)
 from .sync import CalendarSync
 from .holidays import holiday_status
 
@@ -87,12 +93,38 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 days_by_student[student] = school_day_bounds(selected)
                 route = dict(self.entry.options.get("exports", {}).get(student, {}))
                 name = str(pupil.get("roepnaam") or student)
-                for field, default in (("day_title", "School · {student}"), ("lesson_prefix", "{student} · ")):
+                for field, default in (
+                    ("day_title", "School · {student}"),
+                    ("lesson_prefix", "{student} · "),
+                    ("holiday_title", "{student} · {holiday}"),
+                ):
                     route[field] = route.get(field, default).replace("{student}", name)
-                for field, kind in (("day_calendar", "day"), ("lesson_calendar", "lesson")):
+                for field, kind in (
+                    ("day_calendar", "day"),
+                    ("lesson_calendar", "lesson"),
+                    ("holiday_calendar", "holiday"),
+                ):
                     if target := route.get(field):
                         targets.setdefault(target, set()).add(scope_marker(self.entry.entry_id, f"{student}:{kind}"))
                 desired.update(desired_events(selected, route, student, window_start, window_end))
+                holiday_items = self._holidays.get(student)
+                if holiday_items is not None:
+                    desired.update(
+                        desired_holiday_events(
+                            holiday_items,
+                            route,
+                            student,
+                            window_start,
+                            window_end,
+                        )
+                    )
+                elif route.get("holiday_calendar"):
+                    # Keep previously exported holidays when the optional endpoint
+                    # cannot be read; absence of data is not an empty publication.
+                    target = route["holiday_calendar"]
+                    targets.get(target, set()).discard(
+                        scope_marker(self.entry.entry_id, f"{student}:holiday")
+                    )
             prepared = True
             if targets:
                 sync_status = await self.calendar_sync.run(

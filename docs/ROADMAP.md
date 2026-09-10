@@ -12,6 +12,7 @@ outside Home Assistant should be required.
 | 1 | Calendar sync recovery UI and destination migration | Recover uncertain writes and retire an old destination safely | Needs explicit preview/confirmation and exact event ownership checks; current version deliberately retains old destinations |
 | 2 | Tests/homework calendar and HA to-do list | Preparation reminders and a family dashboard | API docs describe appointment/day/week study-guide assignments; all three must be combined and deduplicated |
 | Implemented 0.4.0 | Published holidays | Suppress routine alarms | Per-child holiday sensor; unavailable on endpoint failure; empty roster never implies holiday. Live school/account availability remains to be verified. |
+| Implemented 0.5.0 | Holiday calendar export | Share published school breaks | One multi-day all-day event per Somtoday holiday, configurable per child and destination; failed optional fetches preserve prior events. |
 | 2 | Optional new-grade indicator | Family notification without exposing a full report | `/rest/v1/resultaten/huidigVoorLeerling/[id]` documented; opt-in and respect guardian visibility, publication state and weighting |
 | 3 | Absence overview | Explain a missed lesson | Absence endpoints documented; sensitive data, require opt-in and confirm actual status meanings |
 | 3 | Message count | Indicate unread school communication | Conversation endpoint documented; unread semantics and parent access need live verification |

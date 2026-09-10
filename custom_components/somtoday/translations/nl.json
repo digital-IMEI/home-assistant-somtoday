@@ -50,6 +50,7 @@
         "data": {
           "enable_day": "Enable school-day appointment",
           "enable_lessons": "Enable individual lesson appointments",
+          "enable_holidays": "Enable published holiday appointments",
           "preview": "Preview only — no calendar writes",
           "days_ahead": "Days ahead (1–30)",
           "scan_interval": "Update interval, minutes (5–120)"
@@ -57,12 +58,14 @@
       },
       "destinations": {
         "title": "Calendar destinations",
-        "description": "Choose destinations for {student}. Available calendars must advertise create and delete support; actual provider permissions are checked when writing. Titles support {student_placeholder}, replaced by the child name; lesson titles append the subject. Example: School · {student_placeholder}. [Calendar setup and permissions]({help_url}). Changing destinations leaves existing events in the old calendar.",
+        "description": "Choose destinations for {student}. Available calendars must advertise create and delete support; actual provider permissions are checked when writing. Titles support {student_placeholder}, replaced by the child name. Holiday titles also support {holiday_placeholder}, replaced by Somtoday's holiday name; lesson titles append the subject. Examples: School · {student_placeholder} and {student_placeholder} · {holiday_placeholder}. [Calendar setup and permissions]({help_url}). Changing destinations leaves existing events in the old calendar.",
         "data": {
           "day_calendar": "School-day destination calendar",
           "lesson_calendar": "Lessons destination calendar",
+          "holiday_calendar": "Holidays destination calendar",
           "day_title": "School-day title",
-          "lesson_prefix": "Lesson title prefix"
+          "lesson_prefix": "Lesson title prefix",
+          "holiday_title": "Holiday title"
         }
       }
     },

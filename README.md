@@ -11,7 +11,8 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
   **Name · Schooldag** with one event from the first lesson start through the last lesson end.
 - Export one event per school day, from the first lesson to the end of the last lesson.
 - Independently export individual active lessons to another calendar, or the same calendar.
-- Choose both destination calendars separately **for each child in the account**.
+- Export every published Somtoday holiday as one multi-day, all-day event.
+- Choose all three destination calendars separately **for each child in the account**.
 - Preview counts before enabling writes; the account-level **Calendar sync** diagnostic
   sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
   button can explicitly clear an uncertain write after the destination has been repaired.
@@ -65,11 +66,12 @@ and other schools' identity providers may differ.
    Calendar works directly. For Google, complete the dedicated setup below first.
 2. Open **Settings → Devices & services → Somtoday → Configure** (options).
 3. Select a child and enable the school-day appointment, individual lesson appointments,
-   or both. Submit to continue.
+   published holiday appointments, or any combination. Submit to continue.
 4. Choose a destination calendar for each enabled export. Only available calendars supporting
    create and delete are offered. Somtoday's own read-only calendars cannot be destinations.
 5. Set titles. The literal `{student}` in a title or prefix is replaced with that child's
-   first name. You may enter a distinctive full name yourself if children share a first name.
+   first name. In holiday titles, `{holiday}` becomes Somtoday's published holiday name.
+   You may enter a distinctive full name yourself if children share a first name.
 6. Keep **Preview only** enabled and save. Inspect **Calendar sync** in Developer Tools → States:
    `create`, `replace`, `delete`, `unchanged` report the planned operation counts.
 7. Repeat configuration for other children. Their saved destinations remain intact.
@@ -77,7 +79,7 @@ and other schools' identity providers may differ.
    for **all configured children in this account**. Interval and days-ahead also apply to
    the whole account. Options reload the integration; no HA restart is needed.
 
-Both outputs can use the same family calendar. Identity includes account, child, output
+All outputs can use the same family calendar. Identity includes account, child, output
 type and source appointment/day, so siblings and output types remain separate.
 
 ### Google Calendar destination
@@ -119,6 +121,9 @@ Somtoday records the write as pending and does not create a duplicate while it w
 
 - Reads from today up to the selected look-ahead boundary. The source may not have
   published that far ahead. It does not fetch historical schedules or promise an entire term.
+- Every published holiday overlapping that window becomes one all-day event. Somtoday's
+  inclusive final holiday date is converted to the exclusive end date required by calendar
+  providers, so the event covers the complete published range without adding a visible day.
 - School-day events include gaps/tussenuren between the first and last lesson.
   Breaks do not define the boundaries. Only appointments classified as timetable/mandatory
   and active are exported; homework and personal appointments are not lesson exports.
@@ -128,6 +133,9 @@ Somtoday records the write as pending and does not create a duplicate while it w
   verify the new version, then delete the old one. Google Calendar's HA entity currently
   lacks an update operation. Brief overlap is possible; the event ID changes. Do not attach
   guests, custom reminders or personal notes to managed events; those edits are not preserved.
+- Each target calendar is queried once before reconciliation and, only when writes occur,
+  once afterwards for the whole batch. The number of agenda reads therefore no longer grows
+  with the number of lessons or holidays being created.
 - Cancelled/removed lessons and empty school days remove corresponding managed events
   inside the current synchronization window. Past days are left intact. A failed source fetch
   or incomplete pagination prevents synchronization.
@@ -213,6 +221,12 @@ school-day event for alarms that require confirmed lessons. This release does no
 your automations or remove lessons based on holiday information. Endpoint schema is tested
 against the [documented sample](https://github.com/elisaado/somtoday-api-docs#vakanties-get-restv1vakantiesleerlingid);
 live availability varies by school and parent/child account.
+
+The same data can be exported through **Configure → Enable published holiday appointments**.
+Choose a destination per child and optionally use `{student}` and `{holiday}` in the title.
+One published range creates one multi-day all-day event—not one event per vacation day.
+If the optional holiday endpoint becomes unavailable, existing exported holiday events are
+preserved and no absence is inferred. The next valid Somtoday response resumes reconciliation.
 - Multiple children require the API to identify which child each appointment belongs to.
   If this metadata is missing, the integration pauses rather than mixing school days.
   Newly added children require an integration reload to create their entities.

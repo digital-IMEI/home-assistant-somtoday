@@ -89,7 +89,7 @@ class SomtodaySchoolDayCalendar(
 
     _attr_has_entity_name = True
     _attr_name = "Schooldag"
-    _attr_icon = "mdi:school-clock"
+    _attr_icon = "mdi:school"
 
     def __init__(
         self,

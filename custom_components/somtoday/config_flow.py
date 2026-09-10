@@ -281,6 +281,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     "enable_lessons", default=bool(old.get("lesson_calendar"))
                 ): bool,
+                vol.Required(
+                    "enable_holidays", default=bool(old.get("holiday_calendar"))
+                ): bool,
                 vol.Required("preview", default=old.get("preview", True)): bool,
                 vol.Required(
                     "days_ahead", default=old.get("days_ahead", 14)
@@ -300,20 +303,25 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 )
             self._enable_day = user_input["enable_day"]
             self._enable_lessons = user_input["enable_lessons"]
+            self._enable_holidays = user_input["enable_holidays"]
             self._pending_settings = {
                 key: user_input[key]
                 for key in ("preview", "days_ahead", "scan_interval")
             }
             for key in ("days_ahead", "scan_interval"):
                 self._pending_settings[key] = int(self._pending_settings[key])
-            if self._enable_day or self._enable_lessons:
+            if self._enable_day or self._enable_lessons or self._enable_holidays:
                 return await self.async_step_destinations()
             return self._save_options(
                 {
                     "day_calendar": "",
                     "lesson_calendar": "",
+                    "holiday_calendar": "",
                     "day_title": old.get("day_title", "School · {student}"),
                     "lesson_prefix": old.get("lesson_prefix", "{student} · "),
+                    "holiday_title": old.get(
+                        "holiday_title", "{student} · {holiday}"
+                    ),
                 }
             )
 
@@ -336,6 +344,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             enabled_fields.append("day_calendar")
         if self._enable_lessons:
             enabled_fields.append("lesson_calendar")
+        if self._enable_holidays:
+            enabled_fields.append("holiday_calendar")
 
         if user_input is not None:
             if self.student not in students:
@@ -347,11 +357,16 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     {
                         "day_calendar": user_input.get("day_calendar", ""),
                         "lesson_calendar": user_input.get("lesson_calendar", ""),
+                        "holiday_calendar": user_input.get("holiday_calendar", ""),
                         "day_title": user_input.get(
                             "day_title", old.get("day_title", "School · {student}")
                         ),
                         "lesson_prefix": user_input.get(
                             "lesson_prefix", old.get("lesson_prefix", "{student} · ")
+                        ),
+                        "holiday_title": user_input.get(
+                            "holiday_title",
+                            old.get("holiday_title", "{student} · {holiday}"),
                         ),
                     }
                 )
@@ -380,6 +395,20 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     default=old.get("lesson_prefix", "{student} · "),
                 )
             ] = str
+        if self._enable_holidays:
+            holiday_default = old.get("holiday_calendar")
+            holiday_key = vol.Required("holiday_calendar")
+            if holiday_default in choices:
+                holiday_key = vol.Required(
+                    "holiday_calendar", default=holiday_default
+                )
+            schema[holiday_key] = vol.In(choices)
+            schema[
+                vol.Required(
+                    "holiday_title",
+                    default=old.get("holiday_title", "{student} · {holiday}"),
+                )
+            ] = vol.All(str, vol.Length(min=1, max=100))
         if not choices:
             errors["base"] = "no_writable_calendars"
         return self.async_show_form(
@@ -389,6 +418,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={
                 "student": students.get(self.student, self.student),
                 "student_placeholder": "{student}",
+                "holiday_placeholder": "{holiday}",
                 "help_url": "https://github.com/digital-IMEI/home-assistant-somtoday#calendar-provider-compatibility",
             },
         )
