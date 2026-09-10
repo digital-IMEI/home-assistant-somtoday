@@ -7,7 +7,7 @@ Experimental Home Assistant integration for retrieving a student's Somtoday sche
 ## Current prototype
 
 - Finds the Somtoday school organization.
-- Uses the school's advertised SSO provider with OAuth 2.0 PKCE.
+- Uses Somtoday's current OAuth 2.0 PKCE login flow and lets Somtoday select the school's identity provider.
 - Stores refresh/access tokens in the Home Assistant config entry; it never asks Home Assistant to store the school password.
 - Verifies the login by fetching the students visible to the account.
 - Fetches active schedule appointments every 15 minutes.
@@ -28,7 +28,7 @@ Google Calendar synchronization is intentionally not enabled in this first authe
 
 ## Status
 
-This is version `0.1.2`, intended to validate Sophianum's live authentication flow and response format before Google Calendar write support is added.
+This is version `0.1.3`, intended to validate Sophianum's live authentication flow and response format before Google Calendar write support is added.
 
 ## Privacy and security
 
