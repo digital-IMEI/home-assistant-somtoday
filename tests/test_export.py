@@ -60,6 +60,26 @@ class FakeCalendar:
     def async_write_ha_state(self): pass
 
 
+class DelayedCalendar(FakeCalendar):
+    """Hide a successful create until a later provider refresh."""
+
+    def __init__(self):
+        super().__init__()
+        self.hidden = []
+        self.reads = 0
+
+    async def async_get_events(self, hass, start, end):
+        self.reads += 1
+        if self.reads >= 3:
+            self.events.extend(self.hidden)
+            self.hidden.clear()
+        return list(self.events)
+
+    async def async_create_event(self, **values):
+        await super().async_create_event(**values)
+        self.hidden.append(self.events.pop())
+
+
 def synchronizer(calendar, monkeypatch, store=None):
     import custom_components.somtoday.sync as module
     monkeypatch.setattr(module, "Store", lambda *a: store or MemoryStore())
@@ -104,12 +124,39 @@ async def test_timeout_after_remote_create_recovers_without_duplicate_after_rest
 
 
 @pytest.mark.asyncio
-async def test_uncertain_missing_write_never_blindly_retried(monkeypatch):
-    calendar = FakeCalendar(); calendar.fail = True
-    store = MemoryStore(); sync = synchronizer(calendar, monkeypatch, store)
+async def test_successful_delayed_create_waits_and_recovers_without_duplicate(monkeypatch):
+    calendar = DelayedCalendar()
+    store = MemoryStore()
+    sync = synchronizer(calendar, monkeypatch, store)
     targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
     desired = desired_events([lesson()], {"lesson_calendar": "calendar.family"}, "a", START, END)
-    with pytest.raises(TimeoutError): await sync.run(desired, targets, START, END, False)
-    calendar.events.clear()
-    with pytest.raises(ValueError): await sync.run(desired, targets, START, END, False)
+
+    waiting = await sync.run(desired, targets, START, END, False)
+    assert waiting["mode"] == "waiting"
+    assert waiting["pending"] == 1
     assert calendar.creates == 1
+
+    completed = await sync.run(desired, targets, START, END, False)
+    assert completed["mode"] == "enabled"
+    assert completed["unchanged"] == 1
+    assert calendar.creates == 1
+
+
+@pytest.mark.asyncio
+async def test_legacy_uncertain_write_becomes_waiting_without_retry(monkeypatch):
+    calendar = FakeCalendar()
+    store = MemoryStore()
+    sync = synchronizer(calendar, monkeypatch, store)
+    targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
+    desired = desired_events(
+        [lesson()], {"lesson_calendar": "calendar.family"}, "a", START, END
+    )
+    tag = marker("test", "a:lesson:1")
+    store.data["calendar.family|" + tag] = True
+    sync.pending = None
+
+    result = await sync.run(desired, targets, START, END, False)
+    assert result["mode"] == "waiting"
+    assert result["pending"] == 1
+    assert calendar.creates == 0
+    assert isinstance(next(iter(store.data.values())), str)

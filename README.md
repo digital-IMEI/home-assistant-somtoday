@@ -7,11 +7,13 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 ## Features
 
 - School dropdown and browser login (password stays on the school's login page).
-- Separate **Name · Rooster** calendar and **Name · Schooldag** sensor for each child.
+- Two source calendars per child: **Name · Rooster** with individual lessons and
+  **Name · Schooldag** with one event from the first lesson start through the last lesson end.
 - Export one event per school day, from the first lesson to the end of the last lesson.
 - Independently export individual active lessons to another calendar, or the same calendar.
 - Choose both destination calendars separately **for each child in the account**.
-- Preview counts before enabling writes; account-level Calendar sync sensor reports results/errors.
+- Preview counts before enabling writes; the account-level **Calendar sync** diagnostic
+  sensor reports results, pending writes and errors.
 - Adjustable look-ahead (1–30 days) and polling (5–120 minutes, default 15).
 - Default titles include the child's name: `School · Seth`, `Seth · Mathematics`.
 
