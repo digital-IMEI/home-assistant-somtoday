@@ -4,7 +4,7 @@ from datetime import timedelta
 
 DOMAIN = "somtoday"
 
-AUTH_BASE_URL = "https://somtoday.nl"
+AUTH_BASE_URL = "https://inloggen.somtoday.nl"
 ORGANIZATIONS_URL = (
     "https://raw.githubusercontent.com/NONtoday/organisaties.json/"
     "refs/heads/main/organisaties.json"
