@@ -21,12 +21,12 @@ Google Calendar synchronization is intentionally not enabled in this first authe
 1. Copy `custom_components/somtoday` into Home Assistant's `config/custom_components` directory.
 2. Restart Home Assistant.
 3. Add the **Somtoday** integration.
-4. Search for `Sophianum`. If Somtoday lists the school under its board instead, search for `LVO` and select the organization used by the account.
-5. After login, copy the entire `somtodayleerling://...` callback URL into Home Assistant.
+4. Select the school organization from the dropdown. Sophianum accounts are listed under one of the LVO organizations.
+5. After login, copy the entire `somtoday://...` callback URL into Home Assistant.
 
 ## Status
 
-This is version `0.1.0`, intended to validate Sophianum's live authentication flow and response format before Google Calendar write support is added.
+This is version `0.1.1`, intended to validate Sophianum's live authentication flow and response format before Google Calendar write support is added.
 
 ## Privacy and security
 
