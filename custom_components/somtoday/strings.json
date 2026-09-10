@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Somtoday",
+        "description": "Zoek de schoolorganisatie.",
+        "data": {"organization": "Schoolnaam of plaats"}
+      },
+      "organization": {
+        "title": "Kies de school",
+        "data": {"uuid": "School"}
+      },
+      "provider": {
+        "title": "Kies de inlogmethode",
+        "data": {"provider": "Inlogmethode"}
+      },
+      "authorize": {
+        "title": "Log in bij Somtoday",
+        "description": "Open deze koppeling en rond de schoollogin af: {authorize_url}\n\nKopieer daarna de volledige callback-URL uit de adresbalk of foutpagina.",
+        "data": {"callback_url": "Volledige callback-URL"}
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan geen verbinding maken met Somtoday.",
+      "invalid_auth": "Somtoday heeft de aanmelding niet geaccepteerd.",
+      "invalid_callback": "De callback-URL bevat geen geldige code of status.",
+      "organization_not_found": "Geen passende schoolorganisatie gevonden."
+    },
+    "abort": {
+      "already_configured": "Deze Somtoday-organisatie is al ingesteld.",
+      "sso_not_available": "Deze school biedt geen ondersteunde SSO-login aan."
+    }
+  }
+}
