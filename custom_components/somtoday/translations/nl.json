@@ -16,16 +16,16 @@
       },
       "authorize": {
         "title": "Log in bij Somtoday",
-        "description": "Open deze koppeling en rond de schoollogin af: {authorize_url}\\n\\nKopieer daarna de volledige callback-URL uit de adresbalk of foutpagina.",
+        "description": "1. [Open de Somtoday-inlogpagina]({authorize_url}) en rond de schoollogin af.\n\n2. De browser komt daarna mogelijk op een niet-werkende pagina. Kopieer de volledige URL uit de adresbalk.\n\n3. Plak die URL hieronder. Deze moet zowel `code=` als `state=` bevatten.",
         "data": {
-          "callback_url": "Volledige callback-URL"
+          "callback_url": "Volledige callback-URL na het inloggen"
         }
       }
     },
     "error": {
       "cannot_connect": "Kan de actuele scholenlijst of Somtoday niet bereiken.",
       "invalid_auth": "Somtoday heeft de aanmelding niet geaccepteerd.",
-      "invalid_callback": "De callback-URL bevat geen geldige code of status.",
+      "invalid_callback": "Deze callback-URL is ongeldig. Gebruik de volledige URL na het inloggen, inclusief code= en state=.",
       "organization_not_found": "De gekozen schoolorganisatie bestaat niet meer in de actuele lijst."
     },
     "abort": {
