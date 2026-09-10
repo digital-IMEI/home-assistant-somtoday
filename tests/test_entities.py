@@ -8,6 +8,7 @@ from custom_components.somtoday.calendar import (
     SomtodaySchoolDayCalendar,
 )
 from custom_components.somtoday.sensor import SomtodaySyncSensor
+from custom_components.somtoday.button import SomtodayRetryCalendarSyncButton
 from custom_components.somtoday import _remove_legacy_school_day_sensors
 
 
@@ -60,6 +61,16 @@ def test_calendar_sync_sensor_is_diagnostic():
 
     assert sensor.entity_category is EntityCategory.DIAGNOSTIC
     assert sensor.native_value == "waiting"
+
+
+def test_calendar_sync_retry_button_is_diagnostic():
+    coordinator = SimpleNamespace()
+    button = SomtodayRetryCalendarSyncButton(
+        coordinator, SimpleNamespace(entry_id="entry")
+    )
+
+    assert button.entity_category is EntityCategory.DIAGNOSTIC
+    assert button.unique_id == "entry_calendar_sync_retry"
 
 
 def test_old_school_day_timestamp_sensors_are_removed(monkeypatch):

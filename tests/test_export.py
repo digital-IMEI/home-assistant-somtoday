@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
+from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.somtoday.export import desired_events, select_student, marker, scope_marker
 from custom_components.somtoday.sync import CalendarSync
@@ -80,11 +81,43 @@ class DelayedCalendar(FakeCalendar):
         self.hidden.append(self.events.pop())
 
 
-def synchronizer(calendar, monkeypatch, store=None):
+class FakeServices:
+    def __init__(self, calendar):
+        self.calendar = calendar
+        self.calls = []
+
+    def has_service(self, domain, service):
+        return domain == "google" and service == "create_event"
+
+    async def async_call(
+        self, domain, service, data, blocking=False, target=None, **kwargs
+    ):
+        self.calls.append((domain, service, data, target, blocking))
+        await self.calendar.async_create_event(
+            dtstart=data["start_date_time"],
+            dtend=data["end_date_time"],
+            summary=data["summary"],
+            description=data["description"],
+            location=data.get("location", ""),
+        )
+
+
+def synchronizer(calendar, monkeypatch, store=None, provider="local_calendar"):
     import custom_components.somtoday.sync as module
+    services = FakeServices(calendar)
+    hass = SimpleNamespace(services=services)
     monkeypatch.setattr(module, "Store", lambda *a: store or MemoryStore())
     monkeypatch.setattr(module, "target_entity", lambda *a: calendar)
-    return CalendarSync(None, SimpleNamespace(entry_id="test"))
+    monkeypatch.setattr(
+        module.er,
+        "async_get",
+        lambda _: SimpleNamespace(
+            async_get=lambda entity_id: SimpleNamespace(platform=provider)
+        ),
+    )
+    sync = CalendarSync(hass, SimpleNamespace(entry_id="test"))
+    sync.test_services = services
+    return sync
 
 
 @pytest.mark.asyncio
@@ -160,3 +193,48 @@ async def test_legacy_uncertain_write_becomes_waiting_without_retry(monkeypatch)
     assert result["pending"] == 1
     assert calendar.creates == 0
     assert isinstance(next(iter(store.data.values())), str)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("provider", "expected_domain"),
+    (("google", "google"), ("local_calendar", "calendar")),
+)
+async def test_create_uses_provider_appropriate_ha_action(
+    monkeypatch, provider, expected_domain
+):
+    calendar = FakeCalendar()
+    sync = synchronizer(calendar, monkeypatch, provider=provider)
+    targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
+    desired = desired_events(
+        [lesson()], {"lesson_calendar": "calendar.family"}, "a", START, END
+    )
+
+    await sync.run(desired, targets, START, END, False)
+
+    domain, service, data, target, blocking = sync.test_services.calls[0]
+    assert (domain, service) == (expected_domain, "create_event")
+    assert target == {"entity_id": "calendar.family"}
+    assert blocking is True
+    assert data["description"].startswith("[somtoday:")
+
+
+@pytest.mark.asyncio
+async def test_definitive_create_failure_clears_pending_for_retry(monkeypatch):
+    calendar = FakeCalendar()
+    store = MemoryStore()
+    sync = synchronizer(calendar, monkeypatch, store, provider="google")
+    targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
+    desired = desired_events(
+        [lesson()], {"lesson_calendar": "calendar.family"}, "a", START, END
+    )
+
+    async def rejected_create(**values):
+        from aiohttp import ClientResponseError
+        raise HomeAssistantError("Forbidden") from ClientResponseError(None, (), status=403)
+
+    calendar.async_create_event = rejected_create
+    with pytest.raises(HomeAssistantError):
+        await sync.run(desired, targets, START, END, False)
+
+    assert store.data == {}

@@ -4,11 +4,25 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 from homeassistant.components.calendar.const import DATA_COMPONENT, CalendarEntityFeature
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 
 from .export import marker, same_event
 
 PENDING_TIMEOUT = timedelta(hours=1)
+CREATE_EVENT_SERVICE = "create_event"
+
+
+def definitely_rejected(error):
+    """Only a structured HTTP rejection proves no write occurred, not generic HA errors."""
+    seen = set()
+    while error is not None and id(error) not in seen:
+        seen.add(id(error))
+        if getattr(error, "status", None) in (400, 401, 403, 404, 405, 422, 429):
+            return True
+        error = error.__cause__
+    return False
 
 
 def target_entity(hass, entity_id):
@@ -37,6 +51,43 @@ class CalendarSync:
         """Clear a write once the resulting event is visible."""
         self.pending.pop(key, None)
         await self.store.async_save(self.pending)
+
+    async def async_reset_pending(self):
+        """Forget uncertain writes so an explicit retry can be requested."""
+        async with self.lock:
+            if self.pending is None:
+                self.pending = await self.store.async_load() or {}
+            self.pending.clear()
+            await self.store.async_save(self.pending)
+
+    def _create_domain(self, entity_id):
+        """Use Google's direct action for Google entities, otherwise HA's generic action."""
+        registry_entry = er.async_get(self.hass).async_get(entity_id)
+        if (
+            registry_entry is not None
+            and registry_entry.platform == "google"
+            and self.hass.services.has_service("google", CREATE_EVENT_SERVICE)
+        ):
+            return "google"
+        return "calendar"
+
+    async def _create_event(self, target, value, description):
+        """Create through a public HA action instead of provider entity internals."""
+        data = {
+            "summary": value["summary"],
+            "description": description,
+            "start_date_time": value["dtstart"],
+            "end_date_time": value["dtend"],
+        }
+        if value.get("location"):
+            data["location"] = value["location"]
+        await self.hass.services.async_call(
+            self._create_domain(target),
+            CREATE_EVENT_SERVICE,
+            data,
+            blocking=True,
+            target={"entity_id": target},
+        )
 
     async def _pending_is_expired(self, key):
         """Migrate old pending records and detect writes that never appeared."""
@@ -99,7 +150,14 @@ class CalendarSync:
                         counts["replace" if existing else "create"] += 1
                         if not preview:
                             await self._mark_pending(pending_key)
-                            await entity.async_create_event(**value, description=tag)
+                            try:
+                                await self._create_event(target, value, tag)
+                            except HomeAssistantError as err:
+                                # HA/provider rejected the request definitively. It is
+                                # safe to retry after the cause has been corrected.
+                                if definitely_rejected(err):
+                                    await self._clear_pending(pending_key)
+                                raise
                             # Verify visibility before deleting the previous version.
                             refreshed = await entity.async_get_events(self.hass, start, end)
                             exact = next((e for e in refreshed

@@ -111,8 +111,12 @@ class SomtodayClient:
             response = await self._session.post(TOKEN_URL, data=data)
             response.raise_for_status()
             token = await response.json(content_type=None)
+        except ClientResponseError as err:
+            if err.status in (400, 401, 403):
+                raise SomtodayAuthenticationError("Somtoday rejected the login") from err
+            raise SomtodayApiError("Somtoday token service unavailable") from err
         except (ClientError, TimeoutError, ValueError) as err:
-            raise SomtodayAuthenticationError("Somtoday rejected the login") from err
+            raise SomtodayApiError("Somtoday token service unavailable") from err
         if not isinstance(token, dict) or not token.get("access_token"):
             raise SomtodayAuthenticationError("Somtoday returned no access token")
         token["expires_at"] = int(time.time()) + int(token.get("expires_in", 3600))
@@ -126,6 +130,11 @@ class SomtodayClient:
     async def students(self) -> list[dict[str, Any]]:
         """Return students visible to the account."""
         return await self._get_all("/rest/v1/leerlingen")
+
+    async def holidays(self, student_id: str) -> list[dict[str, Any]]:
+        """Fetch published holidays; an inaccessible endpoint is not an empty list."""
+        from urllib.parse import quote
+        return await self._get_all("/rest/v1/vakanties/leerling/" + quote(student_id, safe=""))
 
     async def appointments(self, start: date, end: date) -> list[dict[str, Any]]:
         """Return schedule appointments in the requested date range."""

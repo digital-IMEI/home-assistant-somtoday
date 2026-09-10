@@ -26,11 +26,13 @@
       "cannot_connect": "Cannot reach the school list or Somtoday.",
       "invalid_auth": "Somtoday did not accept the sign-in.",
       "invalid_callback": "Use the complete callback URL from this setup attempt, including code= and state=.",
-      "organization_not_found": "The selected school organization is no longer available."
+      "organization_not_found": "The selected school organization is no longer available.",
+      "wrong_account": "Sign in with the same Somtoday account and children as the existing integration."
     },
     "abort": {
       "already_configured": "This Somtoday account is already configured.",
-      "sso_not_available": "This school does not offer a supported SSO sign-in."
+      "sso_not_available": "This school does not offer a supported SSO sign-in.",
+      "reauth_successful": "Somtoday sign-in renewed. Your entities and export settings have been retained."
     }
   },
   "options": {
@@ -55,7 +57,7 @@
       },
       "destinations": {
         "title": "Calendar destinations",
-        "description": "Choose where the enabled exports for {student} are written. Only calendars supporting create and delete are listed. Changing or disabling a destination leaves existing events in the old calendar.",
+        "description": "Choose destinations for {student}. Available calendars must advertise create and delete support; actual provider permissions are checked when writing. Titles support {student_placeholder}, replaced by the child name; lesson titles append the subject. Example: School · {student_placeholder}. [Calendar setup and permissions](https://github.com/digital-IMEI/home-assistant-somtoday#calendar-provider-compatibility). Changing destinations leaves existing events in the old calendar.",
         "data": {
           "day_calendar": "School-day destination calendar",
           "lesson_calendar": "Lessons destination calendar",
@@ -68,6 +70,12 @@
       "invalid_calendar": "Select an available writable calendar.",
       "invalid_student": "Child no longer available.",
       "no_writable_calendars": "No writable calendar is available. First add a calendar integration that supports creating and deleting events."
+    }
+  },
+  "issues": {
+    "calendar_sync_failed": {
+      "title": "Somtoday calendar export needs attention",
+      "description": "The destination calendar could not be synchronized. The source timetable remains available. Check the Calendar sync diagnostic sensor and destination calendar connection. Open the help link for provider permissions and recovery instructions."
     }
   }
 }

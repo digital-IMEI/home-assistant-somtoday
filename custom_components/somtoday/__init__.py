@@ -11,7 +11,7 @@ from .const import CONF_TOKEN, DOMAIN
 from .coordinator import SomtodayCoordinator
 from .export import item_id
 
-PLATFORMS = [Platform.CALENDAR, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
 
 
 def _remove_legacy_school_day_sensors(

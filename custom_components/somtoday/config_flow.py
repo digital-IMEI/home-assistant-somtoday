@@ -12,6 +12,7 @@ from homeassistant import config_entries
 from homeassistant.components.calendar.const import CalendarEntityFeature
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
 
 from .api import (
     SomtodayApiError,
@@ -42,6 +43,13 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._verifier = ""
         self._state = ""
         self._authorize_url = ""
+
+    async def async_step_reauth(self, entry_data):
+        """Renew credentials in place, retaining calendar ownership and options."""
+        self._client = SomtodayClient(async_get_clientsession(self.hass))
+        self._organization = entry_data[CONF_ORGANIZATION]
+        self._provider = entry_data.get(CONF_PROVIDER)
+        return await self._start_authorization()
 
     async def async_step_user(self, user_input=None):
         """Show all available Somtoday organizations in a dropdown."""
@@ -155,6 +163,19 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                     unique_id = f"{self._organization['uuid']}:{','.join(student_ids)}"
                     await self.async_set_unique_id(unique_id)
+                    if self.context.get("source") == "reauth":
+                        entry = self._get_reauth_entry()
+                        if entry.unique_id != unique_id:
+                            errors["base"] = "wrong_account"
+                            return self.async_show_form(
+                                step_id="authorize",
+                                description_placeholders={"authorize_url": self._authorize_url},
+                                data_schema=vol.Schema({vol.Required("callback_url"): str}),
+                                errors=errors,
+                            )
+                        return self.async_update_reload_and_abort(
+                            entry, data_updates={CONF_TOKEN: token}
+                        )
                     self._abort_if_unique_id_configured()
                     student_names = ", ".join(
                         str(item.get("roepnaam") or item.get("achternaam") or "Leerling")
@@ -212,6 +233,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             CalendarEntityFeature.CREATE_EVENT | CalendarEntityFeature.DELETE_EVENT
         )
         for state in self.hass.states.async_all("calendar"):
+            if getattr(state, "state", None) in ("unavailable", "unknown"):
+                continue
             supported = state.attributes.get("supported_features", 0)
             if isinstance(supported, int) and (supported & required) == required:
                 choices[state.entity_id] = state.name
@@ -261,10 +284,10 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 vol.Required("preview", default=old.get("preview", True)): bool,
                 vol.Required(
                     "days_ahead", default=old.get("days_ahead", 14)
-                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
+                ): NumberSelector(NumberSelectorConfig(min=1, max=30, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Required(
                     "scan_interval", default=old.get("scan_interval", 15)
-                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=120)),
+                ): NumberSelector(NumberSelectorConfig(min=5, max=120, step=1, mode=NumberSelectorMode.BOX)),
             }
         )
         if user_input is not None:
@@ -281,6 +304,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 key: user_input[key]
                 for key in ("preview", "days_ahead", "scan_interval")
             }
+            for key in ("days_ahead", "scan_interval"):
+                self._pending_settings[key] = int(self._pending_settings[key])
             if self._enable_day or self._enable_lessons:
                 return await self.async_step_destinations()
             return self._save_options(
@@ -362,6 +387,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             data_schema=vol.Schema(schema),
             errors=errors,
             description_placeholders={
-                "student": students.get(self.student, self.student)
+                "student": students.get(self.student, self.student),
+                "student_placeholder": "{student}",
             },
         )

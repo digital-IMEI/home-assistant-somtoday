@@ -8,10 +8,10 @@ outside Home Assistant should be required.
 | --- | --- | --- | --- |
 | 1 | Tomorrow's start/end, next lesson and school-day binary sensor | Alarms, departure reminders, dashboards | Derivable from the existing schedule; test timezone transitions and missing days |
 | 1 | Timetable-change events | Notify only when a first/last lesson or classroom changes | Persist prior snapshots; establish baseline without notification spam; no real-time push is known |
-| 1 | Reauthentication, repairs and redacted diagnostics | Recover without removing/recreating an account | HA supports reauth flows; implement token-expiry handling and privacy-safe diagnostics |
+| Implemented 0.4.0 | Reauthentication, repairs and redacted diagnostics | Recover without removing/recreating an account | Native reauth updates credentials in place; destination Repairs warning; allowlisted diagnostics |
 | 1 | Calendar sync recovery UI and destination migration | Recover uncertain writes and retire an old destination safely | Needs explicit preview/confirmation and exact event ownership checks; current version deliberately retains old destinations |
 | 2 | Tests/homework calendar and HA to-do list | Preparation reminders and a family dashboard | API docs describe appointment/day/week study-guide assignments; all three must be combined and deduplicated |
-| 2 | Holidays and school-free days | Suppress routine alarms | `/rest/v1/vakanties/leerling/[id]` documented; distinguish a published holiday from an unpublished/empty roster |
+| Implemented 0.4.0 | Published holidays | Suppress routine alarms | Per-child holiday sensor; unavailable on endpoint failure; empty roster never implies holiday. Live school/account availability remains to be verified. |
 | 2 | Optional new-grade indicator | Family notification without exposing a full report | `/rest/v1/resultaten/huidigVoorLeerling/[id]` documented; opt-in and respect guardian visibility, publication state and weighting |
 | 3 | Absence overview | Explain a missed lesson | Absence endpoints documented; sensitive data, require opt-in and confirm actual status meanings |
 | 3 | Message count | Indicate unread school communication | Conversation endpoint documented; unread semantics and parent access need live verification |

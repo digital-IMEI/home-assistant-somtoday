@@ -37,6 +37,7 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Rooster"
+    _attr_icon = "mdi:calendar-clock"
 
     def __init__(self, coordinator: SomtodayCoordinator, entry: ConfigEntry, student, legacy=False) -> None:
         super().__init__(coordinator)

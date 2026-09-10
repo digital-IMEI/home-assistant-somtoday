@@ -13,7 +13,8 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 - Independently export individual active lessons to another calendar, or the same calendar.
 - Choose both destination calendars separately **for each child in the account**.
 - Preview counts before enabling writes; the account-level **Calendar sync** diagnostic
-  sensor reports results, pending writes and errors.
+  sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
+  button can explicitly clear an uncertain write after the destination has been repaired.
 - Adjustable look-ahead (1–30 days) and polling (5–120 minutes, default 15).
 - Default titles include the child's name: `School · Seth`, `Seth · Mathematics`.
 
@@ -60,9 +61,8 @@ and other schools' identity providers may differ.
 
 ## Configure calendar export
 
-1. First configure your destination calendar integration in Home Assistant. For Google,
-   use the built-in [Google Calendar integration](https://www.home-assistant.io/integrations/google/)
-   and grant write access. A Local Calendar also works through the same entity interface.
+1. First configure a writable destination calendar integration in Home Assistant. A Local
+   Calendar works directly. For Google, complete the dedicated setup below first.
 2. Open **Settings → Devices & services → Somtoday → Configure** (options).
 3. Select a child and enable the school-day appointment, individual lesson appointments,
    or both. Submit to continue.
@@ -79,6 +79,41 @@ and other schools' identity providers may differ.
 
 Both outputs can use the same family calendar. Identity includes account, child, output
 type and source appointment/day, so siblings and output types remain separate.
+
+### Google Calendar destination
+
+1. Add Home Assistant's built-in
+   [Google Calendar integration](https://www.home-assistant.io/integrations/google/) and
+   select **read/write** in its options. Read-only calendars are deliberately not offered
+   as Somtoday destinations.
+2. Google Workspace administrators may also need to open **Admin console → Security →
+   Access and data control → API controls → Manage App Access**. Locate the exact Home
+   Assistant OAuth client ID used under **HA → Settings → Devices & services → Application
+   credentials**. Grant **Specific Google data** access to its requested Google Calendar
+   scopes for the relevant organizational unit. **Trusted** also works but grants broader
+   access than this integration needs.
+3. After changing Workspace policy, reauthorize or reload the Google Calendar integration.
+   If its former entities say *This entity is no longer being provided*, make a Home
+   Assistant backup, remove only the Google Calendar integration entry, and add it again
+   with the same account and read/write access. Google Calendar data is not deleted by
+   removing the HA integration. Do not manually delete the orphaned entities first.
+4. Verify writes independently under **Developer Tools → Actions** before enabling the
+   Somtoday export:
+
+   ```yaml
+   action: google.create_event
+   target:
+     entity_id: calendar.your_calendar
+   data:
+     summary: Home Assistant write test
+     start_date_time: "2026-09-11 20:00:00"
+     end_date_time: "2026-09-11 20:30:00"
+   ```
+
+Somtoday automatically uses `google.create_event` for Google Calendar entities and
+`calendar.create_event` for other writable calendar integrations. Google may take up to
+15 minutes to return a newly created event through Home Assistant's local calendar cache;
+Somtoday records the write as pending and does not create a duplicate while it waits.
 
 ## Synchronization behavior and limits
 
@@ -102,10 +137,82 @@ type and source appointment/day, so siblings and output types remain separate.
 - If a calendar write times out, the integration records the uncertain operation persistently.
   It waits until that event is visible before retrying, to avoid duplicate creation after restart.
   If it never becomes visible, synchronization needs investigation; do not repeatedly
-  reinstall or edit HA storage. Report the sanitized sync status and version.
+  reinstall or edit HA storage. After verifying that the destination contains no matching
+  Somtoday event, press the diagnostic **Retry calendar sync** button once. This clears
+  uncertain writes and immediately requests reconciliation. A definite provider rejection,
+  such as an HA permission error, is cleared automatically and can be retried after repair.
 - Target failures appear in **Calendar sync**; the source roster is kept available.
-  Some calendar providers have delayed read-after-write behavior. Google and Local Calendar
-  are the intended initial targets; live write behavior must still be verified in your setup.
+  Some calendar providers have delayed read-after-write behavior. Google Calendar and Local
+  Calendar are supported routes; automated adapter tests do not prove live account permissions.
+  Other providers need create, delete and UID-bearing event-query features.
+
+## Calendar provider compatibility
+
+Somtoday uses Home Assistant's calendar contract wherever possible. It lists available
+entities advertising **CREATE_EVENT and DELETE_EVENT**; this is a capability check, not
+proof that a remote server will accept a write. Providers check actual permissions during
+creation. Somtoday has no access to your other accounts' credentials and does not create
+test appointments in every calendar while you open the form.
+
+| Calendar | Route | Setup and limitations |
+| --- | --- | --- |
+| Google / Workspace | Built-in Google Calendar; `google.create_event` | Enable read/write and grant OAuth Calendar access. Workspace policy may require explicitly permitting this OAuth client. See the Google destination section above. |
+| Local Calendar | Built-in Local Calendar; `calendar.create_event` | Add a Local Calendar in HA; no external credentials. Supports full reconciliation. |
+| Outlook / Microsoft 365 | [MS365 Calendar](https://github.com/RogerSelwyn/MS365-Calendar); `calendar.create_event` | Install the HA custom integration and follow its authentication instructions. Enable updates and grant `Calendars.ReadWrite`; shared calendars need `Calendars.ReadWrite.Shared` plus mailbox access. See [provider permissions](https://github.com/RogerSelwyn/MS365-Calendar/blob/main/docs/permissions.md). Read-only/basic-calendar configurations are unsuitable. |
+| Apple iCloud | Built-in CalDAV | Configure `https://caldav.icloud.com/` with an Apple app-specific password. HA 2026.8.2 CalDAV advertises creation only, without deletion: **not a full-sync destination in this release**. Read-only ICS links also cannot receive writes. |
+| Nextcloud / ownCloud / Synology / other CalDAV | Built-in CalDAV | Same deletion limitation as iCloud in HA 2026.8.2. A future or alternative HA calendar integration exposing create/delete and event UIDs will be eligible automatically. |
+| Other providers | `calendar.create_event` | Eligible automatically when available and advertising create/delete. Provider-specific cloud behavior still needs testing. |
+
+For Apple and CalDAV connection instructions, see the
+[Home Assistant CalDAV guide](https://www.home-assistant.io/integrations/caldav/).
+Apple Calendar and Outlook can also display a Google calendar: when choosing an export
+destination, select the entity belonging to the underlying calendar service.
+
+Verify a selected calendar in Developer Tools → Actions with `calendar.create_event`
+(or `google.create_event` for Google), using a disposable event, then confirm it in the
+provider's own app. Remove that test event afterwards. If the provider rejects a write,
+repair its authentication/permissions first. Repeated creation attempts can make duplicates.
+Google's cache normally refreshes every 15 minutes; this is not a guaranteed maximum during
+an outage. A successful write and visibility in HA are separate checks.
+
+Do not revoke a working Google grant as a routine setup step. If reauthentication is
+required, use HA's reauthentication prompt first. Recreating an integration is a last resort:
+take a backup and record entity IDs, then check automation and Somtoday destinations afterwards.
+OAuth scopes shown in Google account settings alone do not establish the cause of a 403.
+
+## Reauthentication, repairs and diagnostics
+
+Expired Somtoday authorization raises HA's native reauthentication flow. Open the prompt
+in Settings → Repairs, complete the browser/callback login with the same account, and the
+existing config entry is updated in place. Child identities must match; account changes are
+rejected to avoid accidentally exporting another child's schedule. Existing entity IDs,
+options and event markers are preserved. Temporary token-service/network outages retry
+without requesting a fresh login.
+
+Calendar export failures create a Repairs warning with a help link. Repair the destination
+connection first. Only use **Retry calendar sync** after checking that an uncertain event
+was not created remotely; a generic timeout/error does not prove rejection. Structured HTTP
+rejections such as 403 can be retried automatically after permissions are repaired.
+
+**Download diagnostics** contains only allowlisted counts, version and polling/preview
+settings. It excludes credentials, identifiers, names, event contents and raw exception text.
+
+## Published holidays and school-free days
+
+Each child has a **Published holiday** binary sensor (`mdi:beach`). It fetches Somtoday's
+`/rest/v1/vakanties/leerling/[id]` every six hours and evaluates today's date on every roster
+refresh. `on` means today falls inside a published holiday range (inclusive end date).
+`off` means no returned range covers today, **not** proof that lessons are published.
+`unavailable` means the optional endpoint was inaccessible or returned invalid data.
+An empty timetable is never turned into a holiday. Study days are recognized only if the
+school publishes them through this endpoint; no inferred weekends or national holidays.
+
+To suppress a routine alarm on published holidays, require the sensor to be `off`; this
+also prevents an alarm when holiday data is unavailable. Combine this with an actual
+school-day event for alarms that require confirmed lessons. This release does not alter
+your automations or remove lessons based on holiday information. Endpoint schema is tested
+against the [documented sample](https://github.com/elisaado/somtoday-api-docs#vakanties-get-restv1vakantiesleerlingid);
+live availability varies by school and parent/child account.
 - Multiple children require the API to identify which child each appointment belongs to.
   If this metadata is missing, the integration pauses rather than mixing school days.
   Newly added children require an integration reload to create their entities.

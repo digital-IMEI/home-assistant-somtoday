@@ -7,14 +7,17 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError, ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
+from homeassistant.helpers import issue_registry as ir
 
-from .api import SomtodayApiError, SomtodayClient
+from .api import SomtodayApiError, SomtodayClient, SomtodayAuthenticationError
 from .const import CONF_TOKEN, DOMAIN, SCHEDULE_DAYS, UPDATE_INTERVAL
 from .models import school_day_bounds
 from .export import desired_events, select_student, item_id, scope_marker
 from .sync import CalendarSync
+from .holidays import holiday_status
 
 
 class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -32,6 +35,8 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.entry = entry
         self.client = client
         self.calendar_sync = CalendarSync(hass, entry)
+        self._holidays = {}
+        self._holidays_checked = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -40,6 +45,23 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             appointments = await self.client.appointments(
                 start, start + timedelta(days=self.entry.options.get("days_ahead", 14))
             )
+            now = dt_util.now()
+            if self._holidays_checked is None or now - self._holidays_checked >= timedelta(hours=6):
+                holiday_data = {}
+                for pupil in students:
+                    student_id = item_id(pupil)
+                    try:
+                        items = await self.client.holidays(student_id)
+                        holiday_status(items, start)  # Validate before retaining a snapshot.
+                        holiday_data[student_id] = items
+                    except (SomtodayApiError, ValueError, KeyError, TypeError):
+                        # Optional endpoint permissions vary by school/account.
+                        # Do not block the roster or interpret failure as "no holiday".
+                        holiday_data[student_id] = None
+                self._holidays = holiday_data
+                self._holidays_checked = now
+        except SomtodayAuthenticationError as err:
+            raise ConfigEntryAuthFailed("Somtoday sign-in expired; sign in again") from err
         except SomtodayApiError as err:
             raise UpdateFailed(str(err)) from err
         finally:
@@ -83,13 +105,36 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if not prepared:
                 by_student = {}
                 days_by_student = {}
+        except HomeAssistantError as err:
+            sync_status = {
+                "mode": "error",
+                "reason": (
+                    "Destination calendar rejected the operation; test its "
+                    "create-event action in Home Assistant"
+                ),
+                "error_type": type(err).__name__,
+            }
         except Exception:
             # Do not include provider exception text (may contain URLs or personal data).
             sync_status = {"mode": "error", "reason": "Calendar synchronization failed; source roster remains available"}
+        issue_id = f"calendar_sync_{self.entry.entry_id}"
+        if sync_status["mode"] == "error":
+            ir.async_create_issue(
+                self.hass, DOMAIN, issue_id, is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="calendar_sync_failed",
+                learn_more_url="https://github.com/digital-IMEI/home-assistant-somtoday#calendar-provider-compatibility",
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
         return {
             "students": students,
             "appointments": appointments,
             "appointments_by_student": by_student,
             "school_days_by_student": days_by_student,
             "sync_status": sync_status,
+            "holidays_by_student": {
+                student: None if items is None else holiday_status(items, start)
+                for student, items in self._holidays.items()
+            },
         }
