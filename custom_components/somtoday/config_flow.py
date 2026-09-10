@@ -389,5 +389,6 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={
                 "student": students.get(self.student, self.student),
                 "student_placeholder": "{student}",
+                "help_url": "https://github.com/digital-IMEI/home-assistant-somtoday#calendar-provider-compatibility",
             },
         )

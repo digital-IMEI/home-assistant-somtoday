@@ -57,7 +57,7 @@
       },
       "destinations": {
         "title": "Calendar destinations",
-        "description": "Choose destinations for {student}. Available calendars must advertise create and delete support; actual provider permissions are checked when writing. Titles support {student_placeholder}, replaced by the child name; lesson titles append the subject. Example: School · {student_placeholder}. [Calendar setup and permissions](https://github.com/digital-IMEI/home-assistant-somtoday#calendar-provider-compatibility). Changing destinations leaves existing events in the old calendar.",
+        "description": "Choose destinations for {student}. Available calendars must advertise create and delete support; actual provider permissions are checked when writing. Titles support {student_placeholder}, replaced by the child name; lesson titles append the subject. Example: School · {student_placeholder}. [Calendar setup and permissions]({help_url}). Changing destinations leaves existing events in the old calendar.",
         "data": {
           "day_calendar": "School-day destination calendar",
           "lesson_calendar": "Lessons destination calendar",
