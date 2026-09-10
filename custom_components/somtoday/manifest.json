@@ -1,0 +1,12 @@
+{
+  "domain": "somtoday",
+  "name": "Somtoday",
+  "codeowners": ["@digital-IMEI"],
+  "config_flow": true,
+  "documentation": "https://github.com/digital-IMEI/home-assistant-somtoday",
+  "issue_tracker": "https://github.com/digital-IMEI/home-assistant-somtoday/issues",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "requirements": [],
+  "version": "0.1.0"
+}
