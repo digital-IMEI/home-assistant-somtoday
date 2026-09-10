@@ -128,9 +128,7 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_callback"
             else:
                 try:
-                    token = await self._client.exchange_code(
-                        code, self._verifier, self._organization["uuid"]
-                    )
+                    token = await self._client.exchange_code(code, self._verifier)
                     students = await self._client.students()
                 except SomtodayAuthenticationError:
                     errors["base"] = "invalid_auth"
@@ -160,4 +158,3 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({vol.Required("callback_url"): str}),
             errors=errors,
         )
-
