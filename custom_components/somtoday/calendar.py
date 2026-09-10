@@ -13,13 +13,15 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import SomtodayCoordinator
 from .models import parse_datetime
+from .export import item_id
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator: SomtodayCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([SomtodayCalendar(coordinator, entry)])
+    async_add_entities([SomtodayCalendar(coordinator, entry, student, item_id(student) == entry.data.get("legacy_student_id"))
+                        for student in coordinator.data.get("students", [])])
 
 
 class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
@@ -28,9 +30,11 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
     _attr_has_entity_name = True
     _attr_name = "Rooster"
 
-    def __init__(self, coordinator: SomtodayCoordinator, entry: ConfigEntry) -> None:
+    def __init__(self, coordinator: SomtodayCoordinator, entry: ConfigEntry, student, legacy=False) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"{entry.entry_id}_schedule"
+        self.student = item_id(student)
+        self._attr_name = f"{student.get('roepnaam') or self.student} · Rooster"
+        self._attr_unique_id = f"{entry.entry_id}_schedule" if legacy else f"{entry.entry_id}_{self.student}_schedule"
 
     @property
     def event(self) -> CalendarEvent | None:
@@ -43,7 +47,7 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
 
     def _events(self, start: datetime, end: datetime | None) -> list[CalendarEvent]:
         events: list[CalendarEvent] = []
-        for item in self.coordinator.data.get("appointments", []):
+        for item in self.coordinator.data.get("appointments_by_student", {}).get(self.student, []):
             if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF":
                 continue
             try:
@@ -67,4 +71,3 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
                 )
             )
         return sorted(events, key=lambda event: event.start)
-

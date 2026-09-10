@@ -125,12 +125,11 @@ class SomtodayClient:
 
     async def students(self) -> list[dict[str, Any]]:
         """Return students visible to the account."""
-        payload = await self._get("/rest/v1/leerlingen")
-        return payload.get("items", [])
+        return await self._get_all("/rest/v1/leerlingen")
 
     async def appointments(self, start: date, end: date) -> list[dict[str, Any]]:
         """Return schedule appointments in the requested date range."""
-        payload = await self._get(
+        return await self._get_all(
             "/rest/v1/afspraken",
             params=[
                 ("sort", "asc-beginDatumTijd"),
@@ -141,16 +140,35 @@ class SomtodayClient:
                 ("einddatum", end.isoformat()),
             ],
         )
-        return payload.get("items", [])
+
+    async def _get_all(self, path, params=None):
+        """Never expose a partial snapshot to calendar reconciliation."""
+        result = []
+        seen = set()
+        for offset in range(0, 10000, 100):
+            payload = await self._get(path, params, offset)
+            items = payload.get("items")
+            if not isinstance(items, list) or any(not isinstance(i, dict) for i in items):
+                raise SomtodayApiError("Invalid list response")
+            for item in items:
+                identifier = str((item.get("links") or [{}])[0].get("id", ""))
+                if identifier and identifier in seen:
+                    raise SomtodayApiError("Repeated page; refusing incomplete snapshot")
+                seen.add(identifier)
+            result.extend(items)
+            if payload.get("_has_more") is False or ("_has_more" not in payload and len(items) < 100):
+                return result
+        raise SomtodayApiError("Pagination limit reached; refusing incomplete snapshot")
 
     async def _get(
-        self, path: str, params: list[tuple[str, str]] | None = None
+        self, path: str, params: list[tuple[str, str]] | None = None, offset: int = 0
     ) -> dict[str, Any]:
         await self.ensure_token()
         api_url = str(self.token.get("somtoday_api_url", "https://api.somtoday.nl"))
         headers = {
             "Authorization": f"Bearer {self.token['access_token']}",
             "Accept": "application/json",
+            "Range": f"items={offset}-{offset + 99}",
         }
         try:
             response = await self._session.get(
@@ -158,6 +176,19 @@ class SomtodayClient:
             )
             response.raise_for_status()
             payload = await response.json(content_type=None)
+            content_range = response.headers.get("Content-Range", "")
+            if isinstance(payload, dict) and content_range:
+                try:
+                    page, total = content_range.removeprefix("items ").removeprefix("items=").split("/")
+                    first, last = map(int, page.split("-"))
+                    if first != offset or last - first + 1 != len(payload.get("items", [])):
+                        raise ValueError("Unexpected page range")
+                    if total != "*":
+                        payload["_has_more"] = last + 1 < int(total)
+                        if payload["_has_more"] and len(payload["items"]) != 100:
+                            raise ValueError("Server truncated requested page")
+                except ValueError as err:
+                    raise SomtodayApiError("Invalid pagination; refusing partial snapshot") from err
         except ClientResponseError as err:
             if err.status in (401, 403):
                 raise SomtodayAuthenticationError("Somtoday authorization expired") from err

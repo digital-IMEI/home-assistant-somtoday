@@ -6,7 +6,6 @@ on:
       - Validate
     types:
       - completed
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,7 +13,11 @@ permissions:
 jobs:
   release:
     name: Publish versioned release
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     env:
       TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}

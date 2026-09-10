@@ -9,6 +9,8 @@ from urllib.parse import parse_qs, urlparse
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.core import callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import (
@@ -25,6 +27,11 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a Somtoday config flow."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return SomtodayOptionsFlow()
 
     def __init__(self) -> None:
         self._client: SomtodayClient | None = None
@@ -171,3 +178,67 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({vol.Required("callback_url"): str}),
             errors=errors,
         )
+
+
+class SomtodayOptionsFlow(config_entries.OptionsFlow):
+    """Configure independent school-day and lesson calendar exports."""
+
+    async def async_step_init(self, user_input=None):
+        from .export import item_id
+
+        coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
+        students = {item_id(s): str(s.get("roepnaam") or item_id(s))
+                    for s in coordinator.data.get("students", []) if item_id(s)}
+        if user_input is not None:
+            self.student = user_input["student_id"]
+            return await self.async_step_settings()
+        return self.async_show_form(step_id="init", data_schema=vol.Schema({
+            vol.Required("student_id"): vol.In(students),
+        }))
+
+    async def async_step_settings(self, user_input=None):
+        from .export import item_id
+        from .sync import target_entity
+
+        coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
+        students = {item_id(s): str(s.get("roepnaam") or s.get("achternaam") or item_id(s))
+                    for s in coordinator.data.get("students", [])}
+        students.pop("", None)
+        choices = {"": "Disabled"}
+        registry = er.async_get(self.hass)
+        for state in self.hass.states.async_all("calendar"):
+            registered = registry.async_get(state.entity_id)
+            if registered and registered.platform == DOMAIN:
+                continue
+            try:
+                target_entity(self.hass, state.entity_id)
+            except ValueError:
+                continue
+            choices[state.entity_id] = state.name
+        errors = {}
+        if user_input is not None:
+            if any(user_input.get(k) not in choices for k in ("day_calendar", "lesson_calendar")):
+                errors["base"] = "invalid_calendar"
+            elif self.student not in students:
+                errors["base"] = "invalid_student"
+            else:
+                options = dict(self.config_entry.options)
+                routes = dict(options.get("exports", {}))
+                routes[self.student] = {k: user_input[k] for k in (
+                    "day_calendar", "lesson_calendar", "day_title", "lesson_prefix"
+                )}
+                options.update({k: user_input[k] for k in ("preview", "days_ahead", "scan_interval")})
+                options["exports"] = routes
+                return self.async_create_entry(title="", data=options)
+        old = {**self.config_entry.options, **self.config_entry.options.get("exports", {}).get(self.student, {})}
+        schema = {
+            vol.Required("day_calendar", default=old.get("day_calendar", "")): vol.In(choices),
+            vol.Required("lesson_calendar", default=old.get("lesson_calendar", "")): vol.In(choices),
+            vol.Required("preview", default=old.get("preview", True)): bool,
+            vol.Required("days_ahead", default=old.get("days_ahead", 14)): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
+            vol.Required("scan_interval", default=old.get("scan_interval", 15)): vol.All(vol.Coerce(int), vol.Range(min=5, max=120)),
+            vol.Required("day_title", default=old.get("day_title", "School · {student}")): vol.All(str, vol.Length(min=1, max=100)),
+            vol.Optional("lesson_prefix", default=old.get("lesson_prefix", "{student} · ")): str,
+        }
+        return self.async_show_form(step_id="settings", data_schema=vol.Schema(schema), errors=errors,
+                                    description_placeholders={"student": students.get(self.student, self.student)})

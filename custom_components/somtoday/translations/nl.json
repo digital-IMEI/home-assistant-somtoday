@@ -16,7 +16,7 @@
       },
       "authorize": {
         "title": "Log in bij Somtoday",
-        "description": "1. [Open de Somtoday-inlogpagina]({authorize_url}) en rond de schoollogin af.\n\n2. De browser komt daarna mogelijk op een niet-werkende pagina. Kopieer de volledige URL uit de adresbalk.\n\n3. Plak die URL hieronder. Deze moet zowel `code=` als `state=` bevatten.",
+        "description": "1. [Open de Somtoday-inlogpagina]({authorize_url}) in een nieuw tabblad. Laat deze configuratie open.\n\n2. Druk vóór het inloggen op F12. Open Network, schakel Preserve log in en kies All.\n\n3. Log in. Zoek de laatste redirect: Headers → Response Headers → Location. Kopieer de hele waarde vanaf `somtoday://`, inclusief `code=` en `state=`. Deze kan ook als mislukte request of in Console staan. Kopieer niet de rooster-URL en exporteer geen HAR.\n\n4. Plak de volledige callback hieronder. Deel dit tijdelijke inloggegeven niet.",
         "data": {
           "callback_url": "Volledige callback-URL na het inloggen"
         }
@@ -31,6 +31,34 @@
     "abort": {
       "already_configured": "Dit Somtoday-account is al ingesteld.",
       "sso_not_available": "Deze school biedt geen ondersteunde SSO-login aan."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Kies kind",
+        "description": "Stel uitvoer per kind in. Herhaal voor andere kinderen.",
+        "data": {
+          "student_id": "Kind"
+        }
+      },
+      "settings": {
+        "title": "Agenda-uitvoer",
+        "description": "Agenda-instellingen voor {student}. Preview, dagen vooruit en interval gelden voor het hele account. Preview schrijft niets. Alleen schrijfbare agenda’s worden getoond. Bij uitschakelen of veranderen blijven bestaande afspraken in de oude agenda staan.",
+        "data": {
+          "day_calendar": "Agenda schooldagen (Disabled = uit)",
+          "lesson_calendar": "Agenda losse lessen (Disabled = uit)",
+          "preview": "Alleen preview — geen afspraken wijzigen",
+          "days_ahead": "Dagen vooruit (1–30)",
+          "scan_interval": "Interval, minuten (5–120)",
+          "day_title": "Titel schooldag",
+          "lesson_prefix": "Voorvoegsel lestitel"
+        }
+      }
+    },
+    "error": {
+      "invalid_calendar": "Kies een beschikbare schrijfbare agenda.",
+      "invalid_student": "Kind niet meer beschikbaar."
     }
   }
 }

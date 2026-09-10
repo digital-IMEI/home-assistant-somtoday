@@ -16,7 +16,7 @@
       },
       "authorize": {
         "title": "Sign in to Somtoday",
-        "description": "1. [Open the Somtoday sign-in page]({authorize_url}) and sign in. Keep this Home Assistant setup open.\n\n2. After signing in, your browser may try to open the Somtoday app. The return URL starts with `somtoday://` and must contain both `code=` and `state=`. If your browser does not show that URL, stop here; do not paste the timetable URL.\n\n3. Paste the complete return URL below. Do not share it publicly.",
+        "description": "1. [Open the Somtoday sign-in page]({authorize_url}) in a new tab. Keep this setup open.\n\n2. Before signing in, press F12. Open Network, enable Preserve log and select All.\n\n3. Sign in. Find the last redirect: Headers → Response Headers → Location. Copy the entire value starting with `somtoday://`, including `code=` and `state=`. It may instead appear as a failed request or in Console. Do not copy the timetable URL or export a HAR.\n\n4. Paste the full callback below. Do not share this temporary credential.",
         "data": {
           "callback_url": "Complete callback URL after signing in"
         }
@@ -31,6 +31,34 @@
     "abort": {
       "already_configured": "This Somtoday account is already configured.",
       "sso_not_available": "This school does not offer a supported SSO sign-in."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Choose child",
+        "description": "Configure exports per child. Repeat for other children.",
+        "data": {
+          "student_id": "Child"
+        }
+      },
+      "settings": {
+        "title": "Calendar export",
+        "description": "Calendar settings for {student}. Preview, days ahead and interval apply to the whole account. Preview does not write. Only writable calendars are listed. Disabling or changing a target leaves existing events in the old calendar.",
+        "data": {
+          "day_calendar": "School-day calendar (Disabled = off)",
+          "lesson_calendar": "Lessons calendar (Disabled = off)",
+          "preview": "Preview only — no calendar writes",
+          "days_ahead": "Days ahead (1–30)",
+          "scan_interval": "Update interval, minutes (5–120)",
+          "day_title": "School-day title",
+          "lesson_prefix": "Lesson title prefix"
+        }
+      }
+    },
+    "error": {
+      "invalid_calendar": "Select an available writable calendar.",
+      "invalid_student": "Child no longer available."
     }
   }
 }
