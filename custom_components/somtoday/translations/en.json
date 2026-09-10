@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Somtoday",
+        "description": "Select your Somtoday school organization.",
+        "data": {
+          "organization": "School organization"
+        }
+      },
+      "provider": {
+        "title": "Choose sign-in method",
+        "data": {
+          "provider": "Sign-in method"
+        }
+      },
+      "authorize": {
+        "title": "Sign in to Somtoday",
+        "description": "1. [Open the Somtoday sign-in page]({authorize_url}) and sign in. Keep this Home Assistant setup open.\n\n2. After signing in, your browser may try to open the Somtoday app. The return URL starts with `somtoday://` and must contain both `code=` and `state=`. If your browser does not show that URL, stop here; do not paste the timetable URL.\n\n3. Paste the complete return URL below. Do not share it publicly.",
+        "data": {
+          "callback_url": "Complete callback URL after signing in"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot reach the school list or Somtoday.",
+      "invalid_auth": "Somtoday did not accept the sign-in.",
+      "invalid_callback": "Use the complete callback URL from this setup attempt, including code= and state=.",
+      "organization_not_found": "The selected school organization is no longer available."
+    },
+    "abort": {
+      "already_configured": "This Somtoday account is already configured.",
+      "sso_not_available": "This school does not offer a supported SSO sign-in."
+    }
+  }
+}
