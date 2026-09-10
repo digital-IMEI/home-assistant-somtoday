@@ -183,15 +183,51 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class SomtodayOptionsFlow(config_entries.OptionsFlow):
     """Configure independent school-day and lesson calendar exports."""
 
-    async def async_step_init(self, user_input=None):
+    def _students(self) -> dict[str, str]:
+        """Return the currently available children."""
         from .export import item_id
 
         coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
-        students = {
-            item_id(student): str(student.get("roepnaam") or item_id(student))
+        return {
+            item_id(student): str(
+                student.get("roepnaam")
+                or student.get("achternaam")
+                or item_id(student)
+            )
             for student in coordinator.data.get("students", [])
             if item_id(student)
         }
+
+    def _old_options(self) -> dict[str, Any]:
+        """Combine account defaults with this child's saved route."""
+        return {
+            **self.config_entry.options,
+            **self.config_entry.options.get("exports", {}).get(self.student, {}),
+        }
+
+    def _calendar_choices(self) -> dict[str, str]:
+        """Return calendars that support both creation and deletion."""
+        choices = {}
+        required = (
+            CalendarEntityFeature.CREATE_EVENT | CalendarEntityFeature.DELETE_EVENT
+        )
+        for state in self.hass.states.async_all("calendar"):
+            supported = state.attributes.get("supported_features", 0)
+            if isinstance(supported, int) and (supported & required) == required:
+                choices[state.entity_id] = state.name
+        return choices
+
+    def _save_options(self, route: dict[str, Any]):
+        """Save this child's route without changing routes for other children."""
+        options = dict(self.config_entry.options)
+        routes = dict(options.get("exports", {}))
+        routes[self.student] = route
+        options.update(self._pending_settings)
+        options["exports"] = routes
+        return self.async_create_entry(title="", data=options)
+
+    async def async_step_init(self, user_input=None):
+        students = self._students()
         if user_input is not None:
             student = user_input.get("student_id")
             if student not in students:
@@ -212,53 +248,120 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         )
 
     async def async_step_settings(self, user_input=None):
-        from .export import item_id
-
-        coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
-        students = {
-            item_id(student): str(
-                student.get("roepnaam")
-                or student.get("achternaam")
-                or item_id(student)
-            )
-            for student in coordinator.data.get("students", [])
-        }
-        students.pop("", None)
-        choices = {"": "Disabled"}
-        required = (
-            CalendarEntityFeature.CREATE_EVENT | CalendarEntityFeature.DELETE_EVENT
+        students = self._students()
+        old = self._old_options()
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    "enable_day", default=bool(old.get("day_calendar"))
+                ): bool,
+                vol.Required(
+                    "enable_lessons", default=bool(old.get("lesson_calendar"))
+                ): bool,
+                vol.Required("preview", default=old.get("preview", True)): bool,
+                vol.Required(
+                    "days_ahead", default=old.get("days_ahead", 14)
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
+                vol.Required(
+                    "scan_interval", default=old.get("scan_interval", 15)
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=120)),
+            }
         )
-        for state in self.hass.states.async_all("calendar"):
-            supported = state.attributes.get("supported_features", 0)
-            if not isinstance(supported, int):
-                continue
-            if (supported & required) != required:
-                continue
-            choices[state.entity_id] = state.name
-        errors = {}
         if user_input is not None:
-            if any(user_input.get(k) not in choices for k in ("day_calendar", "lesson_calendar")):
-                errors["base"] = "invalid_calendar"
-            elif self.student not in students:
+            if self.student not in students:
+                return self.async_show_form(
+                    step_id="settings",
+                    data_schema=schema,
+                    errors={"base": "invalid_student"},
+                    description_placeholders={"student": self.student},
+                )
+            self._enable_day = user_input["enable_day"]
+            self._enable_lessons = user_input["enable_lessons"]
+            self._pending_settings = {
+                key: user_input[key]
+                for key in ("preview", "days_ahead", "scan_interval")
+            }
+            if self._enable_day or self._enable_lessons:
+                return await self.async_step_destinations()
+            return self._save_options(
+                {
+                    "day_calendar": "",
+                    "lesson_calendar": "",
+                    "day_title": old.get("day_title", "School · {student}"),
+                    "lesson_prefix": old.get("lesson_prefix", "{student} · "),
+                }
+            )
+
+        return self.async_show_form(
+            step_id="settings",
+            data_schema=schema,
+            description_placeholders={
+                "student": students.get(self.student, self.student)
+            },
+        )
+
+    async def async_step_destinations(self, user_input=None):
+        """Choose a destination for each enabled export."""
+        students = self._students()
+        choices = self._calendar_choices()
+        old = self._old_options()
+        errors = {}
+        enabled_fields = []
+        if self._enable_day:
+            enabled_fields.append("day_calendar")
+        if self._enable_lessons:
+            enabled_fields.append("lesson_calendar")
+
+        if user_input is not None:
+            if self.student not in students:
                 errors["base"] = "invalid_student"
+            elif any(user_input.get(field) not in choices for field in enabled_fields):
+                errors["base"] = "invalid_calendar"
             else:
-                options = dict(self.config_entry.options)
-                routes = dict(options.get("exports", {}))
-                routes[self.student] = {k: user_input[k] for k in (
-                    "day_calendar", "lesson_calendar", "day_title", "lesson_prefix"
-                )}
-                options.update({k: user_input[k] for k in ("preview", "days_ahead", "scan_interval")})
-                options["exports"] = routes
-                return self.async_create_entry(title="", data=options)
-        old = {**self.config_entry.options, **self.config_entry.options.get("exports", {}).get(self.student, {})}
-        schema = {
-            vol.Required("day_calendar", default=old.get("day_calendar", "")): vol.In(choices),
-            vol.Required("lesson_calendar", default=old.get("lesson_calendar", "")): vol.In(choices),
-            vol.Required("preview", default=old.get("preview", True)): bool,
-            vol.Required("days_ahead", default=old.get("days_ahead", 14)): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
-            vol.Required("scan_interval", default=old.get("scan_interval", 15)): vol.All(vol.Coerce(int), vol.Range(min=5, max=120)),
-            vol.Required("day_title", default=old.get("day_title", "School · {student}")): vol.All(str, vol.Length(min=1, max=100)),
-            vol.Optional("lesson_prefix", default=old.get("lesson_prefix", "{student} · ")): str,
-        }
-        return self.async_show_form(step_id="settings", data_schema=vol.Schema(schema), errors=errors,
-                                    description_placeholders={"student": students.get(self.student, self.student)})
+                return self._save_options(
+                    {
+                        "day_calendar": user_input.get("day_calendar", ""),
+                        "lesson_calendar": user_input.get("lesson_calendar", ""),
+                        "day_title": user_input.get(
+                            "day_title", old.get("day_title", "School · {student}")
+                        ),
+                        "lesson_prefix": user_input.get(
+                            "lesson_prefix", old.get("lesson_prefix", "{student} · ")
+                        ),
+                    }
+                )
+
+        schema = {}
+        if self._enable_day:
+            day_default = old.get("day_calendar")
+            day_key = vol.Required("day_calendar")
+            if day_default in choices:
+                day_key = vol.Required("day_calendar", default=day_default)
+            schema[day_key] = vol.In(choices)
+            schema[
+                vol.Required(
+                    "day_title", default=old.get("day_title", "School · {student}")
+                )
+            ] = vol.All(str, vol.Length(min=1, max=100))
+        if self._enable_lessons:
+            lesson_default = old.get("lesson_calendar")
+            lesson_key = vol.Required("lesson_calendar")
+            if lesson_default in choices:
+                lesson_key = vol.Required("lesson_calendar", default=lesson_default)
+            schema[lesson_key] = vol.In(choices)
+            schema[
+                vol.Optional(
+                    "lesson_prefix",
+                    default=old.get("lesson_prefix", "{student} · "),
+                )
+            ] = str
+        if not choices:
+            errors["base"] = "no_writable_calendars"
+        return self.async_show_form(
+            step_id="destinations",
+            data_schema=vol.Schema(schema),
+            errors=errors,
+            description_placeholders={
+                "student": students.get(self.student, self.student)
+            },
+        )

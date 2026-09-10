@@ -44,13 +44,21 @@
       },
       "settings": {
         "title": "Calendar export",
-        "description": "Calendar settings for {student}. Preview, days ahead and interval apply to the whole account. Preview does not write. Only writable calendars are listed. Disabling or changing a target leaves existing events in the old calendar.",
+        "description": "Choose the exports for {student}. Preview, days ahead and interval apply to the whole account. Preview does not write to any calendar.",
         "data": {
-          "day_calendar": "School-day calendar (Disabled = off)",
-          "lesson_calendar": "Lessons calendar (Disabled = off)",
+          "enable_day": "Enable school-day appointment",
+          "enable_lessons": "Enable individual lesson appointments",
           "preview": "Preview only — no calendar writes",
           "days_ahead": "Days ahead (1–30)",
-          "scan_interval": "Update interval, minutes (5–120)",
+          "scan_interval": "Update interval, minutes (5–120)"
+        }
+      },
+      "destinations": {
+        "title": "Calendar destinations",
+        "description": "Choose where the enabled exports for {student} are written. Only calendars supporting create and delete are listed. Changing or disabling a destination leaves existing events in the old calendar.",
+        "data": {
+          "day_calendar": "School-day destination calendar",
+          "lesson_calendar": "Lessons destination calendar",
           "day_title": "School-day title",
           "lesson_prefix": "Lesson title prefix"
         }
@@ -58,7 +66,8 @@
     },
     "error": {
       "invalid_calendar": "Select an available writable calendar.",
-      "invalid_student": "Child no longer available."
+      "invalid_student": "Child no longer available.",
+      "no_writable_calendars": "No writable calendar is available. First add a calendar integration that supports creating and deleting events."
     }
   }
 }

@@ -62,15 +62,16 @@ and other schools' identity providers may differ.
    use the built-in [Google Calendar integration](https://www.home-assistant.io/integrations/google/)
    and grant write access. A Local Calendar also works through the same entity interface.
 2. Open **Settings → Devices & services → Somtoday → Configure** (options).
-3. Select a child, then choose the school-day calendar and/or the lessons calendar.
-   **Disabled** leaves that output off. Only available calendars supporting create and
-   delete are offered. Somtoday's own read-only calendars cannot be destinations.
-4. Set titles. The literal `{student}` in a title or prefix is replaced with that child's
+3. Select a child and enable the school-day appointment, individual lesson appointments,
+   or both. Submit to continue.
+4. Choose a destination calendar for each enabled export. Only available calendars supporting
+   create and delete are offered. Somtoday's own read-only calendars cannot be destinations.
+5. Set titles. The literal `{student}` in a title or prefix is replaced with that child's
    first name. You may enter a distinctive full name yourself if children share a first name.
-5. Keep **Preview only** enabled and save. Inspect **Calendar sync** in Developer Tools → States:
+6. Keep **Preview only** enabled and save. Inspect **Calendar sync** in Developer Tools → States:
    `create`, `replace`, `delete`, `unchanged` report the planned operation counts.
-6. Repeat configuration for other children. Their saved destinations remain intact.
-7. Once the preview is correct, switch **Preview only** off and save. This enables export
+7. Repeat configuration for other children. Their saved destinations remain intact.
+8. Once the preview is correct, switch **Preview only** off and save. This enables export
    for **all configured children in this account**. Interval and days-ahead also apply to
    the whole account. Options reload the integration; no HA restart is needed.
 
