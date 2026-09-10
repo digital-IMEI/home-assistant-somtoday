@@ -39,7 +39,6 @@ def generate_pkce() -> tuple[str, str]:
 
 def build_authorize_url(
     tenant_uuid: str,
-    oidc_issuer: str,
     challenge: str,
     state: str,
 ) -> str:
@@ -50,9 +49,8 @@ def build_authorize_url(
         "code_challenge": challenge,
         "code_challenge_method": "S256",
         "tenant_uuid": tenant_uuid,
-        "oidc_iss": oidc_issuer,
         "state": state,
-        "prompt": "login",
+        "session": "no_session",
         "scope": "openid",
         "client_id": CLIENT_ID,
     }
