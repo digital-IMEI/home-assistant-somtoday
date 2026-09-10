@@ -80,9 +80,7 @@ class SomtodayClient:
         organizations = payload.get("instellingen", []) if isinstance(payload, dict) else []
         return [item for item in organizations if isinstance(item, dict)]
 
-    async def exchange_code(
-        self, code: str, verifier: str, tenant_uuid: str
-    ) -> dict[str, Any]:
+    async def exchange_code(self, code: str, verifier: str) -> dict[str, Any]:
         """Exchange an SSO authorization code for tokens."""
         data = {
             "grant_type": "authorization_code",
@@ -91,7 +89,6 @@ class SomtodayClient:
             "code": code,
             "scope": "openid",
             "client_id": CLIENT_ID,
-            "tenant_uuid": tenant_uuid,
         }
         self.token = await self._token_request(data)
         return self.token
