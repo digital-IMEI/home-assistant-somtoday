@@ -97,11 +97,7 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _select_organization(self, organization: dict[str, Any]):
         self._organization = organization
         self._providers = organization.get("oidcurls") or []
-        if not self._providers:
-            return self.async_abort(reason="sso_not_available")
-        if len(self._providers) > 1:
-            return await self.async_step_provider()
-        self._provider = self._providers[0]
+        self._provider = self._providers[0] if self._providers else None
         return await self._start_authorization()
 
     async def async_step_provider(self, user_input=None):
@@ -122,7 +118,7 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._verifier, challenge = generate_pkce()
         self._state = secrets.token_urlsafe(16)
         self._authorize_url = build_authorize_url(
-            self._organization["uuid"], self._provider["url"], challenge, self._state
+            self._organization["uuid"], challenge, self._state
         )
         return await self.async_step_authorize()
 
