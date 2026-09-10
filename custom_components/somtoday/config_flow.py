@@ -28,6 +28,7 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._client: SomtodayClient | None = None
+        self._organizations: list[dict[str, Any]] = []
         self._organization: dict[str, Any] | None = None
         self._providers: list[dict[str, Any]] = []
         self._provider: dict[str, Any] | None = None
@@ -36,53 +37,62 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._authorize_url = ""
 
     async def async_step_user(self, user_input=None):
-        """Find the requested school organization."""
+        """Show all available Somtoday organizations in a dropdown."""
         errors: dict[str, str] = {}
-        if user_input is not None:
+        if self._client is None:
             self._client = SomtodayClient(async_get_clientsession(self.hass))
+
+        if not self._organizations:
             try:
                 organizations = await self._client.organizations()
             except SomtodayApiError:
                 errors["base"] = "cannot_connect"
             else:
-                query = user_input[CONF_ORGANIZATION].strip().casefold()
-                matches = [
-                    item
-                    for item in organizations
-                    if query in str(item.get("naam", "")).casefold()
-                    or query in str(item.get("plaats", "")).casefold()
-                ]
-                if len(matches) == 1:
-                    return await self._select_organization(matches[0])
-                if not matches:
-                    errors["base"] = "organization_not_found"
-                else:
-                    self._providers = matches
-                    return await self.async_step_organization()
+                self._organizations = sorted(
+                    organizations,
+                    key=lambda item: (
+                        str(item.get("naam", "")).casefold(),
+                        str(item.get("plaats", "")).casefold(),
+                    ),
+                )
 
+        if user_input is not None and self._organizations:
+            selected_uuid = user_input[CONF_ORGANIZATION]
+            selected = next(
+                (
+                    item
+                    for item in self._organizations
+                    if item.get("uuid") == selected_uuid
+                ),
+                None,
+            )
+            if selected is None:
+                errors["base"] = "organization_not_found"
+            else:
+                return await self._select_organization(selected)
+
+        choices = {
+            str(item["uuid"]): self._organization_label(item)
+            for item in self._organizations
+            if item.get("uuid")
+        }
+        schema = (
+            vol.Schema({vol.Required(CONF_ORGANIZATION): vol.In(choices)})
+            if choices
+            else vol.Schema({})
+        )
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(
-                {vol.Required(CONF_ORGANIZATION, default="Sophianum"): str}
-            ),
+            data_schema=schema,
             errors=errors,
         )
 
-    async def async_step_organization(self, user_input=None):
-        """Disambiguate matching organizations."""
-        choices = {
-            item["uuid"]: f"{item.get('naam')} ({item.get('plaats', '')})"
-            for item in self._providers
-        }
-        if user_input is not None:
-            selected = next(
-                item for item in self._providers if item["uuid"] == user_input["uuid"]
-            )
-            return await self._select_organization(selected)
-        return self.async_show_form(
-            step_id="organization",
-            data_schema=vol.Schema({vol.Required("uuid"): vol.In(choices)}),
-        )
+    @staticmethod
+    def _organization_label(organization: dict[str, Any]) -> str:
+        """Build a readable organization label."""
+        name = str(organization.get("naam", "Onbekende school"))
+        place = str(organization.get("plaats", "")).strip()
+        return f"{name} — {place}" if place and place.casefold() != name.casefold() else name
 
     async def _select_organization(self, organization: dict[str, Any]):
         self._organization = organization
@@ -135,14 +145,21 @@ class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 except SomtodayApiError:
                     errors["base"] = "cannot_connect"
                 else:
-                    unique_id = str(self._organization["uuid"])
+                    student_ids = sorted(
+                        str((item.get("links") or [{}])[0].get("id", ""))
+                        for item in students
+                        if (item.get("links") or [{}])[0].get("id")
+                    )
+                    unique_id = f"{self._organization['uuid']}:{','.join(student_ids)}"
                     await self.async_set_unique_id(unique_id)
                     self._abort_if_unique_id_configured()
                     student_names = ", ".join(
                         str(item.get("roepnaam") or item.get("achternaam") or "Leerling")
                         for item in students
                     )
-                    title = student_names or str(self._organization.get("naam", "Somtoday"))
+                    title = student_names or str(
+                        self._organization.get("naam", "Somtoday")
+                    )
                     return self.async_create_entry(
                         title=title,
                         data={
