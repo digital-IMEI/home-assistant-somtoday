@@ -84,6 +84,9 @@ period for destination calendars. The source calendars remain available. Calenda
 `starting` without a Repairs warning during that period, then refreshes automatically.
 Persistent failures after that period still produce a Repairs warning. Integration reloads
 also receive the two-minute grace period; unloading cancels the scheduled callback.
+Rotated Somtoday tokens are saved without reloading the integration, so calendar entities do
+not briefly become unavailable during normal polling. Changing Configure options still reloads
+the integration once so the new settings and entities are applied.
 
 **Upgrading from 0.5.0:** Preview only has been removed. Previously enabled destinations
 will now receive real writes, even if the old Preview setting was enabled. Disable unwanted

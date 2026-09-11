@@ -3,7 +3,27 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from custom_components.somtoday import async_options_updated
+from custom_components.somtoday.const import DOMAIN
 from custom_components.somtoday.coordinator import SomtodayCoordinator
+
+
+@pytest.mark.asyncio
+async def test_token_update_does_not_reload_but_options_change_does():
+    reload_entry = AsyncMock()
+    entry = SimpleNamespace(entry_id="test", options={"days_ahead": 14})
+    coordinator = SimpleNamespace(options_snapshot={"days_ahead": 14})
+    hass = SimpleNamespace(
+        data={DOMAIN: {entry.entry_id: coordinator}},
+        config_entries=SimpleNamespace(async_reload=reload_entry),
+    )
+
+    await async_options_updated(hass, entry)
+    reload_entry.assert_not_awaited()
+
+    entry.options = {"days_ahead": 1}
+    await async_options_updated(hass, entry)
+    reload_entry.assert_awaited_once_with(entry.entry_id)
 
 
 @pytest.mark.asyncio

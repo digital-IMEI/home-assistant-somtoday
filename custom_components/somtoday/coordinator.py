@@ -39,6 +39,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(minutes=entry.options.get("scan_interval", 15)),
         )
         self.entry = entry
+        self.options_snapshot = dict(entry.options)
         self.client = client
         self.calendar_sync = CalendarSync(hass, entry)
         self._holidays = {}
