@@ -13,7 +13,7 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 - Independently export individual active lessons to another calendar, or the same calendar.
 - Export every published Somtoday holiday as one multi-day, all-day event.
 - Choose all three destination calendars separately **for each child in the account**.
-- Preview counts before enabling writes; the account-level **Calendar sync** diagnostic
+- The account-level **Calendar sync** diagnostic
   sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
   button can explicitly clear an uncertain write after the destination has been repaired.
 - Adjustable look-ahead (1–30 days) and polling (5–120 minutes, default 15).
@@ -72,12 +72,22 @@ and other schools' identity providers may differ.
 5. Set titles. The literal `{student}` in a title or prefix is replaced with that child's
    first name. In holiday titles, `{holiday}` becomes Somtoday's published holiday name.
    You may enter a distinctive full name yourself if children share a first name.
-6. Keep **Preview only** enabled and save. Inspect **Calendar sync** in Developer Tools → States:
-   `create`, `replace`, `delete`, `unchanged` report the planned operation counts.
+6. **Write permissions are required** in the destination integration and at the provider.
+   Start with **Days ahead = 1** and verify the actual events in your destination calendar.
+   Enabled exports perform real writes; there is no Preview only mode.
 7. Repeat configuration for other children. Their saved destinations remain intact.
-8. Once the preview is correct, switch **Preview only** off and save. This enables export
-   for **all configured children in this account**. Interval and days-ahead also apply to
-   the whole account. Options reload the integration; no HA restart is needed.
+8. Once the one-day test is correct, increase Days ahead as needed. Interval and days-ahead
+   apply to the whole account. Options reload the integration; no HA restart is needed.
+
+On startup, exports wait until Home Assistant has started, followed by a two-minute grace
+period for destination calendars. The source calendars remain available. Calendar sync shows
+`starting` without a Repairs warning during that period, then refreshes automatically.
+Persistent failures after that period still produce a Repairs warning. Integration reloads
+also receive the two-minute grace period; unloading cancels the scheduled callback.
+
+**Upgrading from 0.5.0:** Preview only has been removed. Previously enabled destinations
+will now receive real writes, even if the old Preview setting was enabled. Disable unwanted
+exports before upgrading.
 
 All outputs can use the same family calendar. Identity includes account, child, output
 type and source appointment/day, so siblings and output types remain separate.
@@ -202,7 +212,7 @@ connection first. Only use **Retry calendar sync** after checking that an uncert
 was not created remotely; a generic timeout/error does not prove rejection. Structured HTTP
 rejections such as 403 can be retried automatically after permissions are repaired.
 
-**Download diagnostics** contains only allowlisted counts, version and polling/preview
+**Download diagnostics** contains only allowlisted counts, version and polling
 settings. It excludes credentials, identifiers, names, event contents and raw exception text.
 
 ## Published holidays and school-free days

@@ -43,6 +43,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.calendar_sync = CalendarSync(hass, entry)
         self._holidays = {}
         self._holidays_checked = None
+        self.export_ready = False
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -126,10 +127,12 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         scope_marker(self.entry.entry_id, f"{student}:holiday")
                     )
             prepared = True
-            if targets:
+            if targets and not self.export_ready:
+                sync_status = {"mode": "starting", "reason": "Waiting for calendar startup grace period"}
+            elif targets:
                 sync_status = await self.calendar_sync.run(
                     desired, targets, window_start, window_end,
-                    self.entry.options.get("preview", True),
+                    False,
                 )
         except ValueError as err:
             sync_status = {"mode": "error", "reason": str(err)}

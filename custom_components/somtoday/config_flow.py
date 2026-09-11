@@ -243,6 +243,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
     def _save_options(self, route: dict[str, Any]):
         """Save this child's route without changing routes for other children."""
         options = dict(self.config_entry.options)
+        options.pop("preview", None)
         routes = dict(options.get("exports", {}))
         routes[self.student] = route
         options.update(self._pending_settings)
@@ -284,7 +285,6 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     "enable_holidays", default=bool(old.get("holiday_calendar"))
                 ): bool,
-                vol.Required("preview", default=old.get("preview", True)): bool,
                 vol.Required(
                     "days_ahead", default=old.get("days_ahead", 14)
                 ): NumberSelector(NumberSelectorConfig(min=1, max=30, step=1, mode=NumberSelectorMode.BOX)),
@@ -306,7 +306,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             self._enable_holidays = user_input["enable_holidays"]
             self._pending_settings = {
                 key: user_input[key]
-                for key in ("preview", "days_ahead", "scan_interval")
+                for key in ("days_ahead", "scan_interval")
             }
             for key in ("days_ahead", "scan_interval"):
                 self._pending_settings[key] = int(self._pending_settings[key])

@@ -2,7 +2,9 @@
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -43,6 +45,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_options_updated))
+
+    async def enable_export(_now):
+        coordinator.export_ready = True
+        await coordinator.async_request_refresh()
+
+    @callback
+    def schedule_export(_hass):
+        entry.async_on_unload(async_call_later(hass, 120, enable_export))
+
+    entry.async_on_unload(async_at_started(hass, schedule_export))
     return True
 
 

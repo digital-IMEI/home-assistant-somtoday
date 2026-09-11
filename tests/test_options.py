@@ -90,7 +90,7 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
         "lesson_prefix": "{student} · ",
         "holiday_title": "{student} · {holiday}",
     }
-    assert result["data"]["preview"] is False
+    assert "preview" not in result["data"]
 
 
 @pytest.mark.asyncio

@@ -46,12 +46,11 @@
       },
       "settings": {
         "title": "Calendar export",
-        "description": "Choose the exports for {student}. Preview, days ahead and interval apply to the whole account. Preview does not write to any calendar.",
+        "description": "Choose the exports for {student}. Days ahead and interval apply to the whole account. Enabled exports write to the selected calendars. Write permissions are required. Start with 1 day to verify the result.",
         "data": {
           "enable_day": "Enable school-day appointment",
           "enable_lessons": "Enable individual lesson appointments",
           "enable_holidays": "Enable published holiday appointments",
-          "preview": "Preview only — no calendar writes",
           "days_ahead": "Days ahead (1–30)",
           "scan_interval": "Update interval, minutes (5–120)"
         }
