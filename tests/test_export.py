@@ -77,7 +77,7 @@ class DelayedCalendar(FakeCalendar):
         self.hidden = []
     async def async_get_events(self, hass, start, end):
         self.reads += 1
-        if self.reads >= 3:
+        if self.reads >= 2:
             self.events.extend(self.hidden)
             self.hidden.clear()
         return list(self.events)
@@ -163,22 +163,61 @@ async def test_timeout_after_remote_create_recovers_without_duplicate_after_rest
 
 
 @pytest.mark.asyncio
-async def test_successful_delayed_create_waits_and_recovers_without_duplicate(monkeypatch):
+async def test_successful_delayed_create_completes_and_recovers_without_duplicate(monkeypatch):
     calendar = DelayedCalendar()
     store = MemoryStore()
     sync = synchronizer(calendar, monkeypatch, store)
     targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
     desired = desired_events([lesson()], {"lesson_calendar": "calendar.family"}, "a", START, END)
 
-    waiting = await sync.run(desired, targets, START, END, False)
-    assert waiting["mode"] == "waiting"
-    assert waiting["pending"] == 1
+    accepted = await sync.run(desired, targets, START, END, False)
+    assert accepted["mode"] == "enabled"
+    assert accepted["pending"] == 0
+    assert accepted["awaiting_visibility"] == 1
     assert calendar.creates == 1
 
     completed = await sync.run(desired, targets, START, END, False)
     assert completed["mode"] == "enabled"
     assert completed["unchanged"] == 1
     assert calendar.creates == 1
+
+
+@pytest.mark.asyncio
+async def test_delayed_replacement_removes_old_event_after_confirmed_write(monkeypatch):
+    calendar = DelayedCalendar()
+    sync = synchronizer(calendar, monkeypatch)
+    targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
+    old_desired = desired_events(
+        [lesson()], {"lesson_calendar": "calendar.family"}, "a", START, END
+    )
+    old_value = next(iter(old_desired.values()))
+    calendar.events.append(
+        SimpleNamespace(
+            uid="old",
+            start=old_value["dtstart"],
+            end=old_value["dtend"],
+            start_datetime_local=old_value["dtstart"],
+            summary=old_value["summary"],
+            description=marker("test", "a:lesson:1"),
+            location=old_value["location"],
+            recurrence_id=None,
+            rrule=None,
+        )
+    )
+    changed = desired_events(
+        [lesson(hour=11)],
+        {"lesson_calendar": "calendar.family"},
+        "a",
+        START,
+        END,
+    )
+
+    result = await sync.run(changed, targets, START, END, False)
+
+    assert result["mode"] == "enabled"
+    assert result["replace"] == 1
+    assert calendar.events == []
+    assert len(calendar.hidden) == 1
 
 
 @pytest.mark.asyncio
@@ -198,7 +237,8 @@ async def test_legacy_uncertain_write_becomes_waiting_without_retry(monkeypatch)
     assert result["mode"] == "waiting"
     assert result["pending"] == 1
     assert calendar.creates == 0
-    assert isinstance(next(iter(store.data.values())), str)
+    assert isinstance(next(iter(store.data.values())), dict)
+    assert next(iter(store.data.values()))["accepted"] is False
 
 
 @pytest.mark.asyncio
@@ -279,7 +319,7 @@ async def test_holiday_uses_all_day_action_fields(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_multiple_creates_use_one_initial_and_one_verification_read(monkeypatch):
+async def test_multiple_creates_use_only_one_calendar_read(monkeypatch):
     calendar = FakeCalendar()
     sync = synchronizer(calendar, monkeypatch)
     targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
@@ -294,7 +334,7 @@ async def test_multiple_creates_use_one_initial_and_one_verification_read(monkey
     await sync.run(desired, targets, START, END, False)
 
     assert calendar.creates == 3
-    assert calendar.reads == 2
+    assert calendar.reads == 1
 
 
 @pytest.mark.asyncio

@@ -142,9 +142,10 @@ no extra binary sensor is added.
    ```
 
 Somtoday automatically uses `google.create_event` for Google Calendar entities and
-`calendar.create_event` for other writable calendar integrations. Google may take up to
-15 minutes to return a newly created event through Home Assistant's local calendar cache;
-Somtoday records the write as pending and does not create a duplicate while it waits.
+`calendar.create_event` for other writable calendar integrations. Google may take time to
+return a newly created event through Home Assistant's local calendar cache. A successful
+write is completed immediately: Somtoday records it persistently, removes an outdated
+version straight away and does not create a duplicate while HA's cache catches up.
 
 ## Synchronization behavior and limits
 
@@ -158,20 +159,23 @@ Somtoday records the write as pending and does not create a duplicate while it w
   and active are exported; homework and personal appointments are not lesson exports.
 - An opaque marker in the description identifies managed events. Do not remove that marker.
   Ordinary appointments and other children's disabled outputs are left alone.
-- Identical events are not recreated. Changed events are **replaced**: first create and
-  verify the new version, then delete the old one. Google Calendar's HA entity currently
-  lacks an update operation. Brief overlap is possible; the event ID changes. Do not attach
+- Identical events are not recreated. Changed events are **replaced**: the new version is
+  created first and the old one is deleted as soon as the write action succeeds. Google
+  Calendar's HA entity currently lacks an update operation. The event ID changes. Do not attach
   guests, custom reminders or personal notes to managed events; those edits are not preserved.
-- Each target calendar is queried once before reconciliation and, only when writes occur,
-  once afterwards for the whole batch. The number of agenda reads therefore no longer grows
-  with the number of lessons or holidays being created.
+- Each target calendar is queried only once per synchronization. A slow provider cache is not
+  queried again immediately after writing and therefore cannot hold up reconciliation. After
+  a successful batch, Somtoday requests one delayed `homeassistant.update_entity` refresh in
+  the background so HA can pick up provider changes sooner without blocking the export.
 - Cancelled/removed lessons and empty school days remove corresponding managed events
   inside the current synchronization window. Past days are left intact. A failed source fetch
   or incomplete pagination prevents synchronization.
 - **Changing or disabling a destination does not clean the old calendar.** Remove old
   exported events manually if needed. Reducing the look-ahead leaves events beyond the new
   boundary unchanged. Removing the integration also leaves exported events in place.
-- If a calendar write times out, the integration records the uncertain operation persistently.
+- Successful writes may temporarily report `awaiting_visibility` in the diagnostic sensor while
+  Home Assistant still returns a stale provider cache. This does not delay or fail synchronization.
+  If a calendar write times out, the integration records the uncertain operation persistently.
   It waits until that event is visible before retrying, to avoid duplicate creation after restart.
   If it never becomes visible, synchronization needs investigation; do not repeatedly
   reinstall or edit HA storage. After verifying that the destination contains no matching

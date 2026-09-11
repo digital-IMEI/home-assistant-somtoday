@@ -12,6 +12,7 @@ from .export import marker, same_event
 
 PENDING_TIMEOUT = timedelta(hours=1)
 CREATE_EVENT_SERVICE = "create_event"
+REFRESH_DELAY_SECONDS = 5
 
 
 def definitely_rejected(error):
@@ -42,9 +43,22 @@ class CalendarSync:
         self.store = Store(hass, 1, f"somtoday_sync_{entry.entry_id}")
         self.pending = None
 
-    async def _mark_pending(self, key):
+    async def _mark_pending(self, key, *, accepted=False):
         """Persist a write before sending it to the calendar provider."""
-        self.pending[key] = datetime.now(UTC).isoformat()
+        self.pending[key] = {
+            "created": datetime.now(UTC).isoformat(),
+            "accepted": accepted,
+        }
+        await self.store.async_save(self.pending)
+
+    async def _confirm_pending(self, key):
+        """Record that HA returned successfully from the provider write."""
+        value = self.pending.get(key, {})
+        created = value.get("created") if isinstance(value, dict) else value
+        self.pending[key] = {
+            "created": created or datetime.now(UTC).isoformat(),
+            "accepted": True,
+        }
         await self.store.async_save(self.pending)
 
     async def _clear_pending(self, key):
@@ -96,6 +110,8 @@ class CalendarSync:
     async def _pending_is_expired(self, key):
         """Migrate old pending records and detect writes that never appeared."""
         value = self.pending[key]
+        if isinstance(value, dict):
+            value = value.get("created")
         try:
             created = datetime.fromisoformat(value) if isinstance(value, str) else None
         except ValueError:
@@ -107,6 +123,39 @@ class CalendarSync:
             created = created.replace(tzinfo=UTC)
         return datetime.now(UTC) - created > PENDING_TIMEOUT
 
+    def _pending_was_accepted(self, key):
+        """Return whether HA confirmed the write action completed successfully."""
+        value = self.pending.get(key)
+        return isinstance(value, dict) and value.get("accepted") is True
+
+    async def _delayed_entity_refresh(self, target):
+        """Request one public HA entity refresh after provider propagation time."""
+        await asyncio.sleep(REFRESH_DELAY_SECONDS)
+        try:
+            await self.hass.services.async_call(
+                "homeassistant",
+                "update_entity",
+                {"entity_id": target},
+                blocking=True,
+            )
+        except HomeAssistantError:
+            # Refresh is only an optimization; the next normal sync still verifies.
+            return
+
+    def _schedule_entity_refresh(self, target):
+        """Schedule a refresh without delaying the Somtoday coordinator update."""
+        coroutine = self._delayed_entity_refresh(target)
+        if hasattr(self.entry, "async_create_background_task"):
+            self.entry.async_create_background_task(
+                self.hass,
+                coroutine,
+                f"somtoday-calendar-refresh-{target}",
+            )
+        elif hasattr(self.hass, "async_create_task"):
+            self.hass.async_create_task(coroutine)
+        else:
+            coroutine.close()
+
     async def run(self, desired, targets, start, end, preview):
         async with self.lock:
             if self.pending is None:
@@ -117,6 +166,7 @@ class CalendarSync:
                 "delete": 0,
                 "unchanged": 0,
                 "pending": 0,
+                "awaiting_visibility": 0,
             }
             for target in sorted(targets):
                 entity = target_entity(self.hass, target)
@@ -130,7 +180,7 @@ class CalendarSync:
                         owned.setdefault(description, []).append(event)
                 expected = {marker(self.entry.entry_id, key): value
                             for (calendar, key), value in desired.items() if calendar == target}
-                staged = []
+                wrote = False
                 for tag, value in expected.items():
                     existing = owned.pop(tag, [])
                     pending_key = target + "|" + tag
@@ -147,7 +197,10 @@ class CalendarSync:
                                     "Calendar write was accepted but did not become "
                                     "visible within one hour; check the target calendar"
                                 )
-                            counts["pending"] += 1
+                            if self._pending_was_accepted(pending_key):
+                                counts["awaiting_visibility"] += 1
+                            else:
+                                counts["pending"] += 1
                             continue
                     if exact:
                         counts["unchanged"] += 1
@@ -163,33 +216,21 @@ class CalendarSync:
                                 if definitely_rejected(err):
                                     await self._clear_pending(pending_key)
                                 raise
-                            staged.append((tag, value, existing, pending_key))
+                            # A successful blocking action means the provider accepted
+                            # the event. Do not wait for a potentially stale HA cache.
+                            await self._confirm_pending(pending_key)
+                            counts["awaiting_visibility"] += 1
+                            wrote = True
+                            for old in existing:
+                                await entity.async_delete_event(old.uid)
                             continue
                     for old in existing:
                         if exact is not None and old.uid == exact.uid:
                             continue
                         if not preview:
                             await entity.async_delete_event(old.uid)
-                if staged:
-                    # Calendar providers can be slow to query. Verify the complete
-                    # batch with one refresh instead of one query per created event.
-                    refreshed = await entity.async_get_events(self.hass, start, end)
-                    for tag, value, existing, pending_key in staged:
-                        exact = next(
-                            (
-                                event
-                                for event in refreshed
-                                if event.description == tag and same_event(event, value)
-                            ),
-                            None,
-                        )
-                        if exact is None:
-                            counts["pending"] += 1
-                            continue
-                        await self._clear_pending(pending_key)
-                        for old in existing:
-                            if old.uid != exact.uid:
-                                await entity.async_delete_event(old.uid)
+                if wrote:
+                    self._schedule_entity_refresh(target)
                 for obsolete in owned.values():
                     for old in obsolete:
                         # Preserve past events and events outside the configured window.
@@ -204,6 +245,6 @@ class CalendarSync:
             status = {"mode": mode, **counts}
             if mode == "waiting":
                 status["reason"] = (
-                    "Calendar accepted a write; waiting for the event to become visible"
+                    "A calendar write had an uncertain outcome; waiting for visibility"
                 )
             return status
