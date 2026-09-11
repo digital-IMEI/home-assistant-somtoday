@@ -34,7 +34,7 @@ def test_each_child_has_lesson_and_school_day_calendar_entities():
             },
         }
     )
-    entry = SimpleNamespace(entry_id="entry")
+    entry = SimpleNamespace(entry_id="entry", options={})
 
     schedule = SomtodayCalendar(coordinator, entry, student, legacy=True)
     school_day = SomtodaySchoolDayCalendar(coordinator, entry, student, legacy=True)

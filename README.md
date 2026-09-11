@@ -92,7 +92,26 @@ exports before upgrading.
 All outputs can use the same family calendar. Identity includes account, child, output
 type and source appointment/day, so siblings and output types remain separate.
 
-### Google Calendar destination
+### Automatic school-day title
+
+Optional, disabled by default and configured separately for each child. When enabled,
+all active timetable appointments on a day must have exactly the same non-empty title
+(ignoring surrounding whitespace). Breaks and cancelled appointments do not count.
+The shared title then replaces the normal school-day title in both the HA Schooldag
+calendar and the school-day export. Individual lessons and holidays are unchanged.
+
+Text before the first underscore is removed; remaining underscores become spaces,
+repeated whitespace is collapsed and capitalization is preserved. For example,
+`O&O_GaiaZoo_excursie` becomes `GaiaZoo excursie`. `Sportdag` remains `Sportdag`.
+The activity title replaces the entire title, including any configured child-name prefix;
+calendar entity names still include the child name. Different or missing titles, or an
+empty result after formatting, retain the normal title. A single appointment also qualifies.
+This detects a shared title, not a confirmed excursion or special day; a day with only
+one subject may qualify too. Begin/end times and event ownership do not change.
+You can use the HA Schooldag calendar's event title in existing calendar-trigger automations;
+no extra binary sensor is added.
+
+### Google Calendar destination setup
 
 1. Add Home Assistant's built-in
    [Google Calendar integration](https://www.home-assistant.io/integrations/google/) and

@@ -44,3 +44,26 @@ def school_day_bounds(
         for day, times in grouped.items()
     }
 
+
+def automatic_day_titles(appointments):
+    """Use a shared full source title, never infer whether a day is special."""
+    grouped = defaultdict(list)
+    for item in appointments:
+        if not is_active_school_appointment(item):
+            continue
+        try:
+            day = parse_datetime(item["beginDatumTijd"]).date().isoformat()
+        except (KeyError, TypeError, ValueError):
+            continue
+        grouped[day].append(str(item.get("titel") or "").strip())
+    result = {}
+    for day, titles in grouped.items():
+        if not titles or not titles[0] or len(set(titles)) != 1:
+            continue
+        title = titles[0]
+        if "_" in title:
+            title = title.split("_", 1)[1]
+        title = " ".join(title.replace("_", " ").split())
+        if title:
+            result[day] = title
+    return result

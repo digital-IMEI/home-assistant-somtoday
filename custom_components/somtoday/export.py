@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from hashlib import sha256
 
-from .models import is_active_school_appointment, parse_datetime, school_day_bounds
+from .models import automatic_day_titles, is_active_school_appointment, parse_datetime, school_day_bounds
 
 
 def item_id(item):
@@ -46,10 +46,11 @@ def desired_events(appointments, options, student, start, end):
         if start <= begin < end:
             active.append(item)
     if target := options.get("day_calendar"):
+        titles = automatic_day_titles(active) if options.get("automatic_day_title", False) else {}
         for day, (begin, finish) in school_day_bounds(active).items():
             result[(target, f"{student}:day:{day}")] = {
                 "dtstart": begin, "dtend": finish,
-                "summary": options.get("day_title", "School"),
+                "summary": titles.get(day, options.get("day_title", "School")),
                 "location": "",
             }
     if target := options.get("lesson_calendar"):

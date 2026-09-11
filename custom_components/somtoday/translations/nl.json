@@ -51,8 +51,12 @@
           "enable_day": "Enable school-day appointment",
           "enable_lessons": "Enable individual lesson appointments",
           "enable_holidays": "Enable published holiday appointments",
+          "automatic_day_title": "Automatic school-day title",
           "days_ahead": "Days ahead (1–30)",
           "scan_interval": "Update interval, minutes (5–120)"
+        },
+        "data_description": {
+          "automatic_day_title": "Use the shared title when all active timetable appointments on a day have the same non-empty title. Breaks and cancelled appointments are ignored. Remove text before the first underscore and replace remaining underscores with spaces: O&O_GaiaZoo_excursie becomes GaiaZoo excursie. Otherwise keep the normal school-day title. Applies to this child's HA school-day calendar and school-day export; it does not identify excursions."
         }
       },
       "destinations": {

@@ -85,6 +85,7 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
     assert result["data"]["exports"]["a"] == {
         "day_calendar": "calendar.family",
         "lesson_calendar": "",
+        "automatic_day_title": False,
         "holiday_calendar": "",
         "day_title": "School · {student}",
         "lesson_prefix": "{student} · ",
@@ -126,6 +127,7 @@ async def test_disabling_both_exports_saves_without_destination_step():
     assert result["data"]["exports"]["a"] == {
         "day_calendar": "",
         "lesson_calendar": "",
+        "automatic_day_title": False,
         "holiday_calendar": "",
         "day_title": "Seth school",
         "lesson_prefix": "Seth · ",

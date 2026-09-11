@@ -245,6 +245,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         options = dict(self.config_entry.options)
         options.pop("preview", None)
         routes = dict(options.get("exports", {}))
+        route["automatic_day_title"] = self._automatic_day_title
         routes[self.student] = route
         options.update(self._pending_settings)
         options["exports"] = routes
@@ -286,6 +287,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     "enable_holidays", default=bool(old.get("holiday_calendar"))
                 ): bool,
                 vol.Required(
+                    "automatic_day_title", default=old.get("automatic_day_title", False)
+                ): bool,
+                vol.Required(
                     "days_ahead", default=old.get("days_ahead", 14)
                 ): NumberSelector(NumberSelectorConfig(min=1, max=30, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Required(
@@ -304,6 +308,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             self._enable_day = user_input["enable_day"]
             self._enable_lessons = user_input["enable_lessons"]
             self._enable_holidays = user_input["enable_holidays"]
+            self._automatic_day_title = user_input.get("automatic_day_title", False)
             self._pending_settings = {
                 key: user_input[key]
                 for key in ("days_ahead", "scan_interval")
