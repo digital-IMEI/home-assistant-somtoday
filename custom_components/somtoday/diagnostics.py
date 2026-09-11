@@ -8,7 +8,7 @@ async def async_get_config_entry_diagnostics(hass, entry):
     data = coordinator.data if coordinator and coordinator.data else {}
     sync = data.get("sync_status", {})
     return {
-        "version": "0.6.0",
+        "version": "0.6.1",
         "source_update_success": coordinator.last_update_success if coordinator else False,
         "student_count": len(data.get("students", [])),
         "days_ahead": entry.options.get("days_ahead", 14),

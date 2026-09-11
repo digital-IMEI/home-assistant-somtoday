@@ -102,7 +102,7 @@ calendar and the school-day export. Individual lessons and holidays are unchange
 
 Text before the first underscore is removed; remaining underscores become spaces,
 repeated whitespace is collapsed and capitalization is preserved. For example,
-`O&O_GaiaZoo_excursie` becomes `GaiaZoo excursie`. `Sportdag` remains `Sportdag`.
+`PREFIX_Special_activity` becomes `Special activity`. `Sports day` remains `Sports day`.
 The activity title replaces the entire title, including any configured child-name prefix;
 calendar entity names still include the child name. Different or missing titles, or an
 empty result after formatting, retain the normal title. A single appointment also qualifies.
