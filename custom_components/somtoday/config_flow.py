@@ -291,7 +291,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 ): bool,
                 vol.Required(
                     "days_ahead", default=old.get("days_ahead", 14)
-                ): NumberSelector(NumberSelectorConfig(min=1, max=30, step=1, mode=NumberSelectorMode.BOX)),
+                ): NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Required(
                     "scan_interval", default=old.get("scan_interval", 15)
                 ): NumberSelector(NumberSelectorConfig(min=5, max=120, step=1, mode=NumberSelectorMode.BOX)),

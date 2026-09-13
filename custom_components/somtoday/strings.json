@@ -52,7 +52,7 @@
           "enable_lessons": "Enable individual lesson appointments",
           "enable_holidays": "Enable published holiday appointments",
           "automatic_day_title": "Automatic school-day title",
-          "days_ahead": "Days ahead (1–30)",
+          "days_ahead": "Days ahead (1–60)",
           "scan_interval": "Update interval, minutes (5–120)"
         },
         "data_description": {

@@ -16,7 +16,7 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 - The account-level **Calendar sync** diagnostic
   sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
   button can explicitly clear an uncertain write after the destination has been repaired.
-- Adjustable look-ahead (1–30 days) and polling (5–120 minutes, default 15).
+- Adjustable look-ahead (1–60 days; default 14) and polling (5–120 minutes, default 15).
 - Default titles include the child's name: `School · Seth`, `Seth · Mathematics`.
 
 ## Installation and updates

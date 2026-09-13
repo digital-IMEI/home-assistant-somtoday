@@ -154,7 +154,7 @@ async def test_holiday_export_has_its_own_calendar_and_title():
             "enable_lessons": False,
             "enable_holidays": True,
             "preview": False,
-            "days_ahead": 30,
+            "days_ahead": 60,
             "scan_interval": 30,
         }
     )
@@ -170,4 +170,4 @@ async def test_holiday_export_has_its_own_calendar_and_title():
     assert result["data"]["exports"]["a"]["holiday_calendar"] == (
         "calendar.school_holidays"
     )
-    assert result["data"]["days_ahead"] == 30
+    assert result["data"]["days_ahead"] == 60
