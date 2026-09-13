@@ -272,6 +272,10 @@ Choose one of these layouts:
 
 Changing layout replaces managed events in the current synchronization window. It does not
 touch ordinary calendar events.
+Changing Somtoday options starts reconciliation immediately. During a full Home Assistant start,
+Somtoday checks destination readiness every five seconds and starts as soon as all configured
+calendars are available. Only an unavailable destination can consume the full two-minute safety
+window before a repair is raised.
 If the optional holiday endpoint becomes unavailable, existing exported holiday events are
 preserved and no absence is inferred. The next valid Somtoday response resumes reconciliation.
 - Multiple children require the API to identify which child each appointment belongs to.

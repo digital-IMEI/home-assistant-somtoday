@@ -2,7 +2,7 @@
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import CoreState, HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers import entity_registry as er
@@ -12,8 +12,21 @@ from .api import SomtodayClient
 from .const import CONF_TOKEN, DOMAIN
 from .coordinator import SomtodayCoordinator
 from .export import item_id
+from .sync import target_entity
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
+STARTUP_CALENDAR_CHECK_SECONDS = 5
+STARTUP_CALENDAR_MAX_WAIT_SECONDS = 120
+
+
+def _configured_calendar_targets(entry: ConfigEntry) -> set[str]:
+    """Return all configured destination calendar entity IDs."""
+    return {
+        target
+        for route in entry.options.get("exports", {}).values()
+        for field in ("day_calendar", "lesson_calendar", "holiday_calendar")
+        if (target := route.get(field))
+    }
 
 
 def _remove_legacy_school_day_sensors(
@@ -46,15 +59,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_options_updated))
 
+    startup_wait = 0
+
     async def enable_export(_now):
+        nonlocal startup_wait
+        startup_wait += STARTUP_CALENDAR_CHECK_SECONDS
+        try:
+            for target in _configured_calendar_targets(entry):
+                target_entity(hass, target)
+        except ValueError:
+            if startup_wait < STARTUP_CALENDAR_MAX_WAIT_SECONDS:
+                entry.async_on_unload(
+                    async_call_later(
+                        hass, STARTUP_CALENDAR_CHECK_SECONDS, enable_export
+                    )
+                )
+                return
         coordinator.export_ready = True
         await coordinator.async_request_refresh()
 
     @callback
     def schedule_export(_hass):
-        entry.async_on_unload(async_call_later(hass, 120, enable_export))
+        entry.async_on_unload(
+            async_call_later(hass, STARTUP_CALENDAR_CHECK_SECONDS, enable_export)
+        )
 
-    entry.async_on_unload(async_at_started(hass, schedule_export))
+    if hass.state is CoreState.running:
+        # An options reload happens after calendar platforms are already ready.
+        # Do not apply the full-HA-start grace period to a normal reconfiguration.
+        coordinator.export_ready = True
+        await coordinator.async_request_refresh()
+    else:
+        entry.async_on_unload(async_at_started(hass, schedule_export))
     return True
 
 

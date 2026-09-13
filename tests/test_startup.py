@@ -3,9 +3,32 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from custom_components.somtoday import async_options_updated
+from custom_components.somtoday import (
+    _configured_calendar_targets,
+    async_options_updated,
+)
 from custom_components.somtoday.const import DOMAIN
 from custom_components.somtoday.coordinator import SomtodayCoordinator
+
+
+def test_configured_calendar_targets_are_unique_and_ignore_disabled_exports():
+    entry = SimpleNamespace(
+        options={
+            "exports": {
+                "a": {
+                    "day_calendar": "calendar.family",
+                    "lesson_calendar": "calendar.family",
+                    "holiday_calendar": "",
+                },
+                "b": {"holiday_calendar": "calendar.holidays"},
+            }
+        }
+    )
+
+    assert _configured_calendar_targets(entry) == {
+        "calendar.family",
+        "calendar.holidays",
+    }
 
 
 @pytest.mark.asyncio
