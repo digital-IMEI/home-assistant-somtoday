@@ -21,7 +21,21 @@ from .api import (
     build_authorize_url,
     generate_pkce,
 )
-from .const import CONF_ORGANIZATION, CONF_PROVIDER, CONF_TOKEN, DOMAIN
+from .const import (
+    CONF_ORGANIZATION,
+    CONF_PROVIDER,
+    CONF_TOKEN,
+    DOMAIN,
+    HOLIDAY_MODE_DAILY,
+    HOLIDAY_MODE_FULL_WEEKS,
+    HOLIDAY_MODE_SCHOOL_DAYS,
+)
+
+HOLIDAY_MODE_CHOICES = {
+    HOLIDAY_MODE_SCHOOL_DAYS: "One event · Somtoday dates",
+    HOLIDAY_MODE_FULL_WEEKS: "One event · include surrounding weekends",
+    HOLIDAY_MODE_DAILY: "One all-day event per Somtoday date",
+}
 
 
 class SomtodayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -327,6 +341,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     "holiday_title": old.get(
                         "holiday_title", "{student} · {holiday}"
                     ),
+                    "holiday_mode": old.get(
+                        "holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS
+                    ),
                 }
             )
 
@@ -373,6 +390,10 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                             "holiday_title",
                             old.get("holiday_title", "{student} · {holiday}"),
                         ),
+                        "holiday_mode": user_input.get(
+                            "holiday_mode",
+                            old.get("holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS),
+                        ),
                     }
                 )
 
@@ -414,6 +435,12 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     default=old.get("holiday_title", "{student} · {holiday}"),
                 )
             ] = vol.All(str, vol.Length(min=1, max=100))
+            schema[
+                vol.Required(
+                    "holiday_mode",
+                    default=old.get("holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS),
+                )
+            ] = vol.In(HOLIDAY_MODE_CHOICES)
         if not choices:
             errors["base"] = "no_writable_calendars"
         return self.async_show_form(

@@ -292,6 +292,51 @@ def test_one_all_day_event_is_created_per_published_holiday():
     assert event["dtend"] == date(2026, 9, 19)
 
 
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        (
+            "school_days",
+            [("a:holiday:autumn-2026", date(2026, 10, 19), date(2026, 10, 24))],
+        ),
+        (
+            "full_weeks",
+            [("a:holiday:autumn-2026", date(2026, 10, 17), date(2026, 10, 26))],
+        ),
+        (
+            "daily",
+            [
+                (
+                    f"a:holiday:autumn-2026:2026-10-{day}",
+                    date(2026, 10, day),
+                    date(2026, 10, day + 1),
+                )
+                for day in range(19, 24)
+            ],
+        ),
+    ],
+)
+def test_holiday_event_layouts(mode, expected):
+    desired = desired_holiday_events(
+        [{
+            "links": [{"id": "autumn-2026"}],
+            "naam": "Autumn holiday",
+            "beginDatum": "2026-10-19",
+            "eindDatum": "2026-10-23",
+        }],
+        {"holiday_calendar": "calendar.family", "holiday_mode": mode},
+        "a",
+        datetime.fromisoformat("2026-10-01T00:00:00+02:00"),
+        datetime.fromisoformat("2026-11-01T00:00:00+01:00"),
+    )
+
+    actual = [
+        (key, event["dtstart"], event["dtend"])
+        for (_, key), event in desired.items()
+    ]
+    assert actual == expected
+
+
 @pytest.mark.asyncio
 async def test_holiday_uses_all_day_action_fields(monkeypatch):
     calendar = FakeCalendar()

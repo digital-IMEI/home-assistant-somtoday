@@ -11,7 +11,7 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
   **Name · Schooldag** with one event from the first lesson start through the last lesson end.
 - Export one event per school day, from the first lesson to the end of the last lesson.
 - Independently export individual active lessons to another calendar, or the same calendar.
-- Export every published Somtoday holiday as one multi-day, all-day event.
+- Export published Somtoday holidays using one of three all-day event layouts.
 - Choose all three destination calendars separately **for each child in the account**.
 - The account-level **Calendar sync** diagnostic
   sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
@@ -154,9 +154,9 @@ version straight away and does not create a duplicate while HA's cache catches u
 
 - Reads from today up to the selected look-ahead boundary. The source may not have
   published that far ahead. It does not fetch historical schedules or promise an entire term.
-- Every published holiday overlapping that window becomes one all-day event. Somtoday's
+- Every published holiday overlapping that window uses the selected holiday layout. Somtoday's
   inclusive final holiday date is converted to the exclusive end date required by calendar
-  providers, so the event covers the complete published range without adding a visible day.
+  providers, so the event covers the intended dates without adding a visible day.
 - School-day events include gaps/tussenuren between the first and last lesson.
   Breaks do not define the boundaries. Only appointments classified as timetable/mandatory
   and active are exported; homework and personal appointments are not lesson exports.
@@ -260,7 +260,18 @@ live availability varies by school and parent/child account.
 
 The same data can be exported through **Configure → Enable published holiday appointments**.
 Choose a destination per child and optionally use `{student}` and `{holiday}` in the title.
-One published range creates one multi-day all-day event—not one event per vacation day.
+Choose one of these layouts:
+
+- **One event · Somtoday dates:** one continuous event from Somtoday's published first date
+  through its published final date. This normally excludes the adjacent weekends. A continuous
+  multi-week event necessarily still covers weekends inside that range.
+- **One event · include surrounding weekends:** expands the published range to the Saturday
+  before it and the Sunday after it.
+- **One all-day event per Somtoday date:** creates a separate all-day event for every date in
+  the published range.
+
+Changing layout replaces managed events in the current synchronization window. It does not
+touch ordinary calendar events.
 If the optional holiday endpoint becomes unavailable, existing exported holiday events are
 preserved and no absence is inferred. The next valid Somtoday response resumes reconciliation.
 - Multiple children require the API to identify which child each appointment belongs to.

@@ -4,6 +4,12 @@ from datetime import date, timedelta
 
 from hashlib import sha256
 
+from .const import (
+    HOLIDAY_MODE_DAILY,
+    HOLIDAY_MODE_FULL_WEEKS,
+    HOLIDAY_MODE_SCHOOL_DAYS,
+    HOLIDAY_MODES,
+)
 from .models import automatic_day_titles, is_active_school_appointment, parse_datetime, school_day_bounds
 
 
@@ -69,10 +75,13 @@ def desired_events(appointments, options, student, start, end):
 
 
 def desired_holiday_events(holidays, options, student, start, end):
-    """Build one all-day event for every published Somtoday holiday range."""
+    """Build all-day events using the selected holiday layout."""
     target = options.get("holiday_calendar")
     if not target:
         return {}
+    mode = options.get("holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS)
+    if mode not in HOLIDAY_MODES:
+        raise ValueError("Invalid holiday event layout; synchronization paused")
     result = {}
     first_day = start.date()
     last_day = end.date()
@@ -93,10 +102,28 @@ def desired_holiday_events(holidays, options, student, start, end):
         summary = options.get("holiday_title", "{student} · {holiday}").replace(
             "{holiday}", name
         )
+        if mode == HOLIDAY_MODE_DAILY:
+            current = begin
+            while current <= inclusive_end:
+                result[(target, f"{student}:holiday:{identifier}:{current}")] = {
+                    "dtstart": current,
+                    "dtend": current + timedelta(days=1),
+                    "summary": summary,
+                    "location": "",
+                }
+                current += timedelta(days=1)
+            continue
+
+        event_begin = begin
+        event_end = inclusive_end
+        if mode == HOLIDAY_MODE_FULL_WEEKS:
+            # Expand to the Saturday before and Sunday after the published range.
+            event_begin -= timedelta(days=(event_begin.weekday() - 5) % 7)
+            event_end += timedelta(days=(6 - event_end.weekday()) % 7)
         result[(target, f"{student}:holiday:{identifier}")] = {
-            "dtstart": begin,
+            "dtstart": event_begin,
             # HA calendar actions use an exclusive end date for all-day events.
-            "dtend": inclusive_end + timedelta(days=1),
+            "dtend": event_end + timedelta(days=1),
             "summary": summary,
             "location": "",
         }

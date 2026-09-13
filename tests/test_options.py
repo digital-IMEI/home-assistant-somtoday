@@ -90,6 +90,7 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
         "day_title": "School · {student}",
         "lesson_prefix": "{student} · ",
         "holiday_title": "{student} · {holiday}",
+        "holiday_mode": "school_days",
     }
     assert "preview" not in result["data"]
 
@@ -132,6 +133,7 @@ async def test_disabling_both_exports_saves_without_destination_step():
         "day_title": "Seth school",
         "lesson_prefix": "Seth · ",
         "holiday_title": "{student} · {holiday}",
+        "holiday_mode": "school_days",
     }
 
 
@@ -160,14 +162,16 @@ async def test_holiday_export_has_its_own_calendar_and_title():
     )
 
     fields = {key.schema for key in destinations["data_schema"].schema}
-    assert fields == {"holiday_calendar", "holiday_title"}
+    assert fields == {"holiday_calendar", "holiday_title", "holiday_mode"}
     result = await flow.async_step_destinations(
         {
             "holiday_calendar": "calendar.school_holidays",
             "holiday_title": "{student} · {holiday}",
+            "holiday_mode": "full_weeks",
         }
     )
     assert result["data"]["exports"]["a"]["holiday_calendar"] == (
         "calendar.school_holidays"
     )
+    assert result["data"]["exports"]["a"]["holiday_mode"] == "full_weeks"
     assert result["data"]["days_ahead"] == 60

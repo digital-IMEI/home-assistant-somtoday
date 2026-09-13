@@ -68,7 +68,11 @@
           "holiday_calendar": "Holidays destination calendar",
           "day_title": "School-day title",
           "lesson_prefix": "Lesson title prefix",
-          "holiday_title": "Holiday title"
+          "holiday_title": "Holiday title",
+          "holiday_mode": "Holiday event layout"
+        },
+        "data_description": {
+          "holiday_mode": "One event · Somtoday dates uses the published first and final school-free date. One event · include surrounding weekends expands that range to the Saturday before and Sunday after. One all-day event per Somtoday date creates a separate event for each published date. A continuous multi-week event also covers weekends inside its date range."
         }
       }
     },
