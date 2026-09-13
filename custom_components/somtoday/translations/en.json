@@ -51,6 +51,7 @@
           "enable_day": "Enable school-day appointment",
           "enable_lessons": "Enable individual lesson appointments",
           "enable_holidays": "Enable published holiday appointments",
+          "enable_assessments": "Export tests to another calendar",
           "automatic_day_title": "Automatic school-day title",
           "days_ahead": "Days ahead (1–60)",
           "scan_interval": "Update interval, minutes (5–120)"
@@ -61,18 +62,21 @@
       },
       "destinations": {
         "title": "Calendar destinations",
-        "description": "Choose destinations for {student}. Available calendars must advertise create and delete support; actual provider permissions are checked when writing. Titles support {student_placeholder}, replaced by the child name. Holiday titles also support {holiday_placeholder}, replaced by Somtoday's holiday name; lesson titles append the subject. Examples: School · {student_placeholder} and {student_placeholder} · {holiday_placeholder}. [Calendar setup and permissions]({help_url}). Changing destinations leaves existing events in the old calendar.",
+        "description": "Choose destinations for {student}. Available calendars must advertise create and delete support; actual provider permissions are checked when writing. Titles support {student_placeholder}, replaced by the child name. Holiday titles also support {holiday_placeholder}. Test titles support {subject_placeholder}, {type_placeholder} and {topic_placeholder}. The read-only Somtoday tests calendar is always created; this destination is only for exporting a copy. [Calendar setup and permissions]({help_url}). Changing destinations leaves existing events in the old calendar.",
         "data": {
           "day_calendar": "School-day destination calendar",
           "lesson_calendar": "Lessons destination calendar",
           "holiday_calendar": "Holidays destination calendar",
+          "assessment_calendar": "Tests destination calendar",
           "day_title": "School-day title",
           "lesson_prefix": "Lesson title prefix",
           "holiday_title": "Holiday title",
-          "holiday_mode": "Holiday event layout"
+          "holiday_mode": "Holiday event layout",
+          "assessment_title": "Test title"
         },
         "data_description": {
-          "holiday_mode": "One event · Somtoday dates uses the published first and final school-free date. One event · include surrounding weekends expands that range to the Saturday before and Sunday after. One all-day event per Somtoday date creates a separate event for each published date. A continuous multi-week event also covers weekends inside its date range."
+          "holiday_mode": "One event · Somtoday dates uses the published first and final school-free date. One event · include surrounding weekends expands that range to the Saturday before and Sunday after. One all-day event per Somtoday date creates a separate event for each published date. A continuous multi-week event also covers weekends inside its date range.",
+          "assessment_title": "Available placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder} and {topic_placeholder}. Only explicit TOETS and GROTE_TOETS study-guide items are exported."
         }
       }
     },

@@ -301,6 +301,10 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     "enable_holidays", default=bool(old.get("holiday_calendar"))
                 ): bool,
                 vol.Required(
+                    "enable_assessments",
+                    default=bool(old.get("assessment_calendar")),
+                ): bool,
+                vol.Required(
                     "automatic_day_title", default=old.get("automatic_day_title", False)
                 ): bool,
                 vol.Required(
@@ -322,6 +326,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             self._enable_day = user_input["enable_day"]
             self._enable_lessons = user_input["enable_lessons"]
             self._enable_holidays = user_input["enable_holidays"]
+            self._enable_assessments = user_input.get("enable_assessments", False)
             self._automatic_day_title = user_input.get("automatic_day_title", False)
             self._pending_settings = {
                 key: user_input[key]
@@ -329,13 +334,19 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             }
             for key in ("days_ahead", "scan_interval"):
                 self._pending_settings[key] = int(self._pending_settings[key])
-            if self._enable_day or self._enable_lessons or self._enable_holidays:
+            if (
+                self._enable_day
+                or self._enable_lessons
+                or self._enable_holidays
+                or self._enable_assessments
+            ):
                 return await self.async_step_destinations()
             return self._save_options(
                 {
                     "day_calendar": "",
                     "lesson_calendar": "",
                     "holiday_calendar": "",
+                    "assessment_calendar": "",
                     "day_title": old.get("day_title", "School · {student}"),
                     "lesson_prefix": old.get("lesson_prefix", "{student} · "),
                     "holiday_title": old.get(
@@ -343,6 +354,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     ),
                     "holiday_mode": old.get(
                         "holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS
+                    ),
+                    "assessment_title": old.get(
+                        "assessment_title", "{student} · {subject} · {type}"
                     ),
                 }
             )
@@ -368,6 +382,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             enabled_fields.append("lesson_calendar")
         if self._enable_holidays:
             enabled_fields.append("holiday_calendar")
+        if self._enable_assessments:
+            enabled_fields.append("assessment_calendar")
 
         if user_input is not None:
             if self.student not in students:
@@ -380,6 +396,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                         "day_calendar": user_input.get("day_calendar", ""),
                         "lesson_calendar": user_input.get("lesson_calendar", ""),
                         "holiday_calendar": user_input.get("holiday_calendar", ""),
+                        "assessment_calendar": user_input.get(
+                            "assessment_calendar", ""
+                        ),
                         "day_title": user_input.get(
                             "day_title", old.get("day_title", "School · {student}")
                         ),
@@ -393,6 +412,13 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                         "holiday_mode": user_input.get(
                             "holiday_mode",
                             old.get("holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS),
+                        ),
+                        "assessment_title": user_input.get(
+                            "assessment_title",
+                            old.get(
+                                "assessment_title",
+                                "{student} · {subject} · {type}",
+                            ),
                         ),
                     }
                 )
@@ -441,6 +467,23 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     default=old.get("holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS),
                 )
             ] = vol.In(HOLIDAY_MODE_CHOICES)
+        if self._enable_assessments:
+            assessment_default = old.get("assessment_calendar")
+            assessment_key = vol.Required("assessment_calendar")
+            if assessment_default in choices:
+                assessment_key = vol.Required(
+                    "assessment_calendar", default=assessment_default
+                )
+            schema[assessment_key] = vol.In(choices)
+            schema[
+                vol.Required(
+                    "assessment_title",
+                    default=old.get(
+                        "assessment_title",
+                        "{student} · {subject} · {type}",
+                    ),
+                )
+            ] = vol.All(str, vol.Length(min=1, max=100))
         if not choices:
             errors["base"] = "no_writable_calendars"
         return self.async_show_form(
@@ -451,6 +494,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 "student": students.get(self.student, self.student),
                 "student_placeholder": "{student}",
                 "holiday_placeholder": "{holiday}",
+                "subject_placeholder": "{subject}",
+                "type_placeholder": "{type}",
+                "topic_placeholder": "{topic}",
                 "help_url": "https://github.com/digital-IMEI/home-assistant-somtoday#calendar-provider-compatibility",
             },
         )

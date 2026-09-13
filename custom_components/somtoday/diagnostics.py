@@ -8,11 +8,27 @@ async def async_get_config_entry_diagnostics(hass, entry):
     data = coordinator.data if coordinator and coordinator.data else {}
     sync = data.get("sync_status", {})
     return {
-        "version": "0.7.0-beta.3",
+        "version": "0.8.0-beta.1",
         "source_update_success": coordinator.last_update_success if coordinator else False,
         "student_count": len(data.get("students", [])),
         "days_ahead": entry.options.get("days_ahead", 14),
         "scan_interval": entry.options.get("scan_interval", 15),
         "sync_counts": {key: sync[key] for key in ("create", "replace", "delete", "unchanged", "pending", "awaiting_visibility") if isinstance(sync.get(key), int)},
         "holiday_available_count": sum(value is not None for value in data.get("holidays_by_student", {}).values()),
+        "assessment_available_count": sum(
+            value is not None
+            for value in data.get("assessments_by_student", {}).values()
+        ),
+        "dated_assessment_count": sum(
+            value.get("start") is not None
+            for values in data.get("assessments_by_student", {}).values()
+            if values is not None
+            for value in values
+        ),
+        "undated_assessment_count": sum(
+            value.get("start") is None
+            for values in data.get("assessments_by_student", {}).values()
+            if values is not None
+            for value in values
+        ),
     }

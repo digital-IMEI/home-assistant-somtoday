@@ -14,7 +14,13 @@ from .coordinator import SomtodayCoordinator
 from .export import item_id
 from .sync import target_entity
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.CALENDAR,
+    Platform.EVENT,
+    Platform.SENSOR,
+]
 STARTUP_CALENDAR_CHECK_SECONDS = 5
 STARTUP_CALENDAR_MAX_WAIT_SECONDS = 120
 
@@ -24,7 +30,12 @@ def _configured_calendar_targets(entry: ConfigEntry) -> set[str]:
     return {
         target
         for route in entry.options.get("exports", {}).values()
-        for field in ("day_calendar", "lesson_calendar", "holiday_calendar")
+        for field in (
+            "day_calendar",
+            "lesson_calendar",
+            "holiday_calendar",
+            "assessment_calendar",
+        )
         if (target := route.get(field))
     }
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import asyncio
 from datetime import date
 import hashlib
 import secrets
@@ -135,6 +136,32 @@ class SomtodayClient:
         """Fetch published holidays; an inaccessible endpoint is not an empty list."""
         from urllib.parse import quote
         return await self._get_all("/rest/v1/vakanties/leerling/" + quote(student_id, safe=""))
+
+    async def assessments(
+        self, student_id: str, start: date
+    ) -> list[dict[str, Any]]:
+        """Fetch test and homework assignments from all three assignment scopes."""
+        common = [
+            ("begintNaOfOp", start.isoformat()),
+            ("geenDifferentiatieOfGedifferentieerdVoorLeerling", student_id),
+            ("additional", "swigemaaktVinkjes"),
+            ("additional", "huiswerkgemaakt"),
+            ("additional", "lesgroep"),
+        ]
+        sources = (
+            ("appointment", "/rest/v1/studiewijzeritemafspraaktoekenningen"),
+            ("day", "/rest/v1/studiewijzeritemdagtoekenningen"),
+            ("week", "/rest/v1/studiewijzeritemweektoekenningen"),
+        )
+        await self.ensure_token()
+        pages = await asyncio.gather(
+            *(self._get_all(path, params=common) for _, path in sources)
+        )
+        result = []
+        for (kind, _), items in zip(sources, pages, strict=True):
+            for item in items:
+                result.append({**item, "_somtoday_assignment_kind": kind})
+        return result
 
     async def appointments(self, start: date, end: date) -> list[dict[str, Any]]:
         """Return schedule appointments in the requested date range."""

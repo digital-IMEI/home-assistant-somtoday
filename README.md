@@ -12,7 +12,8 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 - Export one event per school day, from the first lesson to the end of the last lesson.
 - Independently export individual active lessons to another calendar, or the same calendar.
 - Export published Somtoday holidays using one of three all-day event layouts.
-- Choose all three destination calendars separately **for each child in the account**.
+- View explicit Somtoday tests per child, automate reminders and optionally export them.
+- Choose all four destination calendars separately **for each child in the account**.
 - The account-level **Calendar sync** diagnostic
   sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
   button can explicitly clear an uncertain write after the destination has been repaired.
@@ -79,11 +80,13 @@ and other schools' identity providers may differ.
 8. Once the one-day test is correct, increase Days ahead as needed. Interval and days-ahead
    apply to the whole account. Options reload the integration; no HA restart is needed.
 
-On startup, exports wait until Home Assistant has started, followed by a two-minute grace
-period for destination calendars. The source calendars remain available. Calendar sync shows
-`starting` without a Repairs warning during that period, then refreshes automatically.
-Persistent failures after that period still produce a Repairs warning. Integration reloads
-also receive the two-minute grace period; unloading cancels the scheduled callback.
+On a full Home Assistant start, Somtoday waits until HA is running and checks configured
+destination calendars every five seconds. Reconciliation begins as soon as they are ready;
+only an unavailable destination can consume the two-minute maximum startup grace period.
+The source calendars remain available and Calendar sync shows `starting` without a Repairs
+warning while waiting. A normal options reload starts reconciliation immediately because the
+other calendar platforms are already running. Persistent destination failures still produce a
+Repairs warning.
 Rotated Somtoday tokens are saved without reloading the integration, so calendar entities do
 not briefly become unavailable during normal polling. Changing Configure options still reloads
 the integration once so the new settings and entities are applied.
@@ -278,6 +281,50 @@ calendars are available. Only an unavailable destination can consume the full tw
 window before a repair is raised.
 If the optional holiday endpoint becomes unavailable, existing exported holiday events are
 preserved and no absence is inferred. The next valid Somtoday response resumes reconciliation.
+
+## Tests and reminders
+
+Each child receives three assessment-focused entities in addition to the timetable and
+school-day calendars:
+
+- **Tests** calendar (`mdi:clipboard-text-clock-outline`) with Somtoday items explicitly typed
+  `TOETS` or `GROTE_TOETS`;
+- **Next test** timestamp sensor with subject, type, topic, days remaining, all-day state,
+  completed state and the number of test assignments for which Somtoday has not published an
+  exact date;
+- **Test change** event entity (`added`, `changed`, `removed`) for automations that should react
+  when the school changes an assignment.
+
+The integration never classifies an item by searching its title for words such as “test”.
+Homework is excluded. An appointment assignment is timed only when its date/time and subject
+match an actual timetable lesson exactly. Other dated assignments become all-day events. A
+week assignment without an exact date is counted and can trigger a change event, but is not put
+on a guessed calendar date.
+
+The Somtoday tests calendar is read-only and updates its active HA calendar subscribers after
+every successful Somtoday refresh. It is available when the study-guide endpoints are
+available. To copy tests to Google Calendar, Outlook or another writable provider, enable
+**Export tests to another calendar** per child. The export title supports `{student}`,
+`{subject}`, `{type}` and `{topic}`.
+
+Use the HA tests calendar for reminders. For example, this triggers two days before each dated
+test; select your own notification action in the UI:
+
+```yaml
+triggers:
+  - trigger: calendar
+    event: start
+    entity_id: calendar.seth_toetsen
+    offset: "-2 00:00:00"
+mode: queued
+```
+
+For an all-day test this fires at midnight two days earlier. Use `-1 06:00:00` to fire at
+18:00 on the preceding day. Calendar triggers are preferable to watching the calendar's `on`
+state because attributes represent only the next event. Home Assistant normally reads calendar
+triggers every 15 minutes, so do not create a test event less than 15 minutes before it starts
+when validating a reminder.
+
 - Multiple children require the API to identify which child each appointment belongs to.
   If this metadata is missing, the integration pauses rather than mixing school days.
   Newly added children require an integration reload to create their entities.
@@ -288,7 +335,8 @@ preserved and no absence is inferred. The next valid Somtoday response resumes r
 
 Tokens are stored in the HA configuration, never in this repository. Treat backups as private.
 Export sends titles, lesson times, child names and locations to your chosen calendar provider.
-Grades, messages and homework are not fetched by this version.
+Grades and messages are not fetched by this version. Ordinary homework may be present in the
+study-guide response used to find tests, but is filtered out and is not exposed or exported.
 
 For an issue include integration/HA version, browser, school organization, selected output
 mode, sanitized error and whether source times match. Redact names, locations and all auth data.

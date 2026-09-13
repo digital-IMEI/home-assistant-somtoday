@@ -5,6 +5,7 @@ import pytest
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.somtoday.export import (
+    desired_assessment_events,
     desired_events,
     desired_holiday_events,
     marker,
@@ -290,6 +291,61 @@ def test_one_all_day_event_is_created_per_published_holiday():
     assert event["summary"] == "Seth · Herfstvakantie"
     assert event["dtstart"] == date(2026, 9, 12)
     assert event["dtend"] == date(2026, 9, 19)
+
+
+def test_only_dated_assessments_are_exported_with_placeholders():
+    desired = desired_assessment_events(
+        [
+            {
+                "id": "known",
+                "start": date(2026, 9, 15),
+                "end": date(2026, 9, 16),
+                "subject": "Wiskunde",
+                "type_label": "Grote toets",
+                "topic": "Hoofdstuk 3",
+            },
+            {
+                "id": "unknown",
+                "start": None,
+                "end": None,
+                "subject": "Engels",
+                "type_label": "Toets",
+                "topic": "Words",
+            },
+        ],
+        {
+            "assessment_calendar": "calendar.tests",
+            "assessment_title": "Seth · {subject} · {type} · {topic}",
+        },
+        "a",
+    )
+
+    assert list(desired) == [("calendar.tests", "a:assessment:known")]
+    assert next(iter(desired.values()))["summary"] == (
+        "Seth · Wiskunde · Grote toets · Hoofdstuk 3"
+    )
+
+
+def test_assessment_title_removes_empty_optional_topic_separator():
+    desired = desired_assessment_events(
+        [
+            {
+                "id": "known",
+                "start": date(2026, 9, 15),
+                "end": date(2026, 9, 16),
+                "subject": "Wiskunde",
+                "type_label": "Toets",
+                "topic": "",
+            }
+        ],
+        {
+            "assessment_calendar": "calendar.tests",
+            "assessment_title": "Seth · {subject} · {topic} · {type}",
+        },
+        "a",
+    )
+
+    assert next(iter(desired.values()))["summary"] == "Seth · Wiskunde · Toets"
 
 
 @pytest.mark.parametrize(

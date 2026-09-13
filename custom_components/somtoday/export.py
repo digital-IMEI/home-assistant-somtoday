@@ -130,6 +130,37 @@ def desired_holiday_events(holidays, options, student, start, end):
     return result
 
 
+def desired_assessment_events(assessments, options, student):
+    """Build export events only for assessments with a known date."""
+    target = options.get("assessment_calendar")
+    if not target:
+        return {}
+    result = {}
+    template = options.get(
+        "assessment_title", "{student} · {subject} · {type}"
+    )
+    for value in assessments:
+        if value.get("start") is None or value.get("end") is None:
+            continue
+        summary = template
+        for field in ("subject", "type_label", "topic"):
+            placeholder = "type" if field == "type_label" else field
+            summary = summary.replace("{" + placeholder + "}", str(value.get(field) or ""))
+        # Avoid an empty separator when an optional placeholder (such as topic)
+        # has no value in Somtoday.
+        summary = " · ".join(
+            part.strip() for part in summary.split("·") if part.strip()
+        )
+        summary = summary.strip().strip("·:- ") or "Toets"
+        result[(target, f"{student}:assessment:{value['id']}")] = {
+            "dtstart": value["start"],
+            "dtend": value["end"],
+            "summary": summary,
+            "location": "",
+        }
+    return result
+
+
 def marker(entry_id, key):
     return scope_marker(entry_id, ":".join(key.split(":")[:2])) + sha256(key.encode()).hexdigest() + "]"
 

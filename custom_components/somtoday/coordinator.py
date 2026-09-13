@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from typing import Any
 
@@ -15,7 +16,9 @@ from homeassistant.helpers import issue_registry as ir
 from .api import SomtodayApiError, SomtodayClient, SomtodayAuthenticationError
 from .const import CONF_TOKEN, DOMAIN, SCHEDULE_DAYS, UPDATE_INTERVAL
 from .models import school_day_bounds
+from .assessments import normalize_assessments
 from .export import (
+    desired_assessment_events,
     desired_events,
     desired_holiday_events,
     item_id,
@@ -44,6 +47,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.calendar_sync = CalendarSync(hass, entry)
         self._holidays = {}
         self._holidays_checked = None
+        self._assessment_assignments = {}
         self.export_ready = False
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -68,6 +72,34 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         holiday_data[student_id] = None
                 self._holidays = holiday_data
                 self._holidays_checked = now
+            student_ids = [item_id(pupil) for pupil in students]
+            assessment_results = await asyncio.gather(
+                *(
+                    self.client.assessments(student_id, start)
+                    for student_id in student_ids
+                ),
+                return_exceptions=True,
+            )
+            assessment_data = {
+                student_id: (
+                    None if isinstance(result, SomtodayApiError) else result
+                )
+                for student_id, result in zip(
+                    student_ids, assessment_results, strict=True
+                )
+            }
+            unexpected = next(
+                (
+                    result
+                    for result in assessment_results
+                    if isinstance(result, BaseException)
+                    and not isinstance(result, SomtodayApiError)
+                ),
+                None,
+            )
+            if unexpected is not None:
+                raise unexpected
+            self._assessment_assignments = assessment_data
         except SomtodayAuthenticationError as err:
             raise ConfigEntryAuthFailed("Somtoday sign-in expired; sign in again") from err
         except SomtodayApiError as err:
@@ -82,6 +114,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         sync_status = {"mode": "disabled"}
         by_student = {}
         days_by_student = {}
+        assessments_by_student = {}
         prepared = False
         try:
             desired = {}
@@ -99,12 +132,14 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     ("day_title", "School · {student}"),
                     ("lesson_prefix", "{student} · "),
                     ("holiday_title", "{student} · {holiday}"),
+                    ("assessment_title", "{student} · {subject} · {type}"),
                 ):
                     route[field] = route.get(field, default).replace("{student}", name)
                 for field, kind in (
                     ("day_calendar", "day"),
                     ("lesson_calendar", "lesson"),
                     ("holiday_calendar", "holiday"),
+                    ("assessment_calendar", "assessment"),
                 ):
                     if target := route.get(field):
                         targets.setdefault(target, set()).add(scope_marker(self.entry.entry_id, f"{student}:{kind}"))
@@ -126,6 +161,29 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     target = route["holiday_calendar"]
                     targets.get(target, set()).discard(
                         scope_marker(self.entry.entry_id, f"{student}:holiday")
+                    )
+                assignments = self._assessment_assignments.get(student)
+                if assignments is None:
+                    assessments_by_student[student] = None
+                    if target := route.get("assessment_calendar"):
+                        targets.get(target, set()).discard(
+                            scope_marker(
+                                self.entry.entry_id, f"{student}:assessment"
+                            )
+                        )
+                else:
+                    normalized = normalize_assessments(
+                        assignments,
+                        selected,
+                        start,
+                        start
+                        + timedelta(
+                            days=self.entry.options.get("days_ahead", 14)
+                        ),
+                    )
+                    assessments_by_student[student] = normalized
+                    desired.update(
+                        desired_assessment_events(normalized, route, student)
                     )
             prepared = True
             if targets and not self.export_ready:
@@ -173,4 +231,5 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 student: None if items is None else holiday_status(items, start)
                 for student, items in self._holidays.items()
             },
+            "assessments_by_student": assessments_by_student,
         }

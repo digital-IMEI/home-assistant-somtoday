@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .coordinator import SomtodayCoordinator
+from .assessments import assessment_description, assessment_summary
 from .models import automatic_day_titles, parse_datetime
 from .export import item_id
 
@@ -27,6 +29,7 @@ async def async_setup_entry(
             (
                 SomtodayCalendar(coordinator, entry, student, legacy),
                 SomtodaySchoolDayCalendar(coordinator, entry, student, legacy),
+                SomtodayAssessmentCalendar(coordinator, entry, student),
             )
         )
     async_add_entities(entities)
@@ -47,12 +50,17 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
 
     @property
     def event(self) -> CalendarEvent | None:
-        now = datetime.now().astimezone()
+        now = dt_util.now()
         events = self._events(now, None)
         return next((event for event in events if event.end > now), None)
 
     async def async_get_events(self, hass, start_date, end_date):
         return self._events(start_date, end_date)
+
+    def _handle_coordinator_update(self) -> None:
+        """Refresh state and any open HA calendar views immediately."""
+        super()._handle_coordinator_update()
+        self.async_update_event_listeners()
 
     def _events(self, start: datetime, end: datetime | None) -> list[CalendarEvent]:
         events: list[CalendarEvent] = []
@@ -110,12 +118,17 @@ class SomtodaySchoolDayCalendar(
 
     @property
     def event(self) -> CalendarEvent | None:
-        now = datetime.now().astimezone()
+        now = dt_util.now()
         events = self._events(now, None)
         return next((event for event in events if event.end > now), None)
 
     async def async_get_events(self, hass, start_date, end_date):
         return self._events(start_date, end_date)
+
+    def _handle_coordinator_update(self) -> None:
+        """Refresh state and any open HA calendar views immediately."""
+        super()._handle_coordinator_update()
+        self.async_update_event_listeners()
 
     def _events(self, start: datetime, end: datetime | None) -> list[CalendarEvent]:
         events = []
@@ -138,3 +151,81 @@ class SomtodaySchoolDayCalendar(
                 )
             )
         return sorted(events, key=lambda event: event.start)
+
+
+class SomtodayAssessmentCalendar(
+    CoordinatorEntity[SomtodayCoordinator], CalendarEntity
+):
+    """Read-only calendar containing explicitly typed Somtoday tests."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:clipboard-text-clock-outline"
+
+    def __init__(self, coordinator, entry, student) -> None:
+        super().__init__(coordinator)
+        self.student = item_id(student)
+        name = student.get("roepnaam") or self.student
+        self._attr_name = f"{name} · Toetsen"
+        self._attr_unique_id = f"{entry.entry_id}_{self.student}_assessments"
+
+    @property
+    def available(self):
+        return (
+            super().available
+            and self.coordinator.data.get("assessments_by_student", {}).get(
+                self.student
+            )
+            is not None
+        )
+
+    @property
+    def event(self) -> CalendarEvent | None:
+        now = dt_util.now()
+        events = self._events(now, None)
+        return next(
+            (
+                event
+                for event in events
+                if (
+                    event.end > now
+                    if isinstance(event.end, datetime)
+                    else event.end > now.date()
+                )
+            ),
+            None,
+        )
+
+    async def async_get_events(self, hass, start_date, end_date):
+        return self._events(start_date, end_date)
+
+    def _handle_coordinator_update(self) -> None:
+        """Push changed tests even when the next event itself did not change."""
+        super()._handle_coordinator_update()
+        self.async_update_event_listeners()
+
+    def _events(self, start: datetime, end: datetime | None) -> list[CalendarEvent]:
+        result = []
+        for value in self.coordinator.data.get("assessments_by_student", {}).get(
+            self.student, []
+        ) or []:
+            event_start = value.get("start")
+            event_end = value.get("end")
+            if event_start is None or event_end is None:
+                continue
+            if isinstance(event_start, date) and not isinstance(event_start, datetime):
+                if event_end <= start.date() or (
+                    end is not None and event_start >= end.date()
+                ):
+                    continue
+            elif event_end <= start or (end is not None and event_start >= end):
+                continue
+            result.append(
+                CalendarEvent(
+                    start=event_start,
+                    end=event_end,
+                    summary=assessment_summary(value),
+                    description=assessment_description(value) or None,
+                    uid=f"{self.student}:assessment:{value['id']}",
+                )
+            )
+        return sorted(result, key=lambda event: event.start.isoformat())

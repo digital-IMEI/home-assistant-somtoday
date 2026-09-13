@@ -62,6 +62,7 @@ async def test_startup_defers_export_but_preserves_source(monkeypatch):
     coordinator.client = SimpleNamespace(
         token={}, students=AsyncMock(return_value=[{"links": [{"id": "a"}]}]),
         appointments=AsyncMock(return_value=[]), holidays=AsyncMock(return_value=[]),
+        assessments=AsyncMock(return_value=[]),
     )
     coordinator._holidays = {}
     coordinator._holidays_checked = None
