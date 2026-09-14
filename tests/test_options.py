@@ -51,7 +51,7 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
     settings = await flow.async_step_init({"student_id": "a"})
     assert settings["step_id"] == "settings"
     assert settings["description_placeholders"] == {"student": "Seth"}
-    defaults = settings["data_schema"]({})
+    defaults = settings["data_schema"]({})["exports"]
     assert defaults["enable_day"] is False
     assert defaults["enable_lessons"] is False
     assert defaults["enable_holidays"] is False
@@ -113,7 +113,7 @@ async def test_disabling_both_exports_saves_without_destination_step():
         }
     )
     settings = await flow.async_step_init({"student_id": "a"})
-    defaults = settings["data_schema"]({})
+    defaults = settings["data_schema"]({})["exports"]
     assert defaults["enable_day"] is True
     assert defaults["enable_lessons"] is True
     assert defaults["enable_holidays"] is False
@@ -218,3 +218,22 @@ async def test_assessment_export_has_its_own_destination_and_title():
     route = result["data"]["exports"]["a"]
     assert route["assessment_calendar"] == "calendar.tests"
     assert route["assessment_title"] == "{student} · {subject} · {type}"
+
+
+@pytest.mark.asyncio
+async def test_sectioned_settings_preserve_account_and_sibling_options():
+    sibling = {"day_calendar": "calendar.other", "day_title": "Other"}
+    flow, _ = make_flow(options={
+        "days_ahead": 30, "scan_interval": 60,
+        "exports": {"b": sibling, "a": {"automatic_day_title": True}},
+    })
+    form = await flow.async_step_init({"student_id": "a"})
+    values = form["data_schema"]({})
+    assert [key.schema for key in form["data_schema"].schema] == ["exports", "synchronization", "school_day_title"]
+    assert values["synchronization"] == {"days_ahead": 30, "scan_interval": 60}
+    assert values["school_day_title"]["automatic_day_title"] is True
+    result = await flow.async_step_settings(values)
+    assert result["data"]["exports"]["b"] == sibling
+    assert result["data"]["exports"]["a"]["automatic_day_title"] is True
+    assert result["data"]["days_ahead"] == 30
+    assert result["data"]["scan_interval"] == 60

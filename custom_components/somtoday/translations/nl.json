@@ -39,44 +39,72 @@
     "step": {
       "init": {
         "title": "Choose child",
-        "description": "Configure exports per child. Repeat for other children.",
+        "description": "Choose the child whose calendar settings you want to change. Repeat for other children; synchronization settings apply to the whole account.",
         "data": {
           "student_id": "Child"
         }
       },
       "settings": {
-        "title": "Calendar export",
-        "description": "Choose the exports for {student}. Days ahead and interval apply to the whole account. Enabled exports write to the selected calendars. Write permissions are required. Start with 1 day to verify the result.",
-        "data": {
-          "enable_day": "Enable school-day appointment",
-          "enable_lessons": "Enable individual lesson appointments",
-          "enable_holidays": "Enable published holiday appointments",
-          "enable_assessments": "Export tests to another calendar",
-          "automatic_day_title": "Automatic school-day title",
-          "days_ahead": "Days ahead (1–60)",
-          "scan_interval": "Update interval, minutes (5–120)"
-        },
-        "data_description": {
-          "automatic_day_title": "Use the shared title when all active timetable appointments on a day have the same non-empty title. Breaks and cancelled appointments are ignored. Remove text before the first underscore and replace remaining underscores with spaces: PREFIX_Special_activity becomes Special activity. Otherwise keep the normal school-day title. Applies to this child's HA school-day calendar and school-day export; it does not identify special days."
+        "title": "Calendar settings",
+        "description": "Settings for {student}. Choose destination calendars on the next page. Calendar exports require write permissions.",
+        "sections": {
+          "exports": {
+            "name": "Calendar export",
+            "data": {
+              "enable_day": "Export school days",
+              "enable_lessons": "Export lessons",
+              "enable_holidays": "Export holidays",
+              "enable_assessments": "Export tests"
+            },
+            "data_description": {
+              "enable_day": "One event from the first lesson to the last.",
+              "enable_lessons": "A separate event for each lesson.",
+              "enable_holidays": "Published school holidays, using your chosen event layout.",
+              "enable_assessments": "Tests with a published date."
+            }
+          },
+          "synchronization": {
+            "name": "Synchronization · all children",
+            "data": {
+              "days_ahead": "Days ahead (1–60)",
+              "scan_interval": "Update interval in minutes (5–120)"
+            },
+            "data_description": {
+              "days_ahead": "Applies to every child in this account. Start with 1 day to verify your calendar exports.",
+              "scan_interval": "How often to refresh Somtoday data. Applies to every child in this account."
+            }
+          },
+          "school_day_title": {
+            "name": "School-day title",
+            "data": {
+              "automatic_day_title": "Automatic school-day title"
+            },
+            "data_description": {
+              "automatic_day_title": "Use the shared title when all active appointments on a day have the same non-empty title; ignore breaks and cancelled appointments. Otherwise use the normal school-day title. Remove text before the first underscore and replace remaining underscores with spaces: PREFIX_Special_activity becomes Special activity. Applies to this child’s HA school-day calendar and school-day export."
+            }
+          }
         }
       },
       "destinations": {
         "title": "Calendar destinations",
-        "description": "Choose destinations for {student}. Available calendars must advertise create and delete support; actual provider permissions are checked when writing. Titles support {student_placeholder}, replaced by the child name. Holiday titles also support {holiday_placeholder}. Test titles support {subject_placeholder}, {type_placeholder} and {topic_placeholder}. The read-only Somtoday tests calendar is always created; this destination is only for exporting a copy. [Calendar setup and permissions]({help_url}). Changing destinations leaves existing events in the old calendar.",
+        "description": "Choose destination calendars for {student}. Only calendars supporting event creation and deletion are listed; write permissions are required. Changing or disabling a destination leaves existing events in the old calendar. [Calendar setup and permissions]({help_url}).",
         "data": {
-          "day_calendar": "School-day destination calendar",
-          "lesson_calendar": "Lessons destination calendar",
-          "holiday_calendar": "Holidays destination calendar",
-          "assessment_calendar": "Tests destination calendar",
-          "day_title": "School-day title",
-          "lesson_prefix": "Lesson title prefix",
-          "holiday_title": "Holiday title",
-          "holiday_mode": "Holiday event layout",
-          "assessment_title": "Test title"
+          "day_calendar": "School days · destination calendar",
+          "lesson_calendar": "Lessons · destination calendar",
+          "holiday_calendar": "Holidays · destination calendar",
+          "assessment_calendar": "Tests · destination calendar",
+          "day_title": "School days · event title",
+          "lesson_prefix": "Lessons · title prefix",
+          "holiday_title": "Holidays · event title",
+          "holiday_mode": "Holidays · event layout",
+          "assessment_title": "Tests · event title"
         },
         "data_description": {
           "holiday_mode": "One event · Somtoday dates uses the published first and final school-free date. One event · include surrounding weekends expands that range to the Saturday before and Sunday after. One all-day event per Somtoday date creates a separate event for each published date. A continuous multi-week event also covers weekends inside its date range.",
-          "assessment_title": "Available placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder} and {topic_placeholder}. Only explicit TOETS and GROTE_TOETS study-guide items are exported."
+          "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}.",
+          "day_title": "Placeholder: {student_placeholder}. Used unless automatic school-day naming supplies a shared activity title.",
+          "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title.",
+          "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}."
         }
       }
     },

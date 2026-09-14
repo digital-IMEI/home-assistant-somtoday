@@ -11,6 +11,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components.calendar.const import CalendarEntityFeature
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
 
@@ -315,7 +316,23 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 ): NumberSelector(NumberSelectorConfig(min=5, max=120, step=1, mode=NumberSelectorMode.BOX)),
             }
         )
+        groups = {
+            "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments"),
+            "synchronization": ("days_ahead", "scan_interval"),
+            "school_day_title": ("automatic_day_title",),
+        }
+        schema = vol.Schema({
+            vol.Required(name, default=dict): section(
+                vol.Schema({key: value for key, value in schema.schema.items() if key.schema in fields}),
+                {"collapsed": False},
+            )
+            for name, fields in groups.items()
+        })
         if user_input is not None:
+            # Sections are presentation only; retain the existing option storage format.
+            user_input = dict(user_input)
+            for name in groups:
+                user_input.update(user_input.pop(name, {}))
             if self.student not in students:
                 return self.async_show_form(
                     step_id="settings",
@@ -385,7 +402,23 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         if self._enable_assessments:
             enabled_fields.append("assessment_calendar")
 
+        groups = {
+            "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments"),
+            "synchronization": ("days_ahead", "scan_interval"),
+            "school_day_title": ("automatic_day_title",),
+        }
+        schema = vol.Schema({
+            vol.Required(name, default=dict): section(
+                vol.Schema({key: value for key, value in schema.schema.items() if key.schema in fields}),
+                {"collapsed": False},
+            )
+            for name, fields in groups.items()
+        })
         if user_input is not None:
+            # Sections are presentation only; retain the existing option storage format.
+            user_input = dict(user_input)
+            for name in groups:
+                user_input.update(user_input.pop(name, {}))
             if self.student not in students:
                 errors["base"] = "invalid_student"
             elif any(user_input.get(field) not in choices for field in enabled_fields):

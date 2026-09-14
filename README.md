@@ -344,3 +344,13 @@ Do not include raw diagnostics or HAR files. The integration remains experimenta
 multi-school and live calendar-provider compatibility are being established.
 
 See [community roadmap](docs/ROADMAP.md) for researched follow-up features and limitations.
+
+### Calendar settings layout
+
+Select a child under **Configure**, then use the three sections:
+
+- **Calendar export**: Export school days, lessons, holidays or tests. Choose the destination calendars on the next page; write permissions are required.
+- **Synchronization · all children**: Days ahead and update interval apply to the whole account. Start with **1 day** to verify the result.
+- **School-day title**: Automatic naming applies to the selected child’s HA school-day calendar and exported school-day events. It is independent of enabling exports.
+
+The destination page lists the supported placeholders beneath each title field and links to calendar setup help. Existing per-child destinations and settings are retained when upgrading.
