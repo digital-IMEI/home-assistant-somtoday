@@ -347,10 +347,11 @@ See [community roadmap](docs/ROADMAP.md) for researched follow-up features and l
 
 ### Calendar settings layout
 
-Select a child under **Configure**, then use the three sections:
+Select a child under **Configure**, then use the two sections:
 
 - **Calendar export**: Export school days, lessons, holidays or tests. Choose the destination calendars on the next page; write permissions are required.
 - **Synchronization · all children**: Days ahead and update interval apply to the whole account. Start with **1 day** to verify the result.
-- **School-day title**: Automatic naming applies to the selected child’s HA school-day calendar and exported school-day events. It is independent of enabling exports.
+
+On the next page, **Calendar destinations and titles**, automatic school-day naming sits alongside the event titles. Automatic naming applies to the selected child’s HA school-day calendar and exported school-day events. It is independent of enabling exports.
 
 The destination page lists the supported placeholders beneath each title field and links to calendar setup help. Existing per-child destinations and settings are retained when upgrading.

@@ -306,9 +306,6 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     default=bool(old.get("assessment_calendar")),
                 ): bool,
                 vol.Required(
-                    "automatic_day_title", default=old.get("automatic_day_title", False)
-                ): bool,
-                vol.Required(
                     "days_ahead", default=old.get("days_ahead", 14)
                 ): NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Required(
@@ -319,7 +316,6 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         groups = {
             "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments"),
             "synchronization": ("days_ahead", "scan_interval"),
-            "school_day_title": ("automatic_day_title",),
         }
         schema = vol.Schema({
             vol.Required(name, default=dict): section(
@@ -344,39 +340,14 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             self._enable_lessons = user_input["enable_lessons"]
             self._enable_holidays = user_input["enable_holidays"]
             self._enable_assessments = user_input.get("enable_assessments", False)
-            self._automatic_day_title = user_input.get("automatic_day_title", False)
+            self._automatic_day_title = old.get("automatic_day_title", False)
             self._pending_settings = {
                 key: user_input[key]
                 for key in ("days_ahead", "scan_interval")
             }
             for key in ("days_ahead", "scan_interval"):
                 self._pending_settings[key] = int(self._pending_settings[key])
-            if (
-                self._enable_day
-                or self._enable_lessons
-                or self._enable_holidays
-                or self._enable_assessments
-            ):
-                return await self.async_step_destinations()
-            return self._save_options(
-                {
-                    "day_calendar": "",
-                    "lesson_calendar": "",
-                    "holiday_calendar": "",
-                    "assessment_calendar": "",
-                    "day_title": old.get("day_title", "School · {student}"),
-                    "lesson_prefix": old.get("lesson_prefix", "{student} · "),
-                    "holiday_title": old.get(
-                        "holiday_title", "{student} · {holiday}"
-                    ),
-                    "holiday_mode": old.get(
-                        "holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS
-                    ),
-                    "assessment_title": old.get(
-                        "assessment_title", "{student} · {subject} · {type}"
-                    ),
-                }
-            )
+            return await self.async_step_destinations()
 
         return self.async_show_form(
             step_id="settings",
@@ -408,6 +379,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             elif any(user_input.get(field) not in choices for field in enabled_fields):
                 errors["base"] = "invalid_calendar"
             else:
+                self._automatic_day_title = user_input.get(
+                    "automatic_day_title", old.get("automatic_day_title", False)
+                )
                 return self._save_options(
                     {
                         "day_calendar": user_input.get("day_calendar", ""),
@@ -452,6 +426,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     "day_title", default=old.get("day_title", "School · {student}")
                 )
             ] = vol.All(str, vol.Length(min=1, max=100))
+        schema[vol.Required(
+            "automatic_day_title", default=old.get("automatic_day_title", False)
+        )] = bool
         if self._enable_lessons:
             lesson_default = old.get("lesson_calendar")
             lesson_key = vol.Required("lesson_calendar")
@@ -501,7 +478,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     ),
                 )
             ] = vol.All(str, vol.Length(min=1, max=100))
-        if not choices:
+        if enabled_fields and not choices:
             errors["base"] = "no_writable_calendars"
         return self.async_show_form(
             step_id="destinations",

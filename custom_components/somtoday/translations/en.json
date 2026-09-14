@@ -46,7 +46,7 @@
       },
       "settings": {
         "title": "Calendar settings",
-        "description": "Settings for {student}. Choose destination calendars on the next page. Calendar exports require write permissions.",
+        "description": "Settings for {student}. Choose destination calendars and event titles on the next page. Calendar exports require write permissions.",
         "sections": {
           "exports": {
             "name": "Calendar export",
@@ -73,21 +73,12 @@
               "days_ahead": "Applies to every child in this account. Start with 1 day to verify your calendar exports.",
               "scan_interval": "How often to refresh Somtoday data. Applies to every child in this account."
             }
-          },
-          "school_day_title": {
-            "name": "School-day title",
-            "data": {
-              "automatic_day_title": "Automatic school-day title"
-            },
-            "data_description": {
-              "automatic_day_title": "Use the shared title when all active appointments on a day have the same non-empty title; ignore breaks and cancelled appointments. Otherwise use the normal school-day title. Remove text before the first underscore and replace remaining underscores with spaces: PREFIX_Special_activity becomes Special activity. Applies to this child’s HA school-day calendar and school-day export."
-            }
           }
         }
       },
       "destinations": {
-        "title": "Calendar destinations",
-        "description": "Choose destination calendars for {student}. Only calendars supporting event creation and deletion are listed; write permissions are required. Changing or disabling a destination leaves existing events in the old calendar. [Calendar setup and permissions]({help_url}).",
+        "title": "Calendar destinations and titles",
+        "description": "Set event titles and destination calendars for {student}. Automatic school-day naming also applies to this child’s HA calendar when exports are off. Export destinations require write permissions and support for event creation and deletion. Changing or disabling a destination leaves existing events in the old calendar. [Calendar setup and permissions]({help_url}).",
         "data": {
           "day_calendar": "School days · destination calendar",
           "lesson_calendar": "Lessons · destination calendar",
@@ -97,14 +88,16 @@
           "lesson_prefix": "Lessons · title prefix",
           "holiday_title": "Holidays · event title",
           "holiday_mode": "Holidays · event layout",
-          "assessment_title": "Tests · event title"
+          "assessment_title": "Tests · event title",
+          "automatic_day_title": "Automatic school-day title"
         },
         "data_description": {
           "holiday_mode": "One event · Somtoday dates uses the published first and final school-free date. One event · include surrounding weekends expands that range to the Saturday before and Sunday after. One all-day event per Somtoday date creates a separate event for each published date. A continuous multi-week event also covers weekends inside its date range.",
           "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}.",
           "day_title": "Placeholder: {student_placeholder}. Used unless automatic school-day naming supplies a shared activity title.",
           "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title.",
-          "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}."
+          "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}.",
+          "automatic_day_title": "Use the shared title when all active appointments on a day have the same non-empty title; ignore breaks and cancelled appointments. Otherwise use the normal school-day title. Remove text before the first underscore and replace remaining underscores with spaces: PREFIX_Special_activity becomes Special activity. Applies to this child’s HA school-day calendar and school-day export."
         }
       }
     },
