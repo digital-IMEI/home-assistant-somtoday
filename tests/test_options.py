@@ -182,7 +182,7 @@ async def test_holiday_export_has_its_own_calendar_and_title():
     )
 
     fields = [key.schema for key in destinations["data_schema"].schema]
-    assert fields == ["calendar_destinations", "event_titles"]
+    assert fields == ["school_days", "holidays", "holiday_layout"]
     result = await flow.async_step_destinations(
         {
             "holiday_calendar": "calendar.school_holidays",
@@ -222,7 +222,7 @@ async def test_assessment_export_has_its_own_destination_and_title():
     )
 
     fields = [key.schema for key in destinations["data_schema"].schema]
-    assert fields == ["calendar_destinations", "event_titles"]
+    assert fields == ["school_days", "tests"]
     result = await flow.async_step_destinations(
         {
             "assessment_calendar": "calendar.tests",
