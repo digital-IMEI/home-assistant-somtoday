@@ -354,4 +354,10 @@ Select a child under **Configure**, then use the two sections:
 
 On the next page, **Calendar destinations and titles**, automatic school-day naming sits alongside the event titles. Automatic naming applies to the selected child’s HA school-day calendar and exported school-day events. It is independent of enabling exports.
 
-The destination page lists the supported placeholders beneath each title field and links to calendar setup help. Existing per-child destinations and settings are retained when upgrading.
+The destination page groups school days, lessons, holidays and tests separately. Holiday layout has its own block with the explanation above the selector. Supported placeholders appear beneath each title field. School-day titles apply to both the HA calendar and exported events; automatic naming takes precedence when a shared title is available.
+
+Calendar selection checks advertised event-creation/deletion capabilities, not actual provider access rights. Access is confirmed when synchronization succeeds. Start with one day and check the sync diagnostic sensor and destination calendar.
+
+After updating through HACS, **restart Home Assistant** to load the new Python code and translations. Close any existing configuration dialog and refresh/reopen the frontend (including the mobile app). Reloading only the integration is not a substitute for a restart after a code update. The interface follows your HA profile language, English or Dutch. If labels still show internal keys, report the installed integration version, HA version and profile language; do not remove your account or calendar entities.
+
+Existing per-child destinations and settings are retained when upgrading. Automated tests cover serialized form defaults, translation paths, holiday choices, saving and reopening settings, and preserving other children’s options. They do not replace a visual check on your actual HA frontend.

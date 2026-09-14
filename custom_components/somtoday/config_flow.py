@@ -14,6 +14,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
+from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
 
 from .api import (
     SomtodayApiError,
@@ -287,6 +288,12 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             ),
         )
 
+    async def async_step_calendar_settings(self, user_input=None):
+        return await self.async_step_settings(user_input)
+
+    async def async_step_calendar_destinations(self, user_input=None):
+        return await self.async_step_destinations(user_input)
+
     async def async_step_settings(self, user_input=None):
         students = self._students()
         old = self._old_options()
@@ -318,7 +325,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             "synchronization": ("days_ahead", "scan_interval"),
         }
         schema = vol.Schema({
-            vol.Required(name, default=dict): section(
+            vol.Required(name, default={key.schema: key.default() for key in schema.schema if key.schema in fields}): section(
                 vol.Schema({key: value for key, value in schema.schema.items() if key.schema in fields}),
                 {"collapsed": False},
             )
@@ -331,7 +338,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 user_input.update(user_input.pop(name, {}))
             if self.student not in students:
                 return self.async_show_form(
-                    step_id="settings",
+                    step_id="calendar_settings",
                     data_schema=schema,
                     errors={"base": "invalid_student"},
                     description_placeholders={"student": self.student},
@@ -350,7 +357,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             return await self.async_step_destinations()
 
         return self.async_show_form(
-            step_id="settings",
+            step_id="calendar_settings",
             data_schema=schema,
             description_placeholders={
                 "student": students.get(self.student, self.student)
@@ -377,7 +384,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             # Sections are presentation-only. Accept both the sectioned form used by
             # current HA and the flat form used by older clients/tests.
             user_input = dict(user_input)
-            for name in ("calendar_destinations", "event_titles"):
+            for name in ("calendar_destinations", "event_titles", "school_days", "lessons", "holidays", "holiday_layout", "tests"):
                 nested = user_input.pop(name, None)
                 if isinstance(nested, dict):
                     user_input.update(nested)
@@ -451,11 +458,11 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
 
         title_schema = {
             vol.Required(
-                "automatic_day_title", default=old.get("automatic_day_title", False)
-            ): bool,
-            vol.Required(
                 "day_title", default=old.get("day_title", "School · {student}")
             ): vol.All(str, vol.Length(min=1, max=100)),
+            vol.Required(
+                "automatic_day_title", default=old.get("automatic_day_title", False)
+            ): bool,
         }
         if self._enable_lessons:
             title_schema[vol.Optional(
@@ -467,7 +474,10 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             )] = vol.All(str, vol.Length(min=1, max=100))
             title_schema[vol.Required(
                 "holiday_mode", default=old.get("holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS)
-            )] = vol.In(HOLIDAY_MODE_CHOICES)
+            )] = SelectSelector(SelectSelectorConfig(
+                options=list(HOLIDAY_MODE_CHOICES), translation_key="holiday_mode",
+                mode=SelectSelectorMode.DROPDOWN,
+            ))
         if self._enable_assessments:
             title_schema[vol.Required(
                 "assessment_title",
@@ -475,17 +485,30 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             )] = vol.All(str, vol.Length(min=1, max=100))
 
         schema = {}
-        if calendar_schema:
-            schema[vol.Required("calendar_destinations", default=dict)] = section(
-                vol.Schema(calendar_schema), {"collapsed": False}
+        fields = {**calendar_schema, **title_schema}
+        groups = {
+            "school_days": ("day_calendar", "day_title", "automatic_day_title"),
+            "lessons": ("lesson_calendar", "lesson_prefix"),
+            "holidays": ("holiday_calendar", "holiday_title"),
+            "holiday_layout": ("holiday_mode",),
+            "tests": ("assessment_calendar", "assessment_title"),
+        }
+        for name, names in groups.items():
+            group = {key: value for key, value in fields.items() if key.schema in names}
+            if not group:
+                continue
+            defaults = {
+                key.schema: (user_input[key.schema] if user_input and key.schema in user_input else key.default())
+                for key in group
+                if (user_input and key.schema in user_input) or key.default is not vol.UNDEFINED
+            }
+            schema[vol.Required(name, default=defaults)] = section(
+                vol.Schema(group), {"collapsed": False}
             )
-        schema[vol.Required("event_titles", default=dict)] = section(
-            vol.Schema(title_schema), {"collapsed": False}
-        )
         if enabled_fields and not choices:
             errors["base"] = "no_writable_calendars"
         return self.async_show_form(
-            step_id="destinations",
+            step_id="calendar_destinations",
             data_schema=vol.Schema(schema),
             errors=errors,
             description_placeholders={

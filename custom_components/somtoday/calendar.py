@@ -110,6 +110,7 @@ class SomtodaySchoolDayCalendar(
         self.student = item_id(student)
         self._attr_name = f"{student.get('roepnaam') or self.student} · Schooldag"
         self._automatic_day_title = entry.options.get("exports", {}).get(self.student, {}).get("automatic_day_title", False)
+        self._day_title = entry.options.get("exports", {}).get(self.student, {}).get("day_title", "Schooldag").replace("{student}", student.get("roepnaam") or self.student)
         self._attr_unique_id = (
             f"{entry.entry_id}_school_day"
             if legacy
@@ -145,7 +146,7 @@ class SomtodaySchoolDayCalendar(
                 CalendarEvent(
                     start=event_start,
                     end=event_end,
-                    summary=titles.get(day, "Schooldag"),
+                    summary=titles.get(day, self._day_title),
                     description="Somtoday school day",
                     uid=f"{self.student}:school-day:{day}",
                 )

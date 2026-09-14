@@ -52,3 +52,11 @@ def test_source_calendar_uses_same_title():
     event = calendar._events(start, start + timedelta(days=1))[0]
     assert event.summary == "GaiaZoo excursie"
     assert event.start == start
+
+
+def test_configured_title_applies_to_source_without_export():
+    start = datetime.fromisoformat("2026-09-14T09:20:00+02:00")
+    coordinator = SimpleNamespace(data={"school_days_by_student": {"a": {"2026-09-14": (start, start + timedelta(hours=1))}}})
+    entry = SimpleNamespace(entry_id="entry", options={"exports": {"a": {"day_title": "School · {student}"}}})
+    calendar = SomtodaySchoolDayCalendar(coordinator, entry, {"links": [{"id": "a"}], "roepnaam": "Seth"})
+    assert calendar._events(start, start + timedelta(days=1))[0].summary == "School · Seth"

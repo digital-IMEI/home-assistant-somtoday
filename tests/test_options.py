@@ -4,6 +4,10 @@ import pytest
 import voluptuous as vol
 
 from custom_components.somtoday.config_flow import SomtodayOptionsFlow
+from homeassistant.helpers.config_validation import custom_serializer
+from voluptuous_serialize import convert
+import json
+from pathlib import Path
 
 
 def make_flow(options=None, calendar_states=None):
@@ -49,7 +53,7 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
     assert first["data_schema"]({"student_id": "a"})["student_id"] == "a"
 
     settings = await flow.async_step_init({"student_id": "a"})
-    assert settings["step_id"] == "settings"
+    assert settings["step_id"] == "calendar_settings"
     assert settings["description_placeholders"] == {"student": "Seth"}
     defaults = settings["data_schema"]({})["exports"]
     assert defaults["enable_day"] is False
@@ -67,16 +71,16 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
             "scan_interval": 15,
         }
     )
-    assert destinations["step_id"] == "destinations"
+    assert destinations["step_id"] == "calendar_destinations"
     fields = [key.schema for key in destinations["data_schema"].schema]
-    assert fields == ["calendar_destinations", "event_titles"]
+    assert fields == ["school_days"]
     calendar_section = next(
         value
         for key, value in destinations["data_schema"].schema.items()
-        if key.schema == "calendar_destinations"
+        if key.schema == "school_days"
     )
     calendar_fields = {key.schema for key in calendar_section.schema.schema}
-    assert calendar_fields == {"day_calendar"}
+    assert calendar_fields == {"day_calendar", "day_title", "automatic_day_title"}
     calendar_validator = next(
         validator
         for key, validator in calendar_section.schema.schema.items()
@@ -135,7 +139,7 @@ async def test_disabled_exports_still_offer_titles_without_writable_calendars():
             "scan_interval": 15,
         }
     )
-    assert result["step_id"] == "destinations"
+    assert result["step_id"] == "calendar_destinations"
     assert not result["errors"]
     result = await flow.async_step_destinations(result["data_schema"]({}))
     assert result["type"] == "create_entry"
@@ -243,9 +247,62 @@ async def test_sectioned_settings_preserve_account_and_sibling_options():
     assert values["synchronization"] == {"days_ahead": 30, "scan_interval": 60}
     destinations = await flow.async_step_settings(values)
     titles = destinations["data_schema"]({})
-    assert titles["event_titles"]["automatic_day_title"] is True
+    assert titles["school_days"]["automatic_day_title"] is True
     result = await flow.async_step_destinations(titles)
     assert result["data"]["exports"]["b"] == sibling
     assert result["data"]["exports"]["a"]["automatic_day_title"] is True
     assert result["data"]["days_ahead"] == 30
     assert result["data"]["scan_interval"] == 60
+
+
+@pytest.mark.asyncio
+async def test_serialized_forms_defaults_translations_and_roundtrip():
+    route = {"day_calendar": "calendar.family", "lesson_calendar": "calendar.family",
+             "holiday_calendar": "calendar.family", "assessment_calendar": "calendar.family",
+             "day_title": "School · {student}", "automatic_day_title": True,
+             "holiday_mode": "full_weeks"}
+    states = [SimpleNamespace(entity_id="calendar.family", name="Family", attributes={"supported_features": 3})]
+    flow, entry = make_flow({"exports": {"a": route, "b": {"day_title": "Sibling"}}, "days_ahead": 30, "scan_interval": 60}, states)
+    settings = await flow.async_step_init({"student_id": "a"})
+    serialized = convert(settings["data_schema"], custom_serializer=custom_serializer)
+    # Match the actual data supplied to the frontend, not schema({}) which fills
+    # missing nested defaults and used to hide the empty-section regression.
+    values = {field["name"]: field["default"] for field in serialized}
+    assert values["exports"]["enable_day"] is True
+    assert values["synchronization"] == {"days_ahead": 30, "scan_interval": 60}
+    destinations = await flow.async_step_calendar_settings(values)
+    serialized_dest = convert(destinations["data_schema"], custom_serializer=custom_serializer)
+    values = {field["name"]: field["default"] for field in serialized_dest}
+    assert values["school_days"]["automatic_day_title"] is True
+    assert values["holiday_layout"]["holiday_mode"] == "full_weeks"
+    assert [field["name"] for field in serialized_dest] == ["school_days", "lessons", "holidays", "holiday_layout", "tests"]
+    for language in ("en", "nl"):
+        translations = json.loads((Path(__file__).parents[1] / "custom_components/somtoday/translations" / f"{language}.json").read_text())
+        for form, fields in ((settings, serialized), (destinations, serialized_dest)):
+            step = translations["options"]["step"][form["step_id"]]
+            for group in fields:
+                section_text = step["sections"][group["name"]]
+                assert section_text["name"]
+                for field in group["schema"]:
+                    assert section_text["data"][field["name"]]
+        layout = translations["options"]["step"]["calendar_destinations"]["sections"]["holiday_layout"]
+        assert layout["description"]
+        assert "holiday_mode" not in layout["data_description"]
+        assert set(translations["selector"]["holiday_mode"]["options"]) == {"school_days", "full_weeks", "daily"}
+    values["school_days"]["day_title"] = "New · {student}"
+    result = await flow.async_step_calendar_destinations(values)
+    assert result["data"]["exports"]["b"] == entry.options["exports"]["b"]
+    reopened, _ = make_flow(result["data"], states)
+    again = await reopened.async_step_init({"student_id": "a"})
+    dest = await reopened.async_step_calendar_settings(again["data_schema"]({}))
+    assert dest["data_schema"]({})["school_days"]["day_title"] == "New · {student}"
+
+
+@pytest.mark.asyncio
+async def test_invalid_destination_keeps_edited_title():
+    flow, _ = make_flow()
+    await flow.async_step_init({"student_id": "a"})
+    await flow.async_step_settings({"enable_day": True, "enable_lessons": False, "enable_holidays": False, "days_ahead": 1, "scan_interval": 15})
+    form = await flow.async_step_destinations({"school_days": {"day_calendar": "calendar.missing", "day_title": "Keep this"}})
+    fields = convert(form["data_schema"], custom_serializer=custom_serializer)
+    assert fields[0]["default"]["day_title"] == "Keep this"

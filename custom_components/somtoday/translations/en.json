@@ -42,9 +42,10 @@
         "description": "Choose the child whose calendar settings you want to change. Repeat for other children; synchronization settings apply to the whole account.",
         "data": {
           "student_id": "Child"
-        }
+        },
+        "submit": "Next"
       },
-      "settings": {
+      "calendar_settings": {
         "title": "Calendar settings",
         "description": "Settings for {student}. Choose exports and synchronization here. Choose destination calendars and event titles on the next page. Calendar exports require write permissions.",
         "data": {
@@ -92,11 +93,12 @@
               "scan_interval": "How often Somtoday data is refreshed."
             }
           }
-        }
+        },
+        "submit": "Next"
       },
-      "destinations": {
+      "calendar_destinations": {
         "title": "Calendar destinations and titles",
-        "description": "Set destination calendars and event titles for {student}. Write permissions are required. Existing events remain in their old calendar when a destination or export is changed. [Calendar setup and permissions]({help_url}).",
+        "description": "Settings for {student}. Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day. Changing or disabling a destination leaves existing events in the old calendar. [Calendar setup and permissions]({help_url}).",
         "data": {
           "calendar_destinations": "Calendar destinations",
           "event_titles": "Event titles",
@@ -112,67 +114,98 @@
           "assessment_title": "Tests · event title"
         },
         "data_description": {
-          "day_calendar": "Only calendars that support creating and deleting events are listed.",
-          "lesson_calendar": "Only calendars that support creating and deleting events are listed.",
-          "holiday_calendar": "Only calendars that support creating and deleting events are listed.",
-          "assessment_calendar": "Only calendars that support creating and deleting events are listed.",
-          "automatic_day_title": "When all active appointments on a day share one non-empty title, use that title for the school-day event. Breaks and cancelled appointments are ignored. Text before the first underscore is removed and remaining underscores become spaces: PREFIX_Special_activity becomes Special activity. Otherwise the normal school-day title is used.",
-          "day_title": "Placeholders: {student_placeholder}. Used when automatic naming does not provide a shared title.",
+          "day_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
+          "lesson_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
+          "holiday_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
+          "assessment_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
+          "automatic_day_title": "When all active appointments on a day share one non-empty title, use that title for the school-day event. Breaks and cancelled appointments are ignored. Text before the first underscore is removed and remaining underscores become spaces: PREFIX_Special_activity becomes Special activity. Otherwise the normal school-day title is used. Applies to the HA school-day calendar and school-day export, including when export is disabled.",
+          "day_title": "Placeholder: {student_placeholder}. Base title for the HA school-day calendar and export. Automatic naming takes precedence when a shared title is available.",
           "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title.",
           "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}.",
-          "holiday_mode": "Somtoday dates uses the published first and final school-free date. Including surrounding weekends expands the event to the Saturday before and Sunday after. Daily creates one all-day event per published date.",
           "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}."
         },
         "sections": {
-          "calendar_destinations": {
-            "name": "Calendar destinations",
-            "description": "Choose where enabled exports are written. Only writable calendars are listed.",
+          "school_days": {
+            "name": "School days",
+            "description": "Naming also applies to the Home Assistant school-day calendar.",
             "data": {
               "day_calendar": "School days · destination calendar",
-              "lesson_calendar": "Lessons · destination calendar",
-              "holiday_calendar": "Holidays · destination calendar",
-              "assessment_calendar": "Tests · destination calendar"
+              "day_title": "School days · event title",
+              "automatic_day_title": "Automatic school-day title"
             },
             "data_description": {
-              "day_calendar": "Only calendars that support creating and deleting events are listed.",
-              "lesson_calendar": "Only calendars that support creating and deleting events are listed.",
-              "holiday_calendar": "Only calendars that support creating and deleting events are listed.",
-              "assessment_calendar": "Only calendars that support creating and deleting events are listed."
+              "day_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
+              "day_title": "Placeholder: {student_placeholder}. Base title for the HA school-day calendar and export. Automatic naming takes precedence when a shared title is available.",
+              "automatic_day_title": "When all active appointments on a day share one non-empty title, use that title for the school-day event. Breaks and cancelled appointments are ignored. Text before the first underscore is removed and remaining underscores become spaces: PREFIX_Special_activity becomes Special activity. Otherwise the normal school-day title is used. Applies to the HA school-day calendar and school-day export, including when export is disabled."
             }
           },
-          "event_titles": {
-            "name": "Event titles",
-            "description": "Customize titles and placeholders for each export.",
+          "lessons": {
+            "name": "Lessons",
+            "description": "",
             "data": {
-              "automatic_day_title": "Automatic school-day title",
-              "day_title": "School days · event title",
-              "lesson_prefix": "Lessons · title prefix",
-              "holiday_title": "Holidays · event title",
-              "holiday_mode": "Holidays · event layout",
+              "lesson_calendar": "Lessons · destination calendar",
+              "lesson_prefix": "Lessons · title prefix"
+            },
+            "data_description": {
+              "lesson_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
+              "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title."
+            }
+          },
+          "holidays": {
+            "name": "Holidays",
+            "description": "",
+            "data": {
+              "holiday_calendar": "Holidays · destination calendar",
+              "holiday_title": "Holidays · event title"
+            },
+            "data_description": {
+              "holiday_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
+              "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}."
+            }
+          },
+          "holiday_layout": {
+            "name": "Holiday layout",
+            "description": "Somtoday dates uses the published first and final school-free date. Including surrounding weekends expands the event to the Saturday before and Sunday after. Daily creates one all-day event per published date. A continuous multi-week holiday also includes the weekends within its date range.",
+            "data": {
+              "holiday_mode": "Holidays · event layout"
+            },
+            "data_description": {}
+          },
+          "tests": {
+            "name": "Tests",
+            "description": "",
+            "data": {
+              "assessment_calendar": "Tests · destination calendar",
               "assessment_title": "Tests · event title"
             },
             "data_description": {
-              "automatic_day_title": "When all active appointments on a day share one non-empty title, use that title for the school-day event. Breaks and cancelled appointments are ignored. Text before the first underscore is removed and remaining underscores become spaces: PREFIX_Special_activity becomes Special activity. Otherwise the normal school-day title is used.",
-              "day_title": "Placeholders: {student_placeholder}. Used when automatic naming does not provide a shared title.",
-              "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title.",
-              "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}.",
-              "holiday_mode": "Somtoday dates uses the published first and final school-free date. Including surrounding weekends expands the event to the Saturday before and Sunday after. Daily creates one all-day event per published date.",
+              "assessment_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
               "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}."
             }
           }
-        }
+        },
+        "submit": "Save"
       }
     },
     "error": {
-      "invalid_calendar": "Select an available writable calendar.",
+      "invalid_calendar": "Choose an available calendar supporting event creation and deletion.",
       "invalid_student": "Child no longer available.",
-      "no_writable_calendars": "No writable calendar is available. First add a calendar integration that supports creating and deleting events."
+      "no_writable_calendars": "No compatible calendar is available. Add a calendar supporting event creation and deletion and check write permissions."
     }
   },
   "issues": {
     "calendar_sync_failed": {
       "title": "Somtoday calendar export needs attention",
       "description": "The destination calendar could not be synchronized. The source timetable remains available. Check the Calendar sync diagnostic sensor and destination calendar connection. Open the help link for provider permissions and recovery instructions."
+    }
+  },
+  "selector": {
+    "holiday_mode": {
+      "options": {
+        "school_days": "One event · published Somtoday dates",
+        "full_weeks": "One event · including surrounding weekends",
+        "daily": "One all-day event per published date"
+      }
     }
   }
 }
