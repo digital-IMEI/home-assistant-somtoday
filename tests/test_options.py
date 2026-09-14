@@ -272,7 +272,7 @@ async def test_serialized_forms_defaults_translations_and_roundtrip():
     # missing nested defaults and used to hide the empty-section regression.
     values = {field["name"]: field["default"] for field in serialized}
     assert values["exports"]["enable_day"] is True
-    assert values["synchronization"] == {"days_ahead": 30, "scan_interval": 60}
+    assert flow._pending_settings == {"days_ahead": 30, "scan_interval": 60}
     destinations = await flow.async_step_calendar_settings(values)
     serialized_dest = convert(destinations["data_schema"], custom_serializer=custom_serializer)
     values = {field["name"]: field["default"] for field in serialized_dest}
