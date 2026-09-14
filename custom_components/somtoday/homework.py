@@ -102,6 +102,20 @@ def task_fields(value, name, template, marker, features):
     return title.strip(" ·") or value["subject"], fields
 
 
+def same_due(actual, desired):
+    """Providers may return an equivalent timestamp in UTC."""
+    if actual == desired:
+        return True
+    if not actual or not desired:
+        return False
+    try:
+        if "T" in actual and "T" in desired:
+            return datetime.fromisoformat(actual) == datetime.fromisoformat(desired)
+    except (ValueError, TypeError):
+        pass
+    return False
+
+
 class HomeworkSync:
     """Persist intent before writes. Never retry an uncertain creation."""
     def __init__(self, hass, entry, client):
@@ -223,7 +237,7 @@ class HomeworkSync:
         if item.get("description") != fields["description"]:
             update["description"] = fields["description"]
         for field in ("due_date", "due_datetime"):
-            if field in fields and item.get("due") != fields[field]:
+            if field in fields and not same_due(item.get("due"), fields[field]):
                 update[field] = fields[field]
         if desired != current:
             update["status"] = STATUSES[int(desired)]

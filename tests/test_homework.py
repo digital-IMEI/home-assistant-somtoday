@@ -124,3 +124,40 @@ async def test_duplicate_marker_blocks_modification():
                             date(2026, 9, 14), date(2026, 9, 20))
     assert result["errors"] == 1
     assert sync.call.await_count == 1
+
+
+def test_equivalent_due_timestamps():
+    from custom_components.somtoday.homework import same_due
+    assert same_due("2026-09-15T07:20:00Z", "2026-09-15T09:20:00+02:00")
+    assert not same_due("2026-09-15", "2026-09-15T00:00:00+02:00")
+
+
+@pytest.mark.asyncio
+async def test_pending_intent_survives_restart():
+    sync = make_sync()
+    sync.call.side_effect = [{"todo.school": {"items": []}}, TimeoutError()]
+    pupils = [{"links": [{"id": "1"}]}]
+    args = (pupils, {"1": [assignment()]}, date(2026, 9, 14), date(2026, 9, 20))
+    await sync.run(*args)
+    restarted = make_sync()
+    restarted.records = None
+    restarted.store.async_load.return_value = deepcopy(sync.records)
+    restarted.call.return_value = {"todo.school": {"items": []}}
+    assert (await restarted.run(*args))["waiting"] == 1
+    assert restarted.call.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_source_completion_changes_update_existing_task():
+    sync = make_sync()
+    marker = marker_for("entry", "1", "11")
+    item = {"uid": "owned", "summary": "Old name", "description": marker,
+            "status": "needs_action"}
+    sync.call.return_value = {"todo.school": {"items": [item]}}
+    result = await sync.run([{"links": [{"id": "1"}], "roepnaam": "Child"}],
+                            {"1": [assignment(made=True)]}, date(2026, 9, 14), date(2026, 9, 20))
+    assert result["updated"] == 1
+    assert sync.call.call_args.args == ("update_item", "todo.school")
+    assert sync.call.call_args.kwargs["item"] == "owned"
+    assert sync.call.call_args.kwargs["status"] == "completed"
+    sync.client.set_homework_done.assert_not_awaited()
