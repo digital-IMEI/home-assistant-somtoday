@@ -492,8 +492,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         groups = {
             "school_days": ("day_calendar", "day_title", "automatic_day_title"),
             "lessons": ("lesson_calendar", "lesson_prefix"),
-            "holidays": ("holiday_calendar", "holiday_title"),
-            "holiday_layout": ("holiday_mode",),
+            "holidays": ("holiday_calendar", "holiday_title", "holiday_mode"),
             "tests": ("assessment_calendar", "assessment_title"),
         }
         for name, names in groups.items():

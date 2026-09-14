@@ -155,23 +155,16 @@
           },
           "holidays": {
             "name": "Holidays",
-            "description": "",
+            "description": "Somtoday dates uses the published first and final school-free date. Including surrounding weekends expands the event to the Saturday before and Sunday after. Daily creates one all-day event per published date. A continuous multi-week holiday also includes the weekends within its date range.",
             "data": {
               "holiday_calendar": "Holidays · destination calendar",
-              "holiday_title": "Holidays · event title"
+              "holiday_title": "Holidays · event title",
+              "holiday_mode": "Holidays · event layout"
             },
             "data_description": {
               "holiday_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
               "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}."
             }
-          },
-          "holiday_layout": {
-            "name": "Holiday layout",
-            "description": "Somtoday dates uses the published first and final school-free date. Including surrounding weekends expands the event to the Saturday before and Sunday after. Daily creates one all-day event per published date. A continuous multi-week holiday also includes the weekends within its date range.",
-            "data": {
-              "holiday_mode": "Holidays · event layout"
-            },
-            "data_description": {}
           },
           "tests": {
             "name": "Tests",

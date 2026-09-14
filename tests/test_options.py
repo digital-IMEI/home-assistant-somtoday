@@ -182,7 +182,7 @@ async def test_holiday_export_has_its_own_calendar_and_title():
     )
 
     fields = [key.schema for key in destinations["data_schema"].schema]
-    assert fields == ["school_days", "holidays", "holiday_layout"]
+    assert fields == ["school_days", "holidays"]
     result = await flow.async_step_destinations(
         {
             "holiday_calendar": "calendar.school_holidays",
@@ -277,8 +277,8 @@ async def test_serialized_forms_defaults_translations_and_roundtrip():
     serialized_dest = convert(destinations["data_schema"], custom_serializer=custom_serializer)
     values = {field["name"]: field["default"] for field in serialized_dest}
     assert values["school_days"]["automatic_day_title"] is True
-    assert values["holiday_layout"]["holiday_mode"] == "full_weeks"
-    assert [field["name"] for field in serialized_dest] == ["school_days", "lessons", "holidays", "holiday_layout", "tests"]
+    assert values["holidays"]["holiday_mode"] == "full_weeks"
+    assert [field["name"] for field in serialized_dest] == ["school_days", "lessons", "holidays", "tests"]
     for language in ("en", "nl"):
         translations = json.loads((Path(__file__).parents[1] / "custom_components/somtoday/translations" / f"{language}.json").read_text())
         for form, fields in ((settings, serialized), (destinations, serialized_dest)):
@@ -288,7 +288,7 @@ async def test_serialized_forms_defaults_translations_and_roundtrip():
                 assert section_text["name"]
                 for field in group["schema"]:
                     assert section_text["data"][field["name"]]
-        layout = translations["options"]["step"]["calendar_destinations"]["sections"]["holiday_layout"]
+        layout = translations["options"]["step"]["calendar_destinations"]["sections"]["holidays"]
         assert layout["description"]
         assert "holiday_mode" not in layout["data_description"]
         assert set(translations["selector"]["holiday_mode"]["options"]) == {"school_days", "full_weeks", "daily"}

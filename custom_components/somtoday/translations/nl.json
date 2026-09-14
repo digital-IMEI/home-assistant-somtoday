@@ -155,23 +155,16 @@
           },
           "holidays": {
             "name": "Vakanties",
-            "description": "",
+            "description": "Somtoday-datums gebruikt de gepubliceerde eerste en laatste vrije schooldag. Met omliggende weekenden loopt de afspraak van de zaterdag ervoor tot en met de zondag erna. Dagelijks maakt één hele-dagafspraak per gepubliceerde datum. Een doorlopende vakantie van meerdere weken omvat ook de tussenliggende weekenden.",
             "data": {
               "holiday_calendar": "Vakanties · doelagenda",
-              "holiday_title": "Vakanties · afspraaknaam"
+              "holiday_title": "Vakanties · afspraaknaam",
+              "holiday_mode": "Vakanties · afspraakindeling"
             },
             "data_description": {
               "holiday_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
               "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}."
             }
-          },
-          "holiday_layout": {
-            "name": "Vakantie-indeling",
-            "description": "Somtoday-datums gebruikt de gepubliceerde eerste en laatste vrije schooldag. Met omliggende weekenden loopt de afspraak van de zaterdag ervoor tot en met de zondag erna. Dagelijks maakt één hele-dagafspraak per gepubliceerde datum. Een doorlopende vakantie van meerdere weken omvat ook de tussenliggende weekenden.",
-            "data": {
-              "holiday_mode": "Vakanties · afspraakindeling"
-            },
-            "data_description": {}
           },
           "tests": {
             "name": "Toetsen",
