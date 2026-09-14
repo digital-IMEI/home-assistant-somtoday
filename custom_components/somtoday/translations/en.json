@@ -38,16 +38,30 @@
   "options": {
     "step": {
       "init": {
-        "title": "Choose child",
+        "title": "Account settings",
         "description": "Choose the child whose calendar settings you want to change. Repeat for other children; synchronization settings apply to the whole account.",
         "data": {
           "student_id": "Child"
         },
-        "submit": "Next"
+        "submit": "Next",
+        "sections": {
+          "synchronization": {
+            "name": "Synchronization · all children",
+            "description": "These values apply to every child in this Somtoday account.",
+            "data": {
+              "days_ahead": "Days ahead (1–60)",
+              "scan_interval": "Update interval in minutes (5–120)"
+            },
+            "data_description": {
+              "days_ahead": "Start with 1 day to verify your calendar exports.",
+              "scan_interval": "How often Somtoday data is refreshed."
+            }
+          }
+        }
       },
       "calendar_settings": {
         "title": "Calendar settings",
-        "description": "Settings for {student}. Choose exports and synchronization here. Choose destination calendars and event titles on the next page. Calendar exports require write permissions.",
+        "description": "Choose calendar exports for {student}. Set destination calendars and event titles on the next page.",
         "data": {
           "enable_day": "Export school days",
           "enable_lessons": "Export lessons",
@@ -79,18 +93,6 @@
               "enable_lessons": "A separate event for each lesson.",
               "enable_holidays": "Published school holidays, using your chosen event layout.",
               "enable_assessments": "Tests with a published date."
-            }
-          },
-          "synchronization": {
-            "name": "Synchronization · all children",
-            "description": "These values apply to every child in this Somtoday account.",
-            "data": {
-              "days_ahead": "Days ahead (1–60)",
-              "scan_interval": "Update interval in minutes (5–120)"
-            },
-            "data_description": {
-              "days_ahead": "Start with 1 day to verify your calendar exports.",
-              "scan_interval": "How often Somtoday data is refreshed."
             }
           }
         },

@@ -38,16 +38,30 @@
   "options": {
     "step": {
       "init": {
-        "title": "Kies kind",
+        "title": "Accountinstellingen",
         "description": "Kies het kind waarvoor je de agenda-instellingen wilt wijzigen. Herhaal dit voor andere kinderen; synchronisatie-instellingen gelden voor het hele account.",
         "data": {
           "student_id": "Kind"
         },
-        "submit": "Volgende"
+        "submit": "Volgende",
+        "sections": {
+          "synchronization": {
+            "name": "Synchronisatie · alle kinderen",
+            "description": "Deze waarden gelden voor ieder kind in dit Somtoday-account.",
+            "data": {
+              "days_ahead": "Dagen vooruit (1–60)",
+              "scan_interval": "Bijwerkinterval in minuten (5–120)"
+            },
+            "data_description": {
+              "days_ahead": "Begin met 1 dag om je agenda-export te controleren.",
+              "scan_interval": "Hoe vaak Somtoday wordt vernieuwd."
+            }
+          }
+        }
       },
       "calendar_settings": {
         "title": "Kalenderinstellingen",
-        "description": "Instellingen voor {student}. Kies hier de exports en synchronisatie. Op de volgende pagina kies je agenda’s en afspraaknamen. Schrijfrechten zijn nodig.",
+        "description": "Kies de agenda-exports voor {student}. Doelagenda’s en afspraaknamen stel je op de volgende pagina in.",
         "data": {
           "enable_day": "Schooldagen exporteren",
           "enable_lessons": "Lessen exporteren",
@@ -79,18 +93,6 @@
               "enable_lessons": "Een aparte afspraak voor iedere les.",
               "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
               "enable_assessments": "Toetsen met een gepubliceerde datum."
-            }
-          },
-          "synchronization": {
-            "name": "Synchronisatie · alle kinderen",
-            "description": "Deze waarden gelden voor ieder kind in dit Somtoday-account.",
-            "data": {
-              "days_ahead": "Dagen vooruit (1–60)",
-              "scan_interval": "Bijwerkinterval in minuten (5–120)"
-            },
-            "data_description": {
-              "days_ahead": "Begin met 1 dag om je agenda-export te controleren.",
-              "scan_interval": "Hoe vaak Somtoday wordt vernieuwd."
             }
           }
         },

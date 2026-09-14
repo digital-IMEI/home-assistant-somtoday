@@ -269,23 +269,29 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         students = self._students()
+        old = self.config_entry.options
+        defaults = {"days_ahead": old.get("days_ahead", 14), "scan_interval": old.get("scan_interval", 15)}
+        schema = vol.Schema({
+            vol.Required("synchronization", default=defaults): section(vol.Schema({
+                vol.Required("days_ahead", default=defaults["days_ahead"]): NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
+                vol.Required("scan_interval", default=defaults["scan_interval"]): NumberSelector(NumberSelectorConfig(min=5, max=120, step=1, mode=NumberSelectorMode.BOX)),
+            }), {"collapsed": False}),
+            vol.Required("student_id"): vol.In(students),
+        })
         if user_input is not None:
             student = user_input.get("student_id")
             if student not in students:
                 return self.async_show_form(
                     step_id="init",
-                    data_schema=vol.Schema(
-                        {vol.Required("student_id"): vol.In(students)}
-                    ),
+                    data_schema=schema,
                     errors={"base": "invalid_student"},
                 )
             self.student = student
+            self._pending_settings = {key: int(value) for key, value in user_input.get("synchronization", defaults).items()}
             return await self.async_step_settings()
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
-                {vol.Required("student_id"): vol.In(students)}
-            ),
+            data_schema=schema,
         )
 
     async def async_step_calendar_settings(self, user_input=None):
@@ -322,7 +328,6 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         )
         groups = {
             "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments"),
-            "synchronization": ("days_ahead", "scan_interval"),
         }
         schema = vol.Schema({
             vol.Required(name, default={key.schema: key.default() for key in schema.schema if key.schema in fields}): section(
@@ -348,12 +353,10 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             self._enable_holidays = user_input["enable_holidays"]
             self._enable_assessments = user_input.get("enable_assessments", False)
             self._automatic_day_title = old.get("automatic_day_title", False)
-            self._pending_settings = {
-                key: user_input[key]
-                for key in ("days_ahead", "scan_interval")
-            }
+            # Retain values from the account page; accept legacy flat submissions.
             for key in ("days_ahead", "scan_interval"):
-                self._pending_settings[key] = int(self._pending_settings[key])
+                if key in user_input:
+                    self._pending_settings[key] = int(user_input[key])
             return await self.async_step_destinations()
 
         return self.async_show_form(

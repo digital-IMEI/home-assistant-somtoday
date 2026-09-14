@@ -243,8 +243,8 @@ async def test_sectioned_settings_preserve_account_and_sibling_options():
     })
     form = await flow.async_step_init({"student_id": "a"})
     values = form["data_schema"]({})
-    assert [key.schema for key in form["data_schema"].schema] == ["exports", "synchronization"]
-    assert values["synchronization"] == {"days_ahead": 30, "scan_interval": 60}
+    assert [key.schema for key in form["data_schema"].schema] == ["exports"]
+    assert flow._pending_settings == {"days_ahead": 30, "scan_interval": 60}
     destinations = await flow.async_step_settings(values)
     titles = destinations["data_schema"]({})
     assert titles["school_days"]["automatic_day_title"] is True
@@ -264,6 +264,9 @@ async def test_serialized_forms_defaults_translations_and_roundtrip():
     states = [SimpleNamespace(entity_id="calendar.family", name="Family", attributes={"supported_features": 3})]
     flow, entry = make_flow({"exports": {"a": route, "b": {"day_title": "Sibling"}}, "days_ahead": 30, "scan_interval": 60}, states)
     settings = await flow.async_step_init({"student_id": "a"})
+    initial = await flow.async_step_init()
+    initial_fields = convert(initial["data_schema"], custom_serializer=custom_serializer)
+    assert initial_fields[0]["default"] == {"days_ahead": 30, "scan_interval": 60}
     serialized = convert(settings["data_schema"], custom_serializer=custom_serializer)
     # Match the actual data supplied to the frontend, not schema({}) which fills
     # missing nested defaults and used to hide the empty-section regression.
