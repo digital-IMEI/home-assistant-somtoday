@@ -1,6 +1,8 @@
 """Reconcile only explicitly marked Somtoday events in selected HA calendars."""
 
 import asyncio
+import hashlib
+import json
 from datetime import UTC, datetime, timedelta
 
 from homeassistant.components.calendar.const import DATA_COMPONENT, CalendarEntityFeature
@@ -43,12 +45,24 @@ class CalendarSync:
         self.store = Store(hass, 1, f"somtoday_sync_{entry.entry_id}")
         self.pending = None
 
-    async def _mark_pending(self, key, *, accepted=False):
+    @staticmethod
+    def _content_fingerprint(start, end, summary, location):
+        return hashlib.sha256(json.dumps(
+            [start.isoformat(), end.isoformat(), summary, location or ""],
+            ensure_ascii=False,
+        ).encode()).hexdigest()
+
+    async def _mark_pending(self, key, *, accepted=False, desired=None):
         """Persist a write before sending it to the calendar provider."""
         self.pending[key] = {
             "created": datetime.now(UTC).isoformat(),
             "accepted": accepted,
         }
+        if desired is not None:
+            self.pending[key]["fingerprint"] = self._content_fingerprint(
+                desired["dtstart"], desired["dtend"], desired["summary"],
+                desired.get("location"),
+            )
         await self.store.async_save(self.pending)
 
     async def _confirm_pending(self, key):
@@ -56,6 +70,7 @@ class CalendarSync:
         value = self.pending.get(key, {})
         created = value.get("created") if isinstance(value, dict) else value
         self.pending[key] = {
+            **(value if isinstance(value, dict) else {}),
             "created": created or datetime.now(UTC).isoformat(),
             "accepted": True,
         }
@@ -189,7 +204,19 @@ class CalendarSync:
                         # A delayed or timed-out create may have succeeded remotely.
                         # Resolve it only when the exact event is visible; an older
                         # version with the same marker does not prove success.
-                        if exact is not None:
+                        record = self.pending[pending_key]
+                        fingerprint = record.get("fingerprint") if isinstance(record, dict) else None
+                        previous_visible = any(
+                            self._content_fingerprint(e.start, e.end, e.summary, e.location)
+                            == fingerprint for e in existing
+                        ) if fingerprint else False
+                        # Legacy accepted writes lack a content fingerprint. Reconcile
+                        # visible owned events; a later duplicate is cleaned on next read.
+                        legacy_visible = (
+                            not fingerprint and self._pending_was_accepted(pending_key)
+                            and bool(existing)
+                        )
+                        if exact is not None or previous_visible or legacy_visible:
                             await self._clear_pending(pending_key)
                         else:
                             if await self._pending_is_expired(pending_key):
@@ -207,7 +234,7 @@ class CalendarSync:
                     else:
                         counts["replace" if existing else "create"] += 1
                         if not preview:
-                            await self._mark_pending(pending_key)
+                            await self._mark_pending(pending_key, desired=value)
                             try:
                                 await self._create_event(target, value, tag)
                             except HomeAssistantError as err:

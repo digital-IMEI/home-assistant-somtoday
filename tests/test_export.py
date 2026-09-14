@@ -457,3 +457,53 @@ async def test_definitive_create_failure_clears_pending_for_retry(monkeypatch):
         await sync.run(desired, targets, START, END, False)
 
     assert store.data == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_configure_title_change_resolves_previous_accepted_write(monkeypatch, legacy):
+    calendar = FakeCalendar()
+    store = MemoryStore()
+    sync = synchronizer(calendar, monkeypatch, store)
+    targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
+    options = {"lesson_calendar": "calendar.family", "lesson_prefix": "Old · "}
+    desired = desired_events([lesson()], options, "a", START, END)
+    await sync.run(desired, targets, START, END, False)
+    if legacy:
+        for record in store.data.values():
+            record.pop("fingerprint", None)
+    sync = synchronizer(calendar, monkeypatch, store)
+    options["lesson_prefix"] = "New · "
+    changed = desired_events([lesson()], options, "a", START, END)
+    result = await sync.run(changed, targets, START, END, False)
+    assert result["replace"] == 1
+    assert len(calendar.events) == 1
+    assert calendar.events[0].summary == "New · Math"
+    await sync.run(changed, targets, START, END, False)
+    assert calendar.creates == 2
+
+
+@pytest.mark.asyncio
+async def test_title_change_waits_for_uncertain_previous_write_to_be_visible(monkeypatch):
+    calendar = FakeCalendar()
+    calendar.fail = True
+    store = MemoryStore()
+    sync = synchronizer(calendar, monkeypatch, store)
+    targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
+    options = {"lesson_calendar": "calendar.family", "lesson_prefix": "Old · "}
+    desired = desired_events([lesson()], options, "a", START, END)
+    with pytest.raises(TimeoutError):
+        await sync.run(desired, targets, START, END, False)
+    visible = list(calendar.events)
+    calendar.events = []
+    calendar.fail = False
+    options["lesson_prefix"] = "New · "
+    changed = desired_events([lesson()], options, "a", START, END)
+    result = await sync.run(changed, targets, START, END, False)
+    assert result["pending"] == 1
+    assert calendar.creates == 1
+    calendar.events = visible
+    result = await sync.run(changed, targets, START, END, False)
+    assert result["replace"] == 1
+    assert len(calendar.events) == 1
+    assert calendar.events[0].summary == "New · Math"
