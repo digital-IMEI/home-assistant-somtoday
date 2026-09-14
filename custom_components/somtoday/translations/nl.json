@@ -60,15 +60,16 @@
         }
       },
       "calendar_settings": {
-        "title": "Kalenderinstellingen",
-        "description": "Kies de agenda-exports voor {student}. Doelagenda’s en afspraaknamen stel je op de volgende pagina in.",
+        "title": "Exportinstellingen",
+        "description": "Kies de agenda- en takenexports voor {student}. Bestemmingen en titels stel je op de volgende pagina in.",
         "data": {
           "enable_day": "Schooldagen exporteren",
           "enable_lessons": "Lessen exporteren",
           "enable_holidays": "Vakanties exporteren",
           "enable_assessments": "Toetsen exporteren",
           "days_ahead": "Dagen vooruit (1–60)",
-          "scan_interval": "Bijwerkinterval in minuten (5–120)"
+          "scan_interval": "Bijwerkinterval in minuten (5–120)",
+          "enable_homework": "Huiswerk exporteren"
         },
         "data_description": {
           "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
@@ -76,23 +77,26 @@
           "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
           "enable_assessments": "Toetsen met een gepubliceerde datum.",
           "days_ahead": "Geldt voor ieder kind in dit account. Begin met 1 dag om de export te controleren.",
-          "scan_interval": "Hoe vaak Somtoday wordt vernieuwd. Geldt voor ieder kind in dit account."
+          "scan_interval": "Hoe vaak Somtoday wordt vernieuwd. Geldt voor ieder kind in dit account.",
+          "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden."
         },
         "sections": {
           "exports": {
-            "name": "Agenda-export",
+            "name": "Exports",
             "description": "Kies welke Somtoday-informatie naar een doelagenda wordt gekopieerd.",
             "data": {
               "enable_day": "Schooldagen exporteren",
               "enable_lessons": "Lessen exporteren",
               "enable_holidays": "Vakanties exporteren",
-              "enable_assessments": "Toetsen exporteren"
+              "enable_assessments": "Toetsen exporteren",
+              "enable_homework": "Huiswerk exporteren"
             },
             "data_description": {
               "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
               "enable_lessons": "Een aparte afspraak voor iedere les.",
               "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
-              "enable_assessments": "Toetsen met een gepubliceerde datum."
+              "enable_assessments": "Toetsen met een gepubliceerde datum.",
+              "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden."
             }
           }
         },
@@ -177,6 +181,20 @@
               "assessment_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
               "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}."
             }
+          },
+          "homework": {
+            "name": "Huiswerk",
+            "description": "Kies een beschrijfbare takenlijst. Aanmaken, wijzigen en omschrijvingen moeten ondersteund worden; rechten worden pas bij synchronisatie bevestigd. Begin met een aparte Local to-do-lijst. Bij uitschakelen of wijzigen blijven bestaande taken behouden.",
+            "data": {
+              "homework_list": "Takenlijst",
+              "homework_title": "Taaktitel",
+              "homework_bidirectional": "Voltooiing terugschrijven naar Somtoday"
+            },
+            "data_description": {
+              "homework_list": "Een datum wordt alleen gekoppeld als deze expliciet bekend is en de takenlijst dit ondersteunt.",
+              "homework_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {topic_placeholder}.",
+              "homework_bidirectional": "Experimenteel: openstaand/voltooid ook vanuit HA terugschrijven. Vereist Somtoday-schrijfrechten; ouderaccounts kunnen worden geweigerd. Somtoday wint bij gelijktijdige wijzigingen. Onbekende voortgang wordt niet teruggeschreven."
+            }
           }
         },
         "submit": "Opslaan"
@@ -185,7 +203,8 @@
     "error": {
       "invalid_calendar": "Kies een beschikbare agenda die afspraken kan maken en verwijderen.",
       "invalid_student": "Dit kind is niet meer beschikbaar.",
-      "no_writable_calendars": "Geen geschikte agenda beschikbaar. Voeg een agenda toe die afspraken kan maken en verwijderen en controleer de schrijfrechten."
+      "no_writable_calendars": "Geen geschikte agenda beschikbaar. Voeg een agenda toe die afspraken kan maken en verwijderen en controleer de schrijfrechten.",
+      "invalid_todo": "Kies een beschikbare takenlijst met ondersteuning voor aanmaken, wijzigen en omschrijvingen, bijvoorbeeld Local to-do."
     }
   },
   "issues": {

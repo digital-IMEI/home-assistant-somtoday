@@ -163,6 +163,29 @@ class SomtodayClient:
                 result.append({**item, "_somtoday_assignment_kind": kind})
         return result
 
+    async def set_homework_done(self, student_id: str, assignment_id: str, made: bool) -> None:
+        """Update only the selected pupil's completion flag; never submit work."""
+        if not str(student_id).isdecimal() or not str(assignment_id).isdecimal():
+            raise SomtodayApiError("Unsupported homework identifiers")
+        await self.ensure_token()
+        api_url = str(self.token.get("somtoday_api_url", "https://api.somtoday.nl")).rstrip("/")
+        body = {
+            "leerling": {"links": [{"id": int(student_id), "rel": "self",
+                                  "href": f"{api_url}/rest/v1/leerlingen/{student_id}"}]},
+            "swiToekenningId": int(assignment_id), "gemaakt": bool(made),
+        }
+        try:
+            async with asyncio.timeout(30):
+                response = await self._session.put(
+                    f"{api_url}/rest/v1/swigemaakt/cou", json=body,
+                    headers={"Authorization": f"Bearer {self.token['access_token']}",
+                             "Accept": "application/json"},
+                )
+                response.raise_for_status()
+                response.release()
+        except (ClientError, TimeoutError) as err:
+            raise SomtodayApiError("Homework completion write failed; check account permission") from err
+
     async def appointments(self, start: date, end: date) -> list[dict[str, Any]]:
         """Return schedule appointments in the requested date range."""
         return await self._get_all(

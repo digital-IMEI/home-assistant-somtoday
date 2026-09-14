@@ -21,7 +21,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator: SomtodayCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entities = [SomtodaySyncSensor(coordinator, entry)]
+    entities = [SomtodaySyncSensor(coordinator, entry), SomtodayHomeworkSyncSensor(coordinator, entry)]
     entities.extend(
         SomtodayNextAssessmentSensor(coordinator, entry, student)
         for student in coordinator.data.get("students", [])
@@ -126,3 +126,21 @@ class SomtodayNextAssessmentSensor(
                 made=value["made"],
             )
         return attributes
+
+
+class SomtodayHomeworkSyncSensor(SomtodaySyncSensor):
+    """Privacy-safe task synchronization counts."""
+    _attr_name = "Homework sync"
+    _attr_icon = "mdi:clipboard-check-outline"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_homework_sync"
+
+    @property
+    def native_value(self):
+        return self.coordinator.data.get("homework_sync_status", {}).get("mode", "disabled")
+
+    @property
+    def extra_state_attributes(self):
+        return self.coordinator.data.get("homework_sync_status", {})

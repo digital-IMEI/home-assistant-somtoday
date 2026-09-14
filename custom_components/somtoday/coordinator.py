@@ -27,6 +27,7 @@ from .export import (
 )
 from .sync import CalendarSync
 from .holidays import holiday_status
+from .homework import HomeworkSync
 
 
 class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -45,6 +46,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.options_snapshot = dict(entry.options)
         self.client = client
         self.calendar_sync = CalendarSync(hass, entry)
+        self.homework_sync = HomeworkSync(hass, entry, client)
         self._holidays = {}
         self._holidays_checked = None
         self._assessment_assignments = {}
@@ -75,7 +77,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             student_ids = [item_id(pupil) for pupil in students]
             assessment_results = await asyncio.gather(
                 *(
-                    self.client.assessments(student_id, start)
+                    self.client.assessments(student_id, start - timedelta(days=30) if any(route.get("homework_list") for route in self.entry.options.get("exports", {}).values()) else start)
                     for student_id in student_ids
                 ),
                 return_exceptions=True,
@@ -221,7 +223,26 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         else:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+        homework_status = {"mode": "disabled"}
+        if getattr(self, "homework_sync", None):
+            if not self.export_ready:
+                homework_status = {"mode": "starting"}
+            else:
+                try:
+                    homework_status = await self.homework_sync.run(
+                        students, self._assessment_assignments,
+                        start - timedelta(days=30),
+                        start + timedelta(days=self.entry.options.get("days_ahead", 14)),
+                    )
+                except Exception:
+                    homework_status = {"mode": "error"}
+                finally:
+                    if self.client.token != self.entry.data.get(CONF_TOKEN):
+                        self.hass.config_entries.async_update_entry(
+                            self.entry, data={**self.entry.data, CONF_TOKEN: self.client.token}
+                        )
         return {
+            "homework_sync_status": homework_status,
             "students": students,
             "appointments": appointments,
             "appointments_by_student": by_student,

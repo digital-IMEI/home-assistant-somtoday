@@ -361,3 +361,41 @@ Calendar selection checks advertised event-creation/deletion capabilities, not a
 After updating through HACS, **restart Home Assistant** to load the new Python code and translations. Close any existing configuration dialog and refresh/reopen the frontend (including the mobile app). Reloading only the integration is not a substitute for a restart after a code update. The interface follows your HA profile language, English or Dutch. If labels still show internal keys, report the installed integration version, HA version and profile language; do not remove your account or calendar entities.
 
 Existing per-child destinations and settings are retained when upgrading. Automated tests cover serialized form defaults, translation paths, holiday choices, saving and reopening settings, and preserving other children’s options. They do not replace a visual check on your actual HA frontend.
+
+
+## Homework tasks (experimental)
+
+This development version adds per-child export to an existing Home Assistant to-do list.
+Start with a separate **Local to-do** list and a 1-day export window. Configure Somtoday,
+select a child, enable **Export homework**, then choose the list and title.
+Supported placeholders: `{student}`, `{subject}`, `{topic}`.
+
+- Lists must support creating/updating tasks and descriptions. Capability detection is
+  not a permission test: provider write access is checked by the actual sync operation.
+- Only HUISWERK assignments are included. Tests remain in the assessment calendar.
+- Explicit lesson deadlines keep their time where the list supports it. Day assignments
+  get a date. Weekly/undated assignments do not get an invented deadline. If a list cannot
+  represent the deadline, it appears in the description.
+- Progress is read only from a completion flag identifying the selected child. An unknown
+  flag is not assumed to mean incomplete; no sibling's progress is copied.
+- Optional **Write completion back to Somtoday** is off by default. It sends only completion
+  or reopening, never submissions/files. School/parent permissions may reject it.
+  On first import or concurrent changes Somtoday wins. Newly created completed tasks may
+  need another refresh to discover the destination UID before their status can be set.
+- Sync runs at the configured update interval after startup. The previous 30 days are
+  also fetched for overdue tasks. Older tasks are retained but not actively synchronized.
+- Existing tasks are never bulk-deleted. Disabling export, switching lists or assignments
+  disappearing from the source leaves the old tasks intact.
+- Do not remove the ownership marker in task descriptions. A missing previously-created
+  task or uncertain write pauses that task instead of blindly creating a duplicate.
+  **Homework sync** exposes error/waiting counts without private task contents.
+- A write-back awaiting confirmation is not repeatedly sent. If permissions are denied,
+  turn off write-back to resume source-to-list synchronization; verify permissions before
+  enabling it again.
+
+This is a test release, not a claim of live verification against every school or provider.
+
+References: [HA to-do actions](https://www.home-assistant.io/integrations/todo/) and
+[community Somtoday API documentation](https://github.com/elisaado/somtoday-api-docs/blob/master/Homework.md).
+
+Unconfirmed task writes become an error after three checks; they are not blindly retried.
