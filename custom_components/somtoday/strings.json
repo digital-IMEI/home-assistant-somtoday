@@ -46,10 +46,27 @@
       },
       "settings": {
         "title": "Calendar settings",
-        "description": "Settings for {student}. Choose destination calendars and event titles on the next page. Calendar exports require write permissions.",
+        "description": "Settings for {student}. Choose exports and synchronization here. Choose destination calendars and event titles on the next page. Calendar exports require write permissions.",
+        "data": {
+          "enable_day": "Export school days",
+          "enable_lessons": "Export lessons",
+          "enable_holidays": "Export holidays",
+          "enable_assessments": "Export tests",
+          "days_ahead": "Days ahead (1–60)",
+          "scan_interval": "Update interval in minutes (5–120)"
+        },
+        "data_description": {
+          "enable_day": "One event from the first lesson to the last.",
+          "enable_lessons": "A separate event for each lesson.",
+          "enable_holidays": "Published school holidays, using your chosen event layout.",
+          "enable_assessments": "Tests with a published date.",
+          "days_ahead": "Applies to every child in this account. Start with 1 day to verify your calendar exports.",
+          "scan_interval": "How often to refresh Somtoday data. Applies to every child in this account."
+        },
         "sections": {
           "exports": {
             "name": "Calendar export",
+            "description": "Choose which Somtoday information should be copied to a destination calendar.",
             "data": {
               "enable_day": "Export school days",
               "enable_lessons": "Export lessons",
@@ -65,39 +82,84 @@
           },
           "synchronization": {
             "name": "Synchronization · all children",
+            "description": "These values apply to every child in this Somtoday account.",
             "data": {
               "days_ahead": "Days ahead (1–60)",
               "scan_interval": "Update interval in minutes (5–120)"
             },
             "data_description": {
-              "days_ahead": "Applies to every child in this account. Start with 1 day to verify your calendar exports.",
-              "scan_interval": "How often to refresh Somtoday data. Applies to every child in this account."
+              "days_ahead": "Start with 1 day to verify your calendar exports.",
+              "scan_interval": "How often Somtoday data is refreshed."
             }
           }
         }
       },
       "destinations": {
         "title": "Calendar destinations and titles",
-        "description": "Set event titles and destination calendars for {student}. Automatic school-day naming also applies to this child’s HA calendar when exports are off. Export destinations require write permissions and support for event creation and deletion. Changing or disabling a destination leaves existing events in the old calendar. [Calendar setup and permissions]({help_url}).",
+        "description": "Set destination calendars and event titles for {student}. Write permissions are required. Existing events remain in their old calendar when a destination or export is changed. [Calendar setup and permissions]({help_url}).",
         "data": {
+          "calendar_destinations": "Calendar destinations",
+          "event_titles": "Event titles",
           "day_calendar": "School days · destination calendar",
           "lesson_calendar": "Lessons · destination calendar",
           "holiday_calendar": "Holidays · destination calendar",
           "assessment_calendar": "Tests · destination calendar",
+          "automatic_day_title": "Automatic school-day title",
           "day_title": "School days · event title",
           "lesson_prefix": "Lessons · title prefix",
           "holiday_title": "Holidays · event title",
           "holiday_mode": "Holidays · event layout",
-          "assessment_title": "Tests · event title",
-          "automatic_day_title": "Automatic school-day title"
+          "assessment_title": "Tests · event title"
         },
         "data_description": {
-          "holiday_mode": "One event · Somtoday dates uses the published first and final school-free date. One event · include surrounding weekends expands that range to the Saturday before and Sunday after. One all-day event per Somtoday date creates a separate event for each published date. A continuous multi-week event also covers weekends inside its date range.",
-          "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}.",
-          "day_title": "Placeholder: {student_placeholder}. Used unless automatic school-day naming supplies a shared activity title.",
+          "day_calendar": "Only calendars that support creating and deleting events are listed.",
+          "lesson_calendar": "Only calendars that support creating and deleting events are listed.",
+          "holiday_calendar": "Only calendars that support creating and deleting events are listed.",
+          "assessment_calendar": "Only calendars that support creating and deleting events are listed.",
+          "automatic_day_title": "When all active appointments on a day share one non-empty title, use that title for the school-day event. Breaks and cancelled appointments are ignored. Text before the first underscore is removed and remaining underscores become spaces: PREFIX_Special_activity becomes Special activity. Otherwise the normal school-day title is used.",
+          "day_title": "Placeholders: {student_placeholder}. Used when automatic naming does not provide a shared title.",
           "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title.",
           "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}.",
-          "automatic_day_title": "Use the shared title when all active appointments on a day have the same non-empty title; ignore breaks and cancelled appointments. Otherwise use the normal school-day title. Remove text before the first underscore and replace remaining underscores with spaces: PREFIX_Special_activity becomes Special activity. Applies to this child’s HA school-day calendar and school-day export."
+          "holiday_mode": "Somtoday dates uses the published first and final school-free date. Including surrounding weekends expands the event to the Saturday before and Sunday after. Daily creates one all-day event per published date.",
+          "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}."
+        },
+        "sections": {
+          "calendar_destinations": {
+            "name": "Calendar destinations",
+            "description": "Choose where enabled exports are written. Only writable calendars are listed.",
+            "data": {
+              "day_calendar": "School days · destination calendar",
+              "lesson_calendar": "Lessons · destination calendar",
+              "holiday_calendar": "Holidays · destination calendar",
+              "assessment_calendar": "Tests · destination calendar"
+            },
+            "data_description": {
+              "day_calendar": "Only calendars that support creating and deleting events are listed.",
+              "lesson_calendar": "Only calendars that support creating and deleting events are listed.",
+              "holiday_calendar": "Only calendars that support creating and deleting events are listed.",
+              "assessment_calendar": "Only calendars that support creating and deleting events are listed."
+            }
+          },
+          "event_titles": {
+            "name": "Event titles",
+            "description": "Customize titles and placeholders for each export.",
+            "data": {
+              "automatic_day_title": "Automatic school-day title",
+              "day_title": "School days · event title",
+              "lesson_prefix": "Lessons · title prefix",
+              "holiday_title": "Holidays · event title",
+              "holiday_mode": "Holidays · event layout",
+              "assessment_title": "Tests · event title"
+            },
+            "data_description": {
+              "automatic_day_title": "When all active appointments on a day share one non-empty title, use that title for the school-day event. Breaks and cancelled appointments are ignored. Text before the first underscore is removed and remaining underscores become spaces: PREFIX_Special_activity becomes Special activity. Otherwise the normal school-day title is used.",
+              "day_title": "Placeholders: {student_placeholder}. Used when automatic naming does not provide a shared title.",
+              "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title.",
+              "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}.",
+              "holiday_mode": "Somtoday dates uses the published first and final school-free date. Including surrounding weekends expands the event to the Saturday before and Sunday after. Daily creates one all-day event per published date.",
+              "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}."
+            }
+          }
         }
       }
     },

@@ -358,7 +358,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         )
 
     async def async_step_destinations(self, user_input=None):
-        """Choose a destination for each enabled export."""
+        """Choose destination calendars and event titles."""
         students = self._students()
         choices = self._calendar_choices()
         old = self._old_options()
@@ -374,6 +374,13 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             enabled_fields.append("assessment_calendar")
 
         if user_input is not None:
+            # Sections are presentation-only. Accept both the sectioned form used by
+            # current HA and the flat form used by older clients/tests.
+            user_input = dict(user_input)
+            for name in ("calendar_destinations", "event_titles"):
+                nested = user_input.pop(name, None)
+                if isinstance(nested, dict):
+                    user_input.update(nested)
             if self.student not in students:
                 errors["base"] = "invalid_student"
             elif any(user_input.get(field) not in choices for field in enabled_fields):
@@ -414,53 +421,25 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     }
                 )
 
-        schema = {}
+        calendar_schema = {}
         if self._enable_day:
             day_default = old.get("day_calendar")
             day_key = vol.Required("day_calendar")
             if day_default in choices:
                 day_key = vol.Required("day_calendar", default=day_default)
-            schema[day_key] = vol.In(choices)
-            schema[
-                vol.Required(
-                    "day_title", default=old.get("day_title", "School · {student}")
-                )
-            ] = vol.All(str, vol.Length(min=1, max=100))
-        schema[vol.Required(
-            "automatic_day_title", default=old.get("automatic_day_title", False)
-        )] = bool
+            calendar_schema[day_key] = vol.In(choices)
         if self._enable_lessons:
             lesson_default = old.get("lesson_calendar")
             lesson_key = vol.Required("lesson_calendar")
             if lesson_default in choices:
                 lesson_key = vol.Required("lesson_calendar", default=lesson_default)
-            schema[lesson_key] = vol.In(choices)
-            schema[
-                vol.Optional(
-                    "lesson_prefix",
-                    default=old.get("lesson_prefix", "{student} · "),
-                )
-            ] = str
+            calendar_schema[lesson_key] = vol.In(choices)
         if self._enable_holidays:
             holiday_default = old.get("holiday_calendar")
             holiday_key = vol.Required("holiday_calendar")
             if holiday_default in choices:
-                holiday_key = vol.Required(
-                    "holiday_calendar", default=holiday_default
-                )
-            schema[holiday_key] = vol.In(choices)
-            schema[
-                vol.Required(
-                    "holiday_title",
-                    default=old.get("holiday_title", "{student} · {holiday}"),
-                )
-            ] = vol.All(str, vol.Length(min=1, max=100))
-            schema[
-                vol.Required(
-                    "holiday_mode",
-                    default=old.get("holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS),
-                )
-            ] = vol.In(HOLIDAY_MODE_CHOICES)
+                holiday_key = vol.Required("holiday_calendar", default=holiday_default)
+            calendar_schema[holiday_key] = vol.In(choices)
         if self._enable_assessments:
             assessment_default = old.get("assessment_calendar")
             assessment_key = vol.Required("assessment_calendar")
@@ -468,16 +447,41 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 assessment_key = vol.Required(
                     "assessment_calendar", default=assessment_default
                 )
-            schema[assessment_key] = vol.In(choices)
-            schema[
-                vol.Required(
-                    "assessment_title",
-                    default=old.get(
-                        "assessment_title",
-                        "{student} · {subject} · {type}",
-                    ),
-                )
-            ] = vol.All(str, vol.Length(min=1, max=100))
+            calendar_schema[assessment_key] = vol.In(choices)
+
+        title_schema = {
+            vol.Required(
+                "automatic_day_title", default=old.get("automatic_day_title", False)
+            ): bool,
+            vol.Required(
+                "day_title", default=old.get("day_title", "School · {student}")
+            ): vol.All(str, vol.Length(min=1, max=100)),
+        }
+        if self._enable_lessons:
+            title_schema[vol.Optional(
+                "lesson_prefix", default=old.get("lesson_prefix", "{student} · ")
+            )] = str
+        if self._enable_holidays:
+            title_schema[vol.Required(
+                "holiday_title", default=old.get("holiday_title", "{student} · {holiday}")
+            )] = vol.All(str, vol.Length(min=1, max=100))
+            title_schema[vol.Required(
+                "holiday_mode", default=old.get("holiday_mode", HOLIDAY_MODE_SCHOOL_DAYS)
+            )] = vol.In(HOLIDAY_MODE_CHOICES)
+        if self._enable_assessments:
+            title_schema[vol.Required(
+                "assessment_title",
+                default=old.get("assessment_title", "{student} · {subject} · {type}"),
+            )] = vol.All(str, vol.Length(min=1, max=100))
+
+        schema = {}
+        if calendar_schema:
+            schema[vol.Required("calendar_destinations", default=dict)] = section(
+                vol.Schema(calendar_schema), {"collapsed": False}
+            )
+        schema[vol.Required("event_titles", default=dict)] = section(
+            vol.Schema(title_schema), {"collapsed": False}
+        )
         if enabled_fields and not choices:
             errors["base"] = "no_writable_calendars"
         return self.async_show_form(

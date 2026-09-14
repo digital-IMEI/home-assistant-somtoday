@@ -68,11 +68,18 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
         }
     )
     assert destinations["step_id"] == "destinations"
-    fields = {key.schema for key in destinations["data_schema"].schema}
-    assert fields == {"day_calendar", "day_title", "automatic_day_title"}
+    fields = [key.schema for key in destinations["data_schema"].schema]
+    assert fields == ["calendar_destinations", "event_titles"]
+    calendar_section = next(
+        value
+        for key, value in destinations["data_schema"].schema.items()
+        if key.schema == "calendar_destinations"
+    )
+    calendar_fields = {key.schema for key in calendar_section.schema.schema}
+    assert calendar_fields == {"day_calendar"}
     calendar_validator = next(
         validator
-        for key, validator in destinations["data_schema"].schema.items()
+        for key, validator in calendar_section.schema.schema.items()
         if key.schema == "day_calendar"
     )
     assert calendar_validator("calendar.family") == "calendar.family"
@@ -170,8 +177,8 @@ async def test_holiday_export_has_its_own_calendar_and_title():
         }
     )
 
-    fields = {key.schema for key in destinations["data_schema"].schema}
-    assert fields == {"holiday_calendar", "holiday_title", "holiday_mode", "automatic_day_title"}
+    fields = [key.schema for key in destinations["data_schema"].schema]
+    assert fields == ["calendar_destinations", "event_titles"]
     result = await flow.async_step_destinations(
         {
             "holiday_calendar": "calendar.school_holidays",
@@ -210,8 +217,8 @@ async def test_assessment_export_has_its_own_destination_and_title():
         }
     )
 
-    fields = {key.schema for key in destinations["data_schema"].schema}
-    assert fields == {"assessment_calendar", "assessment_title", "automatic_day_title"}
+    fields = [key.schema for key in destinations["data_schema"].schema]
+    assert fields == ["calendar_destinations", "event_titles"]
     result = await flow.async_step_destinations(
         {
             "assessment_calendar": "calendar.tests",
@@ -236,7 +243,7 @@ async def test_sectioned_settings_preserve_account_and_sibling_options():
     assert values["synchronization"] == {"days_ahead": 30, "scan_interval": 60}
     destinations = await flow.async_step_settings(values)
     titles = destinations["data_schema"]({})
-    assert titles["automatic_day_title"] is True
+    assert titles["event_titles"]["automatic_day_title"] is True
     result = await flow.async_step_destinations(titles)
     assert result["data"]["exports"]["b"] == sibling
     assert result["data"]["exports"]["a"]["automatic_day_title"] is True

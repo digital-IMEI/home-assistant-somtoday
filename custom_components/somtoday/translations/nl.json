@@ -39,65 +39,127 @@
     "step": {
       "init": {
         "title": "Choose child",
-        "description": "Choose the child whose calendar settings you want to change. Repeat for other children; synchronization settings apply to the whole account.",
+        "description": "Kies het kind waarvoor je de agenda-instellingen wilt wijzigen. Herhaal dit voor andere kinderen; synchronisatie-instellingen gelden voor het hele account.",
         "data": {
           "student_id": "Child"
         }
       },
       "settings": {
-        "title": "Calendar settings",
-        "description": "Settings for {student}. Choose destination calendars and event titles on the next page. Calendar exports require write permissions.",
+        "title": "Kalenderinstellingen",
+        "description": "Instellingen voor {student}. Kies hier de exports en synchronisatie. Op de volgende pagina kies je agenda’s en afspraaknamen. Schrijfrechten zijn nodig.",
+        "data": {
+          "enable_day": "Schooldagen exporteren",
+          "enable_lessons": "Lessen exporteren",
+          "enable_holidays": "Vakanties exporteren",
+          "enable_assessments": "Toetsen exporteren",
+          "days_ahead": "Dagen vooruit (1–60)",
+          "scan_interval": "Bijwerkinterval in minuten (5–120)"
+        },
+        "data_description": {
+          "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
+          "enable_lessons": "Een aparte afspraak voor iedere les.",
+          "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
+          "enable_assessments": "Toetsen met een gepubliceerde datum.",
+          "days_ahead": "Geldt voor ieder kind in dit account. Begin met 1 dag om de export te controleren.",
+          "scan_interval": "Hoe vaak Somtoday wordt vernieuwd. Geldt voor ieder kind in dit account."
+        },
         "sections": {
           "exports": {
-            "name": "Calendar export",
+            "name": "Agenda-export",
+            "description": "Kies welke Somtoday-informatie naar een doelagenda wordt gekopieerd.",
             "data": {
-              "enable_day": "Export school days",
-              "enable_lessons": "Export lessons",
-              "enable_holidays": "Export holidays",
-              "enable_assessments": "Export tests"
+              "enable_day": "Schooldagen exporteren",
+              "enable_lessons": "Lessen exporteren",
+              "enable_holidays": "Vakanties exporteren",
+              "enable_assessments": "Toetsen exporteren"
             },
             "data_description": {
-              "enable_day": "One event from the first lesson to the last.",
-              "enable_lessons": "A separate event for each lesson.",
-              "enable_holidays": "Published school holidays, using your chosen event layout.",
-              "enable_assessments": "Tests with a published date."
+              "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
+              "enable_lessons": "Een aparte afspraak voor iedere les.",
+              "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
+              "enable_assessments": "Toetsen met een gepubliceerde datum."
             }
           },
           "synchronization": {
-            "name": "Synchronization · all children",
+            "name": "Synchronisatie · alle kinderen",
+            "description": "Deze waarden gelden voor ieder kind in dit Somtoday-account.",
             "data": {
-              "days_ahead": "Days ahead (1–60)",
-              "scan_interval": "Update interval in minutes (5–120)"
+              "days_ahead": "Dagen vooruit (1–60)",
+              "scan_interval": "Bijwerkinterval in minuten (5–120)"
             },
             "data_description": {
-              "days_ahead": "Applies to every child in this account. Start with 1 day to verify your calendar exports.",
-              "scan_interval": "How often to refresh Somtoday data. Applies to every child in this account."
+              "days_ahead": "Begin met 1 dag om je agenda-export te controleren.",
+              "scan_interval": "Hoe vaak Somtoday wordt vernieuwd."
             }
           }
         }
       },
       "destinations": {
-        "title": "Calendar destinations and titles",
-        "description": "Set event titles and destination calendars for {student}. Automatic school-day naming also applies to this child’s HA calendar when exports are off. Export destinations require write permissions and support for event creation and deletion. Changing or disabling a destination leaves existing events in the old calendar. [Calendar setup and permissions]({help_url}).",
+        "title": "Agenda’s en afspraaknamen",
+        "description": "Stel doelagenda’s en afspraaknamen in voor {student}. Schrijfrechten zijn nodig. Bestaande afspraken blijven in de oude agenda wanneer je een doelagenda of export wijzigt. [Uitleg over agenda-instellingen en rechten]({help_url}).",
         "data": {
-          "day_calendar": "School days · destination calendar",
-          "lesson_calendar": "Lessons · destination calendar",
-          "holiday_calendar": "Holidays · destination calendar",
-          "assessment_calendar": "Tests · destination calendar",
-          "day_title": "School days · event title",
-          "lesson_prefix": "Lessons · title prefix",
-          "holiday_title": "Holidays · event title",
-          "holiday_mode": "Holidays · event layout",
-          "assessment_title": "Tests · event title",
-          "automatic_day_title": "Automatic school-day title"
+          "calendar_destinations": "Doelagenda’s",
+          "event_titles": "Afspraaknamen",
+          "day_calendar": "Schooldagen · doelagenda",
+          "lesson_calendar": "Lessen · doelagenda",
+          "holiday_calendar": "Vakanties · doelagenda",
+          "assessment_calendar": "Toetsen · doelagenda",
+          "automatic_day_title": "Automatische naam voor schooldag",
+          "day_title": "Schooldagen · afspraaknaam",
+          "lesson_prefix": "Lessen · voorvoegsel",
+          "holiday_title": "Vakanties · afspraaknaam",
+          "holiday_mode": "Vakanties · afspraakindeling",
+          "assessment_title": "Toetsen · afspraaknaam"
         },
         "data_description": {
-          "holiday_mode": "One event · Somtoday dates uses the published first and final school-free date. One event · include surrounding weekends expands that range to the Saturday before and Sunday after. One all-day event per Somtoday date creates a separate event for each published date. A continuous multi-week event also covers weekends inside its date range.",
-          "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}.",
-          "day_title": "Placeholder: {student_placeholder}. Used unless automatic school-day naming supplies a shared activity title.",
-          "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title.",
+          "day_calendar": "Alleen agenda’s waarin afspraken kunnen worden gemaakt en verwijderd worden getoond.",
+          "lesson_calendar": "Alleen agenda’s waarin afspraken kunnen worden gemaakt en verwijderd worden getoond.",
+          "holiday_calendar": "Alleen agenda’s waarin afspraken kunnen worden gemaakt en verwijderd worden getoond.",
+          "assessment_calendar": "Alleen agenda’s waarin afspraken kunnen worden gemaakt en verwijderd worden getoond.",
+          "automatic_day_title": "Als alle actieve afspraken op een dag dezelfde niet-lege titel hebben, wordt die titel gebruikt voor de schooldag. Pauzes en geannuleerde afspraken tellen niet mee. Tekst vóór de eerste underscore wordt verwijderd en overige underscores worden spaties: PREFIX_Special_activity wordt Special activity. Anders blijft de normale schooldagnaam staan.",
+          "day_title": "Placeholder: {student_placeholder}. Wordt gebruikt als er geen gezamenlijke automatische naam is.",
+          "lesson_prefix": "Placeholder: {student_placeholder}. Wordt vóór iedere lestitel gezet.",
           "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}.",
-          "automatic_day_title": "Use the shared title when all active appointments on a day have the same non-empty title; ignore breaks and cancelled appointments. Otherwise use the normal school-day title. Remove text before the first underscore and replace remaining underscores with spaces: PREFIX_Special_activity becomes Special activity. Applies to this child’s HA school-day calendar and school-day export."
+          "holiday_mode": "Somtoday-datums gebruikt de gepubliceerde eerste en laatste vrije schooldag. Met omliggende weekenden loopt de afspraak van de zaterdag ervoor tot en met de zondag erna. Dagelijks maakt één hele-dagafspraak per gepubliceerde datum.",
+          "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}."
+        },
+        "sections": {
+          "calendar_destinations": {
+            "name": "Doelagenda’s",
+            "description": "Kies waar ingeschakelde exports worden opgeslagen. Alleen schrijfbare agenda’s worden getoond.",
+            "data": {
+              "day_calendar": "Schooldagen · doelagenda",
+              "lesson_calendar": "Lessen · doelagenda",
+              "holiday_calendar": "Vakanties · doelagenda",
+              "assessment_calendar": "Toetsen · doelagenda"
+            },
+            "data_description": {
+              "day_calendar": "Alleen agenda’s waarin afspraken kunnen worden gemaakt en verwijderd worden getoond.",
+              "lesson_calendar": "Alleen agenda’s waarin afspraken kunnen worden gemaakt en verwijderd worden getoond.",
+              "holiday_calendar": "Alleen agenda’s waarin afspraken kunnen worden gemaakt en verwijderd worden getoond.",
+              "assessment_calendar": "Alleen agenda’s waarin afspraken kunnen worden gemaakt en verwijderd worden getoond."
+            }
+          },
+          "event_titles": {
+            "name": "Afspraaknamen",
+            "description": "Pas namen en placeholders per export aan.",
+            "data": {
+              "automatic_day_title": "Automatische naam voor schooldag",
+              "day_title": "Schooldagen · afspraaknaam",
+              "lesson_prefix": "Lessen · voorvoegsel",
+              "holiday_title": "Vakanties · afspraaknaam",
+              "holiday_mode": "Vakanties · afspraakindeling",
+              "assessment_title": "Toetsen · afspraaknaam"
+            },
+            "data_description": {
+              "automatic_day_title": "Als alle actieve afspraken op een dag dezelfde niet-lege titel hebben, wordt die titel gebruikt voor de schooldag. Pauzes en geannuleerde afspraken tellen niet mee. Tekst vóór de eerste underscore wordt verwijderd en overige underscores worden spaties: PREFIX_Special_activity wordt Special activity. Anders blijft de normale schooldagnaam staan.",
+              "day_title": "Placeholder: {student_placeholder}. Wordt gebruikt als er geen gezamenlijke automatische naam is.",
+              "lesson_prefix": "Placeholder: {student_placeholder}. Wordt vóór iedere lestitel gezet.",
+              "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}.",
+              "holiday_mode": "Somtoday-datums gebruikt de gepubliceerde eerste en laatste vrije schooldag. Met omliggende weekenden loopt de afspraak van de zaterdag ervoor tot en met de zondag erna. Dagelijks maakt één hele-dagafspraak per gepubliceerde datum.",
+              "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}."
+            }
+          }
         }
       }
     },
