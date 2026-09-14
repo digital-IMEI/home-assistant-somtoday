@@ -153,6 +153,12 @@ class HomeworkSync:
                 counts["mode"] = "waiting"
             return counts
 
+    async def pending(self, record, counts):
+        """Expose a bounded wait as an error, without repeating unsafe writes."""
+        record["pending_checks"] = record.get("pending_checks", 0) + 1
+        await self.store.async_save(self.records)
+        counts["errors" if record["pending_checks"] >= 3 else "waiting"] += 1
+
     async def sync_item(self, student, pupil, route, state, value, items, counts):
         target = route["homework_list"]
         marker = marker_for(self.entry.entry_id, student, value["id"])
@@ -167,7 +173,7 @@ class HomeworkSync:
         record = self.records.get(key)
         if not matches:
             if record is not None:
-                counts["waiting"] += 1
+                await self.pending(record, counts)
                 return
             self.records[key] = {"creating": True}
             await self.store.async_save(self.records)
@@ -189,17 +195,18 @@ class HomeworkSync:
             record.pop("source_pending", None)
         if "source_pending" in record:
             if source != record["source_pending"]:
-                counts["waiting"] += 1
+                await self.pending(record, counts)
                 return  # Await read-back; do not overwrite with stale source data.
             record.pop("source_pending")
             record["source"] = source
             record["target"] = source
         if "target_pending" in record:
             if current != record["target_pending"]:
-                counts["waiting"] += 1
+                await self.pending(record, counts)
                 return
             record.pop("target_pending")
             record["target"] = current
+        record.pop("pending_checks", None)
         desired = current
         # Source wins first import and simultaneous changes. Unknown != incomplete.
         if source is not None and ("source" not in record or source != record["source"] or not bidirectional):

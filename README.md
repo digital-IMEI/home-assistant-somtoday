@@ -397,3 +397,5 @@ This is a test release, not a claim of live verification against every school or
 
 References: [HA to-do actions](https://www.home-assistant.io/integrations/todo/) and
 [community Somtoday API documentation](https://github.com/elisaado/somtoday-api-docs/blob/master/Homework.md).
+
+Unconfirmed task writes become an error after three checks; they are not blindly retried.

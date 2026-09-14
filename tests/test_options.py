@@ -309,3 +309,32 @@ async def test_invalid_destination_keeps_edited_title():
     form = await flow.async_step_destinations({"school_days": {"day_calendar": "calendar.missing", "day_title": "Keep this"}})
     fields = convert(form["data_schema"], custom_serializer=custom_serializer)
     assert fields[0]["default"]["day_title"] == "Keep this"
+
+
+@pytest.mark.asyncio
+async def test_homework_form_roundtrip_and_disable():
+    states = [SimpleNamespace(entity_id="todo.school", name="School",
+                              state="0", attributes={"supported_features": 127})]
+    flow, _ = make_flow({"exports": {"b": {"homework_list": "todo.sibling"}}}, states)
+    form = await flow.async_step_init({"student_id": "a"})
+    values = form["data_schema"]({})
+    values["exports"]["enable_homework"] = True
+    dest = await flow.async_step_settings(values)
+    assert not dest["errors"]
+    data = dest["data_schema"]({"homework": {"homework_list": "todo.school",
+                                           "homework_bidirectional": True}})
+    result = await flow.async_step_destinations(data)
+    assert result["data"]["exports"]["a"]["homework_list"] == "todo.school"
+    assert result["data"]["exports"]["a"]["homework_bidirectional"] is True
+    assert result["data"]["exports"]["b"]["homework_list"] == "todo.sibling"
+    again, _ = make_flow(result["data"], states)
+    form = await again.async_step_init({"student_id": "a"})
+    values = form["data_schema"]({})
+    assert values["exports"]["enable_homework"] is True
+    values["exports"]["enable_homework"] = False
+    dest = await again.async_step_settings(values)
+    saved = await again.async_step_destinations(dest["data_schema"]({}))
+    assert not saved["data"]["exports"]["a"].get("homework_list")
+    for lang in ("en", "nl"):
+        t = json.loads((Path(__file__).parents[1] / "custom_components/somtoday/translations" / f"{lang}.json").read_text())
+        assert t["options"]["step"]["calendar_destinations"]["sections"]["homework"]["data"]["homework_list"]

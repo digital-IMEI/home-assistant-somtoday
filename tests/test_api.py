@@ -50,3 +50,23 @@ async def test_assessments_fetches_and_labels_all_assignment_scopes():
         "/rest/v1/studiewijzeritemdagtoekenningen",
         "/rest/v1/studiewijzeritemweektoekenningen",
     }
+
+
+@pytest.mark.asyncio
+async def test_homework_write_body_and_redacted_failure():
+    from unittest.mock import Mock
+    from types import SimpleNamespace
+    response = Mock()
+    client = SomtodayClient(SimpleNamespace(put=AsyncMock(return_value=response)),
+                            {"access_token": "secret", "expires_at": 9999999999})
+    await client.set_homework_done("123", "456", True)
+    body = client._session.put.call_args.kwargs["json"]
+    assert body["leerling"]["links"][0]["id"] == 123
+    assert body["swiToekenningId"] == 456
+    assert body["gemaakt"] is True
+    assert client._session.put.call_args.args[0].endswith("/rest/v1/swigemaakt/cou")
+    client._session.put.side_effect = TimeoutError("private")
+    with pytest.raises(SomtodayApiError, match="Homework completion write failed"):
+        await client.set_homework_done("123", "456", False)
+    with pytest.raises(SomtodayApiError, match="Unsupported homework identifiers"):
+        await client.set_homework_done("not-an-id", "456", True)
