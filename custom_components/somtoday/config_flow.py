@@ -256,12 +256,20 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 choices[state.entity_id] = state.name
         return choices
 
+    def _todo_choices(self):
+        from .homework import compatible
+        return {state.entity_id: state.name for state in self.hass.states.async_all("todo")
+                if state.entity_id.startswith("todo.") and compatible(state)}
+
     def _save_options(self, route: dict[str, Any]):
         """Save this child's route without changing routes for other children."""
         options = dict(self.config_entry.options)
         options.pop("preview", None)
         routes = dict(options.get("exports", {}))
         route["automatic_day_title"] = self._automatic_day_title
+        if getattr(self, "_enable_homework", False):
+            route.update(self._homework_route)
+
         routes[self.student] = route
         options.update(self._pending_settings)
         options["exports"] = routes
@@ -305,6 +313,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         old = self._old_options()
         schema = vol.Schema(
             {
+                vol.Required("enable_homework", default=bool(old.get("homework_list"))): bool,
                 vol.Required(
                     "enable_day", default=bool(old.get("day_calendar"))
                 ): bool,
@@ -327,7 +336,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             }
         )
         groups = {
-            "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments"),
+            "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments", "enable_homework"),
         }
         schema = vol.Schema({
             vol.Required(name, default={key.schema: key.default() for key in schema.schema if key.schema in fields}): section(
@@ -348,6 +357,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     errors={"base": "invalid_student"},
                     description_placeholders={"student": self.student},
                 )
+            self._enable_homework = user_input.get("enable_homework", False)
             self._enable_day = user_input["enable_day"]
             self._enable_lessons = user_input["enable_lessons"]
             self._enable_holidays = user_input["enable_holidays"]
@@ -371,6 +381,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         """Choose destination calendars and event titles."""
         students = self._students()
         choices = self._calendar_choices()
+        todo_choices = self._todo_choices()
         old = self._old_options()
         errors = {}
         enabled_fields = []
@@ -387,7 +398,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             # Sections are presentation-only. Accept both the sectioned form used by
             # current HA and the flat form used by older clients/tests.
             user_input = dict(user_input)
-            for name in ("calendar_destinations", "event_titles", "school_days", "lessons", "holidays", "holiday_layout", "tests"):
+            for name in ("calendar_destinations", "event_titles", "school_days", "lessons", "holidays", "holiday_layout", "tests", "homework"):
                 nested = user_input.pop(name, None)
                 if isinstance(nested, dict):
                     user_input.update(nested)
@@ -395,7 +406,14 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 errors["base"] = "invalid_student"
             elif any(user_input.get(field) not in choices for field in enabled_fields):
                 errors["base"] = "invalid_calendar"
+            elif getattr(self, "_enable_homework", False) and user_input.get("homework_list") not in todo_choices:
+                errors["base"] = "invalid_todo"
             else:
+                self._homework_route = {
+                    "homework_list": user_input.get("homework_list", ""),
+                    "homework_title": user_input.get("homework_title", old.get("homework_title", "{student} · {subject} · {topic}")),
+                    "homework_bidirectional": user_input.get("homework_bidirectional", False),
+                }
                 self._automatic_day_title = user_input.get(
                     "automatic_day_title", old.get("automatic_day_title", False)
                 )
@@ -487,6 +505,13 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 default=old.get("assessment_title", "{student} · {subject} · {type}"),
             )] = vol.All(str, vol.Length(min=1, max=100))
 
+        if getattr(self, "_enable_homework", False):
+            todo_key = vol.Required("homework_list")
+            if old.get("homework_list") in todo_choices:
+                todo_key = vol.Required("homework_list", default=old["homework_list"])
+            title_schema[todo_key] = vol.In(todo_choices)
+            title_schema[vol.Required("homework_title", default=old.get("homework_title", "{student} · {subject} · {topic}"))] = vol.All(str, vol.Length(min=1, max=200))
+            title_schema[vol.Required("homework_bidirectional", default=old.get("homework_bidirectional", False))] = bool
         schema = {}
         fields = {**calendar_schema, **title_schema}
         groups = {
@@ -494,6 +519,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             "lessons": ("lesson_calendar", "lesson_prefix"),
             "holidays": ("holiday_calendar", "holiday_title", "holiday_mode"),
             "tests": ("assessment_calendar", "assessment_title"),
+            "homework": ("homework_list", "homework_title", "homework_bidirectional"),
         }
         for name, names in groups.items():
             group = {key: value for key, value in fields.items() if key.schema in names}
@@ -507,6 +533,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             schema[vol.Required(name, default=defaults)] = section(
                 vol.Schema(group), {"collapsed": False}
             )
+        if getattr(self, "_enable_homework", False) and not todo_choices:
+            errors["base"] = "invalid_todo"
         if enabled_fields and not choices:
             errors["base"] = "no_writable_calendars"
         return self.async_show_form(

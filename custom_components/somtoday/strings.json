@@ -60,15 +60,16 @@
         }
       },
       "calendar_settings": {
-        "title": "Calendar settings",
-        "description": "Choose calendar exports for {student}. Set destination calendars and event titles on the next page.",
+        "title": "Export settings",
+        "description": "Choose calendar and task exports for {student}. Set destinations and titles on the next page.",
         "data": {
           "enable_day": "Export school days",
           "enable_lessons": "Export lessons",
           "enable_holidays": "Export holidays",
           "enable_assessments": "Export tests",
           "days_ahead": "Days ahead (1–60)",
-          "scan_interval": "Update interval in minutes (5–120)"
+          "scan_interval": "Update interval in minutes (5–120)",
+          "enable_homework": "Export homework"
         },
         "data_description": {
           "enable_day": "One event from the first lesson to the last.",
@@ -76,23 +77,26 @@
           "enable_holidays": "Published school holidays, using your chosen event layout.",
           "enable_assessments": "Tests with a published date.",
           "days_ahead": "Applies to every child in this account. Start with 1 day to verify your calendar exports.",
-          "scan_interval": "How often to refresh Somtoday data. Applies to every child in this account."
+          "scan_interval": "How often to refresh Somtoday data. Applies to every child in this account.",
+          "enable_homework": "Homework to an HA to-do list. Does not export tests or submit files."
         },
         "sections": {
           "exports": {
-            "name": "Calendar export",
+            "name": "Exports",
             "description": "Choose which Somtoday information should be copied to a destination calendar.",
             "data": {
               "enable_day": "Export school days",
               "enable_lessons": "Export lessons",
               "enable_holidays": "Export holidays",
-              "enable_assessments": "Export tests"
+              "enable_assessments": "Export tests",
+              "enable_homework": "Export homework"
             },
             "data_description": {
               "enable_day": "One event from the first lesson to the last.",
               "enable_lessons": "A separate event for each lesson.",
               "enable_holidays": "Published school holidays, using your chosen event layout.",
-              "enable_assessments": "Tests with a published date."
+              "enable_assessments": "Tests with a published date.",
+              "enable_homework": "Homework to an HA to-do list. Does not export tests or submit files."
             }
           }
         },
@@ -177,6 +181,20 @@
               "assessment_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
               "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}."
             }
+          },
+          "homework": {
+            "name": "Homework",
+            "description": "Choose a writable to-do list supporting creation, updates and descriptions. Permissions are confirmed during sync. Start with a dedicated Local to-do list. Disabling or changing the list keeps existing tasks.",
+            "data": {
+              "homework_list": "To-do list",
+              "homework_title": "Task title",
+              "homework_bidirectional": "Write completion back to Somtoday"
+            },
+            "data_description": {
+              "homework_list": "Dates are assigned only when explicitly known and supported by the list.",
+              "homework_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {topic_placeholder}.",
+              "homework_bidirectional": "Experimental: send completed/reopened changes from HA to Somtoday. Requires Somtoday write permission; parent accounts may be denied. Somtoday wins simultaneous changes. Unknown progress is not written back."
+            }
           }
         },
         "submit": "Save"
@@ -185,7 +203,8 @@
     "error": {
       "invalid_calendar": "Choose an available calendar supporting event creation and deletion.",
       "invalid_student": "Child no longer available.",
-      "no_writable_calendars": "No compatible calendar is available. Add a calendar supporting event creation and deletion and check write permissions."
+      "no_writable_calendars": "No compatible calendar is available. Add a calendar supporting event creation and deletion and check write permissions.",
+      "invalid_todo": "Choose an available to-do list supporting creation, updates and descriptions, such as Local to-do."
     }
   },
   "issues": {
