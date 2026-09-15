@@ -12,6 +12,9 @@ async def async_get_config_entry_diagnostics(hass, entry):
     routes = entry.options.get("exports", {})
     destinations = []
     for index, route in enumerate(routes.values(), 1):
+        if not isinstance(route, dict):
+            destinations.append({"route_index": index, "invalid_configuration": True})
+            continue
         target = route.get("homework_list")
         state = hass.states.get(target) if target else None
         destinations.append({
