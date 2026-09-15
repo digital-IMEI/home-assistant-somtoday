@@ -14,6 +14,17 @@ async def async_get_config_entry_diagnostics(hass, entry):
             for key in ("created", "updated", "unchanged", "waiting", "errors", "source_updated", "homework_found")
             if isinstance(data.get("homework_sync_status", {}).get(key), int)
         },
+        "homework_sync_reasons": {
+            key: value
+            for key, value in data.get("homework_sync_status", {}).get("reasons", {}).items()
+            if key in {
+                "homework_source_unavailable", "task_list_missing", "task_list_unavailable",
+                "task_list_unsupported", "task_list_read_failed", "invalid_task_snapshot",
+                "task_list_write_failed", "somtoday_write_failed", "task_creation_unconfirmed",
+                "task_update_unconfirmed", "somtoday_write_unconfirmed", "duplicate_task_marker",
+                "invalid_task_identity", "task_sync_failed", "homework_sync_failed",
+            } and isinstance(value, int)
+        },
         "homework_source_available_count": sum(
             value is not None
             for value in getattr(coordinator, "_assessment_assignments", {}).values()
