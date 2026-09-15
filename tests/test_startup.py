@@ -87,3 +87,33 @@ async def test_startup_defers_export_but_preserves_source(monkeypatch):
     result = await coordinator._async_update_data()
     assert result["sync_status"]["mode"] == "error"
     create_issue.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_optional_source_failure_exposes_safe_details_and_recovers(monkeypatch, caplog):
+    import custom_components.somtoday.coordinator as module
+    from custom_components.somtoday.api import SomtodayAssignmentsError
+
+    coordinator = object.__new__(SomtodayCoordinator)
+    coordinator.entry = SimpleNamespace(entry_id="test", data={"token": {}}, options={})
+    coordinator.hass = SimpleNamespace()
+    failure = {"source": "day", "category": "http_error", "http_status": 403}
+    coordinator.client = SimpleNamespace(
+        token={}, students=AsyncMock(return_value=[{"links": [{"id": "private-child"}]}]),
+        appointments=AsyncMock(return_value=[]), holidays=AsyncMock(return_value=[]),
+        assessments=AsyncMock(side_effect=SomtodayAssignmentsError([failure])),
+    )
+    coordinator._holidays = {}
+    coordinator._holidays_checked = None
+    coordinator.export_ready = False
+    monkeypatch.setattr(module.ir, "async_delete_issue", Mock())
+    result = await coordinator._async_update_data()
+    assert result["homework_sync_status"]["source_errors"] == [failure]
+    assert coordinator._assessment_assignments == {"private-child": None}
+    assert "private-child" not in caplog.text
+    assert "http_error" in caplog.text
+    coordinator.client.assessments.side_effect = None
+    coordinator.client.assessments.return_value = []
+    result = await coordinator._async_update_data()
+    assert result["homework_sync_status"]["source_errors"] == []
+    assert coordinator._assessment_assignments == {"private-child": []}

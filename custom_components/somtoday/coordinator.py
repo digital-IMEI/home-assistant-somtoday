@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import timedelta
 from typing import Any
 
@@ -13,7 +14,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers import issue_registry as ir
 
-from .api import SomtodayApiError, SomtodayClient, SomtodayAuthenticationError
+from .api import (SomtodayApiError, SomtodayClient, SomtodayAuthenticationError,
+                  SomtodayAssignmentsError, assignment_failure)
 from .const import CONF_TOKEN, DOMAIN, SCHEDULE_DAYS, UPDATE_INTERVAL
 from .models import school_day_bounds
 from .assessments import normalize_assessments
@@ -50,6 +52,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._holidays = {}
         self._holidays_checked = None
         self._assessment_assignments = {}
+        self._assignment_source_errors = []
         self.export_ready = False
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -101,6 +104,20 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             if unexpected is not None:
                 raise unexpected
+            failures = []
+            for result in assessment_results:
+                if isinstance(result, SomtodayAssignmentsError):
+                    failures.extend(result.failures)
+                elif isinstance(result, SomtodayApiError):
+                    failures.append(assignment_failure("authentication", result))
+            if failures != getattr(self, "_assignment_source_errors", []):
+                if failures:
+                    logging.getLogger(__name__).warning(
+                        "Somtoday assignment sources unavailable: %s", failures
+                    )
+                elif getattr(self, "_assignment_source_errors", []):
+                    logging.getLogger(__name__).info("Somtoday assignment sources recovered")
+            self._assignment_source_errors = failures
             self._assessment_assignments = assessment_data
         except SomtodayAuthenticationError as err:
             raise ConfigEntryAuthFailed("Somtoday sign-in expired; sign in again") from err
@@ -241,6 +258,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self.hass.config_entries.async_update_entry(
                             self.entry, data={**self.entry.data, CONF_TOKEN: self.client.token}
                         )
+        homework_status["source_errors"] = self._assignment_source_errors
         return {
             "homework_sync_status": homework_status,
             "students": students,

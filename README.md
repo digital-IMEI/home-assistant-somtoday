@@ -453,3 +453,24 @@ Somtoday diagnostics through the integration menu. Do not share callback URLs, t
 or private homework descriptions. Logs from this homework exporter contain fixed failure
 codes rather than provider exception text. Leave existing tasks and the account in place
 while investigating; removing/recreating them can obscure the cause.
+
+### Diagnosing unavailable homework or tests
+
+Since `0.9.0-beta.3`, the **Homework sync** attributes include `source_errors`.
+These identify the failing assignment source (`appointment`, `day`, or `week`),
+a safe error category, and the HTTP status when available. `authentication`
+identifies a failure before the assignment requests. These details are also in
+integration diagnostics. A warning is logged when the source failure changes;
+request URLs, credentials, pupil names and assignment contents are not included.
+
+`http_error` with 401/403 indicates an authorization response; it does not prove
+that all parent accounts lack access. Other categories include `timeout`,
+`connection_error`, `authentication_error`, and `invalid_response` (including
+invalid pagination). An empty `source_errors` list means no assignment request
+failure was recorded in that update, not necessarily that task export succeeded.
+
+If reporting `homework_source_unavailable`, include your integration and HA
+versions, whether you use a parent or student account, whether homework and tests
+are visible in the Somtoday app/website **with that same account**, and the
+**Homework sync** attributes. `homework_found: 0` during a source failure does not
+mean there is no homework. Incomplete source snapshots are not synchronized.

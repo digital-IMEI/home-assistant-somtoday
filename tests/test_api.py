@@ -70,3 +70,48 @@ async def test_homework_write_body_and_redacted_failure():
         await client.set_homework_done("123", "456", False)
     with pytest.raises(SomtodayApiError, match="Unsupported homework identifiers"):
         await client.set_homework_done("not-an-id", "456", True)
+
+
+@pytest.mark.asyncio
+async def test_assignment_failures_identify_each_source_without_partial_snapshot():
+    from aiohttp import ClientResponseError
+    from custom_components.somtoday.api import SomtodayAssignmentsError
+
+    forbidden = SomtodayApiError("private response")
+    forbidden.__cause__ = ClientResponseError(None, (), status=403, message="private")
+    timeout = SomtodayApiError("private timeout")
+    timeout.__cause__ = TimeoutError("secret URL")
+    client = SomtodayClient(None, {"access_token": "secret", "expires_at": 9999999999})
+    client._get_all = AsyncMock(side_effect=[[{"private": "homework"}], forbidden, timeout])
+    with pytest.raises(SomtodayAssignmentsError) as caught:
+        await client.assessments("private-student", date(2026, 9, 15))
+    assert caught.value.failures == [
+        {"source": "day", "category": "http_error", "http_status": 403},
+        {"source": "week", "category": "timeout"},
+    ]
+    assert client._get_all.await_count == 3
+    assert "private" not in str(caught.value)
+
+
+def test_assignment_failure_does_not_leak_exception_messages():
+    from custom_components.somtoday.api import assignment_failure
+    assert assignment_failure("day", SomtodayApiError("token=secret")) == {
+        "source": "day", "category": "invalid_response",
+    }
+
+
+@pytest.mark.asyncio
+async def test_all_assignment_sources_empty_is_valid():
+    client = SomtodayClient(None, {"access_token": "token", "expires_at": 9999999999})
+    client._get_all = AsyncMock(return_value=[])
+    assert await client.assessments("student", date(2026, 9, 15)) == []
+    assert client._get_all.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_empty_sources_do_not_discard_other_assignments():
+    client = SomtodayClient(None, {"access_token": "token", "expires_at": 9999999999})
+    client._get_all = AsyncMock(side_effect=[[], [{"id": "homework"}], []])
+    assert await client.assessments("student", date(2026, 9, 15)) == [
+        {"id": "homework", "_somtoday_assignment_kind": "day"}
+    ]

@@ -30,6 +30,33 @@ class SomtodayAuthenticationError(SomtodayApiError):
     """Raised when authentication or token refresh fails."""
 
 
+class SomtodayAssignmentsError(SomtodayApiError):
+    """An incomplete assignment snapshot with privacy-safe failure details."""
+
+    def __init__(self, failures: list[dict[str, Any]]) -> None:
+        super().__init__("Assignment sources unavailable")
+        self.failures = failures
+
+
+def assignment_failure(source: str, error: BaseException) -> dict[str, Any]:
+    """Classify exceptions without exposing messages, URLs or response bodies."""
+    result = {"source": source, "category": "invalid_response"}
+    current = error
+    seen = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, ClientResponseError):
+            return {"source": source, "category": "http_error", "http_status": current.status}
+        if isinstance(current, TimeoutError):
+            result["category"] = "timeout"
+        elif isinstance(current, ClientError):
+            result["category"] = "connection_error"
+        elif isinstance(current, SomtodayAuthenticationError):
+            result["category"] = "authentication_error"
+        current = current.__cause__
+    return result
+
+
 def generate_pkce() -> tuple[str, str]:
     """Return a PKCE verifier and S256 challenge."""
     verifier = base64.urlsafe_b64encode(secrets.token_bytes(48)).rstrip(b"=").decode()
@@ -155,8 +182,19 @@ class SomtodayClient:
         )
         await self.ensure_token()
         pages = await asyncio.gather(
-            *(self._get_all(path, params=common) for _, path in sources)
+            *(self._get_all(path, params=common) for _, path in sources),
+            return_exceptions=True,
         )
+        failures = []
+        for (kind, _), page in zip(sources, pages, strict=True):
+            if isinstance(page, SomtodayApiError):
+                failures.append(assignment_failure(kind, page))
+            elif isinstance(page, BaseException):
+                raise page
+        if failures:
+            # Never pass partial snapshots to synchronizers: missing items could
+            # otherwise be mistaken for deleted homework or tests.
+            raise SomtodayAssignmentsError(failures)
         result = []
         for (kind, _), items in zip(sources, pages, strict=True):
             for item in items:

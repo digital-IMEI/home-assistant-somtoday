@@ -8,7 +8,14 @@ async def async_get_config_entry_diagnostics(hass, entry):
     data = coordinator.data if coordinator and coordinator.data else {}
     sync = data.get("sync_status", {})
     return {
-        "version": "0.9.0-beta.2",
+        "version": "0.9.0-beta.3",
+        "assignment_source_errors": [
+            {key: value for key, value in failure.items()
+             if (key == "source" and value in {"appointment", "day", "week", "authentication"})
+             or (key == "category" and value in {"invalid_response", "http_error", "timeout", "connection_error", "authentication_error"})
+             or (key == "http_status" and isinstance(value, int))}
+            for failure in getattr(coordinator, "_assignment_source_errors", [])
+        ],
         "homework_sync_counts": {
             key: data.get("homework_sync_status", {}).get(key)
             for key in ("created", "updated", "unchanged", "waiting", "errors", "source_updated", "homework_found")
