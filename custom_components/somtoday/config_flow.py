@@ -429,7 +429,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                             "day_title", old.get("day_title", "School · {student}")
                         ),
                         "lesson_prefix": user_input.get(
-                            "lesson_prefix", old.get("lesson_prefix", "{student} · ")
+                            "lesson_prefix", "" if self._enable_lessons else old.get("lesson_prefix", "{student} · ")
                         ),
                         "holiday_title": user_input.get(
                             "holiday_title",
@@ -487,7 +487,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         }
         if self._enable_lessons:
             title_schema[vol.Optional(
-                "lesson_prefix", default=old.get("lesson_prefix", "{student} · ")
+                "lesson_prefix", description={"suggested_value": old.get("lesson_prefix", "{student} · ")}
             )] = str
         if self._enable_holidays:
             title_schema[vol.Required(

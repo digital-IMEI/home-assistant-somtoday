@@ -36,6 +36,8 @@ the Somtoday app before you can copy the return URL.
 1. Select the organization from the dropdown. Some schools appear under a school group
    rather than their location name. Do not assume all Sophianum or LVO users use the same tenant.
 2. Click **Open the Somtoday sign-in page** in a new tab. Leave the HA setup dialog open.
+   Always use the link in the **current Home Assistant setup popup**. Opening the
+   regular Somtoday website can sign you in successfully but will not complete this flow.
 3. **Before logging in**, open the browser's Developer Tools with **F12**.
    This means the browser tools, not Home Assistant's Developer Tools menu.
 4. Open **Network**, enable **Preserve log** (Firefox: **Persist Logs**), and select **All**.
@@ -50,6 +52,8 @@ the Somtoday app before you can copy the return URL.
 7. Paste that complete URL into the HA **callback URL** field and submit.
 
 The callback must contain both `code=` and `state=` from the current HA setup attempt.
+An `https://inloggen.somtoday.nl/?auth=…` address is an intermediate login redirect,
+not the callback to paste. Complete login using the popup's link and inspect the final redirect.
 Do not enter the fixed callback prefix, the web timetable URL, a test link's callback,
 or the authorization request URL. Codes are temporary and single-use.
 If requests were not preserved, repeat login using the link in the still-open HA dialog;
@@ -60,6 +64,21 @@ If you only see a bare `callback_url` field with no login link, check your insta
 version, restart HA and refresh the browser. English and Dutch translations are bundled
 and tested. The callback flow has been verified by a Sophianum user; browser behavior
 and other schools' identity providers may differ.
+
+You can use a parent account to read children visible to that account, or a student
+account for that student. Reading homework does not prove permission to mark it completed.
+Student-account write-back has not been verified; it is not a guaranteed workaround.
+
+#### Where to find the callback
+
+| Screen | Action |
+| --- | --- |
+| HA Somtoday setup popup | Open its **Open the Somtoday sign-in page** link. |
+| New browser tab, Developer Tools → Network | Enable **Preserve log**, then sign in. |
+| Final redirect → Headers → Response Headers → Location | Copy the complete `somtoday://…?code=…&state=…` value. |
+| Original HA popup → callback URL | Paste that value and submit. |
+
+This is a navigation guide, not a screenshot of a particular school's sign-in screen.
 
 ## Configure calendar export
 
@@ -73,6 +92,9 @@ and other schools' identity providers may differ.
 5. Set titles. The literal `{student}` in a title or prefix is replaced with that child's
    first name. In holiday titles, `{holiday}` becomes Somtoday's published holiday name.
    You may enter a distinctive full name yourself if children share a first name.
+   Clear **Lessons · title prefix** to export only the lesson title. Saving a blank
+   prefix keeps it blank. Existing managed lesson events in the active export window
+   are renamed on the next successful sync; entity names still identify the child.
 6. **Write permissions are required** in the destination integration and at the provider.
    Start with **Days ahead = 1** and verify the actual events in your destination calendar.
    Enabled exports perform real writes; there is no Preview only mode.
@@ -399,3 +421,35 @@ References: [HA to-do actions](https://www.home-assistant.io/integrations/todo/)
 [community Somtoday API documentation](https://github.com/elisaado/somtoday-api-docs/blob/master/Homework.md).
 
 Unconfirmed task writes become an error after three checks; they are not blindly retried.
+
+### Troubleshooting homework export
+
+First identify the exact entity: **Homework sync** is a Somtoday diagnostic sensor;
+the selected `todo.…` entity is provided by the task-list integration. They are different.
+If Somtoday's source refresh fails after setup, Homework sync now stays readable with
+`error` and `source_update_failed`, instead of losing the explanation to `unavailable`.
+If setup itself never completed, check the integration's setup error and HA logs.
+
+Open **Homework sync → Attributes** to see `homework_found`, operation counts and
+`reasons`. These are counts for the latest run, not the total tasks in your list.
+
+| Reason | What to check |
+| --- | --- |
+| `source_update_failed` | Somtoday source refresh failed. Check setup/reauth notifications and the HA log. |
+| `homework_source_unavailable` | The optional homework source could not be read. An empty roster does not prove there is no homework. |
+| `task_list_missing` | The configured `todo.…` entity no longer exists. Select the correct list in Configure. |
+| `task_list_unavailable` | The task-list integration is not ready or is unavailable. Check that integration. |
+| `task_list_unsupported` | Creating, updating and descriptions are required. Try a separate Local to-do list. |
+| `task_list_read_failed` / `invalid_task_snapshot` | HA could not return a usable task list. Check `todo.get_items` for that entity. |
+| `task_list_write_failed` | A task-list write failed; check the destination's permissions and availability. |
+| `somtoday_write_failed` | Completion write-back failed. Turn write-back off while investigating; parent-account permissions are only one possible cause. |
+| `task_creation_unconfirmed` / `task_update_unconfirmed` / `somtoday_write_unconfirmed` | A previous write has not been confirmed. Inspect the destination before retrying or removing anything. |
+| `duplicate_task_marker` / `invalid_task_identity` | Task identity is ambiguous; no task is selected by guessing. |
+| `task_sync_failed` / `homework_sync_failed` | An unexpected error occurred. Report the diagnostic result and the relevant HA log entry. |
+
+If reporting a problem, include your HA and Somtoday versions, the affected entity,
+task-list provider, parent/student account type and the diagnostic reason. Download
+Somtoday diagnostics through the integration menu. Do not share callback URLs, tokens
+or private homework descriptions. Logs from this homework exporter contain fixed failure
+codes rather than provider exception text. Leave existing tasks and the account in place
+while investigating; removing/recreating them can obscure the cause.

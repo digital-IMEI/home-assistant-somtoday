@@ -138,9 +138,19 @@ class SomtodayHomeworkSyncSensor(SomtodaySyncSensor):
         self._attr_unique_id = f"{entry.entry_id}_homework_sync"
 
     @property
+    def available(self):
+        # Diagnostics must still explain a failed source refresh. This does not
+        # make stale source entities available or claim that synchronization ran.
+        return self.coordinator.data is not None
+
+    @property
     def native_value(self):
+        if not self.coordinator.last_update_success:
+            return "error"
         return self.coordinator.data.get("homework_sync_status", {}).get("mode", "disabled")
 
     @property
     def extra_state_attributes(self):
+        if not self.coordinator.last_update_success:
+            return {"reason": "source_update_failed"}
         return self.coordinator.data.get("homework_sync_status", {})

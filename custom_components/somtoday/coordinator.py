@@ -226,7 +226,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         homework_status = {"mode": "disabled"}
         if getattr(self, "homework_sync", None):
             if not self.export_ready:
-                homework_status = {"mode": "starting"}
+                homework_status = {"mode": "starting", "reason": "startup_wait"}
             else:
                 try:
                     homework_status = await self.homework_sync.run(
@@ -235,7 +235,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         start + timedelta(days=self.entry.options.get("days_ahead", 14)),
                     )
                 except Exception:
-                    homework_status = {"mode": "error"}
+                    homework_status = {"mode": "error", "reason": "homework_sync_failed"}
                 finally:
                     if self.client.token != self.entry.data.get(CONF_TOKEN):
                         self.hass.config_entries.async_update_entry(

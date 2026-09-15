@@ -10,6 +10,29 @@ import json
 from pathlib import Path
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("prefix", [None, ""])
+async def test_cleared_lesson_prefix_survives_validation_and_reopening(prefix):
+    states = [SimpleNamespace(entity_id="calendar.family", name="Family", attributes={"supported_features": 3})]
+    flow, _ = make_flow({"exports": {"a": {"lesson_calendar": "calendar.family", "lesson_prefix": "{student} · "}}}, states)
+    form = await flow.async_step_init({"student_id": "a"})
+    dest = await flow.async_step_settings(form["data_schema"]({}))
+    submitted = {"lessons": {"lesson_calendar": "calendar.family"}}
+    if prefix is not None:
+        submitted["lessons"]["lesson_prefix"] = prefix
+    # Validation must not restore an old default when the frontend omits a cleared field.
+    validated = dest["data_schema"](submitted)
+    result = await flow.async_step_destinations(validated)
+    assert result["data"]["exports"]["a"]["lesson_prefix"] == ""
+    reopened, _ = make_flow(result["data"], states)
+    form = await reopened.async_step_init({"student_id": "a"})
+    dest = await reopened.async_step_settings(form["data_schema"]({}))
+    fields = convert(dest["data_schema"], custom_serializer=custom_serializer)
+    lesson_fields = next(group["schema"] for group in fields if group["name"] == "lessons")
+    prefix_field = next(field for field in lesson_fields if field["name"] == "lesson_prefix")
+    assert prefix_field.get("description", {}).get("suggested_value") == ""
+
+
 def make_flow(options=None, calendar_states=None):
     """Create an options flow with two children and configurable calendars."""
     entry = SimpleNamespace(entry_id="entry", options=options or {})

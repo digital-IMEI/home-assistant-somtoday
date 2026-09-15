@@ -7,6 +7,42 @@ import asyncio
 
 import pytest
 
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("state,source,reason", [
+    (None, [], "task_list_missing"),
+    (SimpleNamespace(state="unavailable", attributes={}), [], "task_list_unavailable"),
+    (SimpleNamespace(state="0", attributes={"supported_features": 0}), [], "task_list_unsupported"),
+    (SimpleNamespace(state="0", attributes={"supported_features": 127}), None, "homework_source_unavailable"),
+])
+async def test_distinct_blocked_sync_reasons(state, source, reason):
+    sync = make_sync()
+    sync.hass.states.get = lambda _: state
+    result = await sync.run([{"links": [{"id": "1"}]}], {"1": source}, date(2026, 9, 14), date(2026, 9, 20))
+    assert result["reasons"] == {reason: 1}
+    sync.call.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_service_failure_is_redacted():
+    from custom_components.somtoday.homework import HomeworkOperationError
+    sync = make_sync()
+    sync.hass.services = SimpleNamespace(async_call=AsyncMock(side_effect=RuntimeError("secret token and pupil")))
+    with pytest.raises(HomeworkOperationError, match="task_list_read_failed") as error:
+        await HomeworkSync.call(sync, "get_items", "todo.school")
+    assert "secret" not in str(error.value)
+
+
+def test_homework_diagnostic_explains_failed_source_without_stale_success():
+    from custom_components.somtoday.sensor import SomtodayHomeworkSyncSensor
+    sensor = object.__new__(SomtodayHomeworkSyncSensor)
+    sensor.coordinator = SimpleNamespace(last_update_success=False, data={"homework_sync_status": {"mode": "enabled", "created": 10}})
+    assert sensor.available
+    assert sensor.native_value == "error"
+    assert sensor.extra_state_attributes == {"reason": "source_update_failed"}
+    sensor.coordinator.last_update_success = True
+    assert sensor.native_value == "enabled"
+
 from custom_components.somtoday.homework import (
     HomeworkSync, compatible, completion, marker_for, normalize_homework, task_fields,
 )

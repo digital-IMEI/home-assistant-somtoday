@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from datetime import date, datetime
 import hashlib
+import logging
 
 from homeassistant.components.todo import TodoListEntityFeature as Feature
 from homeassistant.helpers.storage import Store
@@ -13,6 +14,24 @@ from .export import item_id
 from .models import parse_datetime
 
 STATUSES = ("needs_action", "completed")
+_LOGGER = logging.getLogger(__name__)
+
+
+def report(counts, reason, *, error=False):
+    """Only fixed codes are exposed; never log provider exceptions or task data."""
+    counts["errors" if error else "waiting"] += 1
+    reasons = counts.setdefault("reasons", {})
+    reasons[reason] = reasons.get(reason, 0) + 1
+    if error:
+        _LOGGER.warning("Homework synchronization: %s", reason)
+
+
+class HomeworkOperationError(Exception):
+    """A fixed, privacy-safe failure category."""
+
+    def __init__(self, reason):
+        self.reason = reason
+        super().__init__(reason)
 
 
 def compatible(state):
@@ -125,18 +144,23 @@ class HomeworkSync:
         self.lock = asyncio.Lock()
 
     async def call(self, action, target, **data):
-        async with asyncio.timeout(30):
-            return await self.hass.services.async_call(
-                "todo", action, {"entity_id": target, **data}, blocking=True,
-                return_response=action == "get_items",
-            )
+        try:
+            async with asyncio.timeout(30):
+                return await self.hass.services.async_call(
+                    "todo", action, {"entity_id": target, **data}, blocking=True,
+                    return_response=action == "get_items",
+                )
+        except Exception as err:
+            reason = "task_list_read_failed" if action == "get_items" else "task_list_write_failed"
+            raise HomeworkOperationError(reason) from err
 
     async def run(self, students, assignments, first, last):
         async with self.lock:
             if self.records is None:
                 self.records = await self.store.async_load() or {}
             counts = {"mode": "disabled", "created": 0, "updated": 0,
-                      "unchanged": 0, "waiting": 0, "errors": 0, "source_updated": 0}
+                      "unchanged": 0, "waiting": 0, "errors": 0, "source_updated": 0,
+                      "homework_found": 0, "reasons": {}}
             snapshots = {}
             for pupil in students:
                 student = item_id(pupil)
@@ -146,32 +170,50 @@ class HomeworkSync:
                     continue
                 counts["mode"] = "enabled"
                 state = self.hass.states.get(target)
-                if not compatible(state) or assignments.get(student) is None:
-                    counts["waiting"] += 1
+                if assignments.get(student) is None:
+                    report(counts, "homework_source_unavailable")
+                    continue
+                if state is None:
+                    report(counts, "task_list_missing")
+                    continue
+                if state.state in ("unavailable", "unknown"):
+                    report(counts, "task_list_unavailable")
+                    continue
+                if not compatible(state):
+                    report(counts, "task_list_unsupported", error=True)
                     continue
                 try:
                     if target not in snapshots:
                         response = await self.call("get_items", target)
                         items = response.get(target, {}).get("items") if isinstance(response, dict) else None
                         if not isinstance(items, list):
-                            raise ValueError("Invalid task snapshot")
+                            raise HomeworkOperationError("invalid_task_snapshot")
                         snapshots[target] = items
-                    for value in normalize_homework(assignments[student], student, first, last):
-                        await self.sync_item(student, pupil, route, state, value, snapshots[target], counts)
+                    values = normalize_homework(assignments[student], student, first, last)
+                    counts["homework_found"] += len(values)
+                    for value in values:
+                        try:
+                            await self.sync_item(student, pupil, route, state, value, snapshots[target], counts)
+                        except HomeworkOperationError as err:
+                            report(counts, err.reason, error=True)
+                        except Exception:
+                            report(counts, "task_sync_failed", error=True)
+                except HomeworkOperationError as err:
+                    report(counts, err.reason, error=True)
                 except Exception:
                     # Provider exception messages can contain private URLs/content.
-                    counts["errors"] += 1
+                    report(counts, "homework_sync_failed", error=True)
             if counts["errors"]:
                 counts["mode"] = "error"
             elif counts["waiting"]:
                 counts["mode"] = "waiting"
             return counts
 
-    async def pending(self, record, counts):
+    async def pending(self, record, counts, reason="task_creation_unconfirmed"):
         """Expose a bounded wait as an error, without repeating unsafe writes."""
         record["pending_checks"] = record.get("pending_checks", 0) + 1
         await self.store.async_save(self.records)
-        counts["errors" if record["pending_checks"] >= 3 else "waiting"] += 1
+        report(counts, reason, error=record["pending_checks"] >= 3)
 
     async def sync_item(self, student, pupil, route, state, value, items, counts):
         target = route["homework_list"]
@@ -179,7 +221,7 @@ class HomeworkSync:
         key = target + ":" + marker
         matches = [item for item in items if marker in str(item.get("description") or "")]
         if len(matches) > 1:
-            counts["errors"] += 1
+            report(counts, "duplicate_task_marker", error=True)
             return  # Never guess which duplicate is owned/canonical.
         title, fields = task_fields(value, str(pupil.get("roepnaam") or student),
                                    route.get("homework_title", "{student} · {subject} · {topic}"),
@@ -196,7 +238,7 @@ class HomeworkSync:
             return  # Discover UID and completion on the next snapshot.
         item = matches[0]
         if not item.get("uid") or item.get("status") not in STATUSES:
-            counts["errors"] += 1
+            report(counts, "invalid_task_identity", error=True)
             return
         if record is None:
             record = {}
@@ -209,14 +251,14 @@ class HomeworkSync:
             record.pop("source_pending", None)
         if "source_pending" in record:
             if source != record["source_pending"]:
-                await self.pending(record, counts)
+                await self.pending(record, counts, "somtoday_write_unconfirmed")
                 return  # Await read-back; do not overwrite with stale source data.
             record.pop("source_pending")
             record["source"] = source
             record["target"] = source
         if "target_pending" in record:
             if current != record["target_pending"]:
-                await self.pending(record, counts)
+                await self.pending(record, counts, "task_update_unconfirmed")
                 return
             record.pop("target_pending")
             record["target"] = current
@@ -228,7 +270,10 @@ class HomeworkSync:
         elif bidirectional and source is not None and "target" in record and current != record["target"]:
             record["source_pending"] = current
             await self.store.async_save(self.records)
-            await self.client.set_homework_done(student, value["id"], current)
+            try:
+                await self.client.set_homework_done(student, value["id"], current)
+            except Exception as err:
+                raise HomeworkOperationError("somtoday_write_failed") from err
             counts["source_updated"] += 1
             return
         update = {}

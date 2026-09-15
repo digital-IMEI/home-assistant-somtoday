@@ -52,6 +52,22 @@ class MemoryStore:
     async def async_save(self, data): self.data = dict(data)
 
 
+@pytest.mark.asyncio
+async def test_removing_prefix_renames_managed_events_without_duplicates(monkeypatch):
+    calendar = FakeCalendar()
+    sync = synchronizer(calendar, monkeypatch)
+    targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
+    options = {"lesson_calendar": "calendar.family", "lesson_prefix": "Child · "}
+    await sync.run(desired_events([lesson()], options, "a", START, END), targets, START, END, False)
+    assert calendar.events[0].summary == "Child · Math"
+    options["lesson_prefix"] = ""
+    desired = desired_events([lesson()], options, "a", START, END)
+    await sync.run(desired, targets, START, END, False)
+    await sync.run(desired, targets, START, END, False)
+    assert len(calendar.events) == 1
+    assert calendar.events[0].summary == "Math"
+
+
 class FakeCalendar:
     available = True
     supported_features = 3
