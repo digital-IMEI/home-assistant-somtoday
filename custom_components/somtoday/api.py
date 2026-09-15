@@ -91,6 +91,7 @@ class SomtodayClient:
     def __init__(self, session: ClientSession, token: dict[str, Any] | None = None) -> None:
         self._session = session
         self.token = token or {}
+        self.assignment_reports = {}
 
     async def organizations(self) -> list[dict[str, Any]]:
         """Fetch all Somtoday organizations."""
@@ -185,6 +186,12 @@ class SomtodayClient:
             *(self._get_all(path, params=common) for _, path in sources),
             return_exceptions=True,
         )
+        self.assignment_reports[student_id] = [
+            ({**assignment_failure(kind, page), "status": "failed"}
+             if isinstance(page, BaseException)
+             else {"source": kind, "status": "ok", "count": len(page)})
+            for (kind, _), page in zip(sources, pages, strict=True)
+        ]
         failures = []
         for (kind, _), page in zip(sources, pages, strict=True):
             if isinstance(page, SomtodayApiError):

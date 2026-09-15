@@ -1,5 +1,7 @@
 """Allowlisted diagnostics: no tokens, account IDs, names, schedules or calendar titles."""
 
+from homeassistant.const import __version__ as HA_VERSION
+
 from .const import DOMAIN
 
 
@@ -7,7 +9,34 @@ async def async_get_config_entry_diagnostics(hass, entry):
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     data = coordinator.data if coordinator and coordinator.data else {}
     sync = data.get("sync_status", {})
+    routes = entry.options.get("exports", {})
+    destinations = []
+    for index, route in enumerate(routes.values(), 1):
+        target = route.get("homework_list")
+        state = hass.states.get(target) if target else None
+        destinations.append({
+            "route_index": index,
+            "homework_enabled": bool(target),
+            "write_back_enabled": bool(route.get("homework_bidirectional", False)),
+            "target_exists": state is not None,
+            "target_available": state is not None and state.state not in {"unavailable", "unknown"},
+            "target_supported_features": state.attributes.get("supported_features", 0) if state else 0,
+        })
     return {
+        "home_assistant_version": HA_VERSION,
+        "homework_destinations": destinations,
+        "assignment_checked_at": getattr(coordinator, "_assignment_checked_at", None),
+        "assignment_source_results": [
+            {key: value for key, value in report.items()
+             if (key == "source" and value in {"appointment", "day", "week"})
+             or (key == "status" and value in {"ok", "failed"})
+             or (key in {"count", "http_status"} and isinstance(value, int))
+             or (key == "category" and value in {"invalid_response", "http_error", "timeout", "connection_error", "authentication_error"})}
+            for reports in getattr(getattr(coordinator, "client", None), "assignment_reports", {}).values()
+            for report in reports
+        ],
+        "homework_sync_mode": data.get("homework_sync_status", {}).get("mode"),
+        "export_ready": bool(getattr(coordinator, "export_ready", False)),
         "version": "0.9.0-beta.3",
         "assignment_source_errors": [
             {key: value for key, value in failure.items()

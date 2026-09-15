@@ -130,3 +130,14 @@ async def test_explicit_empty_http_page_is_valid(content_range):
                             {"access_token": "token", "expires_at": 9999999999})
     assert await client._get_all("/rest/v1/assignments") == []
     client._session.get.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_source_reports_include_successful_zero_counts():
+    client = SomtodayClient(None, {"access_token": "token", "expires_at": 9999999999})
+    client._get_all = AsyncMock(return_value=[])
+    await client.assessments("student", date(2026, 9, 15))
+    assert client.assignment_reports["student"] == [
+        {"source": kind, "status": "ok", "count": 0}
+        for kind in ("appointment", "day", "week")
+    ]

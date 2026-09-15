@@ -78,6 +78,8 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._holidays = holiday_data
                 self._holidays_checked = now
             student_ids = [item_id(pupil) for pupil in students]
+            self._assignment_checked_at = dt_util.utcnow().isoformat()
+            self.client.assignment_reports = {}
             assessment_results = await asyncio.gather(
                 *(
                     self.client.assessments(student_id, start - timedelta(days=30) if any(route.get("homework_list") for route in self.entry.options.get("exports", {}).values()) else start)

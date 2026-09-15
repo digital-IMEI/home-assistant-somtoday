@@ -474,3 +474,13 @@ versions, whether you use a parent or student account, whether homework and test
 are visible in the Somtoday app/website **with that same account**, and the
 **Homework sync** attributes. `homework_found: 0` during a source failure does not
 mean there is no homework. Incomplete source snapshots are not synchronized.
+
+For a complete support report, open **Settings → Devices & services → Somtoday**,
+use the integration entry's three-dot menu and choose **Download diagnostics**.
+The report includes the HA/integration versions, last assignment request time,
+per-source success/failure and raw assignment counts, task-list availability and
+supported features, write-back setting, and synchronization counts/reasons.
+Counts are assignment counts before filtering for homework or tests. A successful
+source may return zero items. Share this file along with your account type and
+whether assignments are visible in Somtoday using that account. No task titles,
+student names, destination IDs, passwords, tokens or response bodies are included.
