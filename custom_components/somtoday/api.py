@@ -277,6 +277,10 @@ class SomtodayClient:
             if isinstance(payload, dict) and content_range:
                 try:
                     page, total = content_range.removeprefix("items ").removeprefix("items=").split("/")
+                    if (offset == 0 and total == "0" and payload.get("items") == []
+                            and page in {"*", "0-0", "0--1"}):
+                        payload["_has_more"] = False
+                        return payload
                     first, last = map(int, page.split("-"))
                     if first != offset or last - first + 1 != len(payload.get("items", [])):
                         raise ValueError("Unexpected page range")

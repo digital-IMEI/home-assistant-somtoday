@@ -115,3 +115,18 @@ async def test_empty_sources_do_not_discard_other_assignments():
     assert await client.assessments("student", date(2026, 9, 15)) == [
         {"id": "homework", "_somtoday_assignment_kind": "day"}
     ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("content_range", ["items */0", "items 0-0/0", "items=0--1/0", ""])
+async def test_explicit_empty_http_page_is_valid(content_range):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    response = SimpleNamespace(
+        raise_for_status=Mock(), json=AsyncMock(return_value={"items": []}),
+        headers={"Content-Range": content_range},
+    )
+    client = SomtodayClient(SimpleNamespace(get=AsyncMock(return_value=response)),
+                            {"access_token": "token", "expires_at": 9999999999})
+    assert await client._get_all("/rest/v1/assignments") == []
+    client._session.get.assert_awaited_once()
