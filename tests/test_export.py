@@ -53,6 +53,26 @@ class MemoryStore:
 
 
 @pytest.mark.asyncio
+async def test_homework_description_changes_reconcile_without_duplicates(monkeypatch):
+    calendar = FakeCalendar()
+    sync = synchronizer(calendar, monkeypatch)
+    targets = {"calendar.family": {scope_marker("test", "a:lesson")}}
+    options = {"lesson_calendar": "calendar.family", "lesson_homework": True}
+    item = {**lesson(), "omschrijving": "Room 211\n\nHuiswerk\n• Exercises — Openstaand"}
+    for text in (item["omschrijving"], "Room 211\n\nHuiswerk\n• Exercises — Voltooid", "Room 211"):
+        item["omschrijving"] = text
+        desired = desired_events([item], options, "a", START, END)
+        await sync.run(desired, targets, START, END, False)
+        await sync.run(desired, targets, START, END, False)
+        assert len(calendar.events) == 1
+        assert calendar.events[0].description.endswith(text)
+    options["lesson_homework"] = False
+    await sync.run(desired_events([item], options, "a", START, END), targets, START, END, False)
+    assert len(calendar.events) == 1
+    assert calendar.events[0].description == marker("test", "a:lesson:1")
+
+
+@pytest.mark.asyncio
 async def test_removing_prefix_renames_managed_events_without_duplicates(monkeypatch):
     calendar = FakeCalendar()
     sync = synchronizer(calendar, monkeypatch)

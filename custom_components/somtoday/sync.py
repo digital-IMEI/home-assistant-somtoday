@@ -46,9 +46,12 @@ class CalendarSync:
         self.pending = None
 
     @staticmethod
-    def _content_fingerprint(start, end, summary, location):
+    def _content_fingerprint(start, end, summary, location, description=""):
+        content = [start.isoformat(), end.isoformat(), summary, location or ""]
+        if description:
+            content.append(description)
         return hashlib.sha256(json.dumps(
-            [start.isoformat(), end.isoformat(), summary, location or ""],
+            content,
             ensure_ascii=False,
         ).encode()).hexdigest()
 
@@ -61,7 +64,7 @@ class CalendarSync:
         if desired is not None:
             self.pending[key]["fingerprint"] = self._content_fingerprint(
                 desired["dtstart"], desired["dtend"], desired["summary"],
-                desired.get("location"),
+                desired.get("location"), desired.get("description", ""),
             )
         await self.store.async_save(self.pending)
 
@@ -189,10 +192,11 @@ class CalendarSync:
                 owned = {}
                 for event in events:
                     description = event.description or ""
-                    if any(description.startswith(prefix) for prefix in targets[target]) and description.endswith("]"):
+                    tag = description.partition("\n\n")[0]
+                    if any(tag.startswith(prefix) for prefix in targets[target]) and tag.endswith("]"):
                         if not event.uid or event.recurrence_id or event.rrule:
                             raise ValueError("Unsupported recurring or unidentified managed event")
-                        owned.setdefault(description, []).append(event)
+                        owned.setdefault(tag, []).append(event)
                 expected = {marker(self.entry.entry_id, key): value
                             for (calendar, key), value in desired.items() if calendar == target}
                 wrote = False
@@ -207,7 +211,8 @@ class CalendarSync:
                         record = self.pending[pending_key]
                         fingerprint = record.get("fingerprint") if isinstance(record, dict) else None
                         previous_visible = any(
-                            self._content_fingerprint(e.start, e.end, e.summary, e.location)
+                            self._content_fingerprint(e.start, e.end, e.summary, e.location,
+                                                      (e.description or "").partition("\n\n")[2])
                             == fingerprint for e in existing
                         ) if fingerprint else False
                         # Legacy accepted writes lack a content fingerprint. Reconcile
@@ -236,7 +241,8 @@ class CalendarSync:
                         if not preview:
                             await self._mark_pending(pending_key, desired=value)
                             try:
-                                await self._create_event(target, value, tag)
+                                description = tag + ("\n\n" + value["description"] if value.get("description") else "")
+                                await self._create_event(target, value, description)
                             except HomeAssistantError as err:
                                 # HA/provider rejected the request definitively. It is
                                 # safe to retry after the cause has been corrected.

@@ -17,6 +17,44 @@ STATUSES = ("needs_action", "completed")
 _LOGGER = logging.getLogger(__name__)
 
 
+def lesson_homework(appointments, assignments, student, first, last):
+    """Enrich only unique exact subject/time matches from appointment assignments."""
+    values = normalize_homework(
+        [a for a in assignments if a.get("_somtoday_assignment_kind") == "appointment"],
+        student, first, last,
+    )
+    result = [dict(item) for item in appointments]
+    additions = {}
+    for value in values:
+        if not isinstance(value["due"], datetime) or value["subject"] == "Onbekend vak":
+            continue
+        matches = []
+        for index, item in enumerate(result):
+            if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF":
+                continue
+            subject = ((item.get("additionalObjects") or {}).get("vak") or {}).get("naam", "")
+            try:
+                begin = parse_datetime(item["beginDatumTijd"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if begin == value["due"] and str(subject).strip().casefold() == value["subject"].strip().casefold():
+                matches.append(index)
+        if len(matches) != 1:
+            continue
+        text = " · ".join(part for part in (value["topic"], value["description"]) if part)
+        if not text:
+            continue
+        if value["made"] is not None:
+            text += " — " + ("Voltooid" if value["made"] else "Openstaand")
+        additions.setdefault(matches[0], []).append("• " + text)
+    for index, lines in additions.items():
+        original = str(result[index].get("omschrijving") or "").strip()
+        result[index]["omschrijving"] = "\n\n".join(
+            part for part in (original, "Huiswerk\n" + "\n".join(lines)) if part
+        )
+    return result
+
+
 def report(counts, reason, *, error=False):
     """Only fixed codes are exposed; never log provider exceptions or task data."""
     counts["errors" if error else "waiting"] += 1

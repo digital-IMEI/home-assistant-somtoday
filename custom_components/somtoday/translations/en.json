@@ -150,11 +150,13 @@
             "description": "",
             "data": {
               "lesson_calendar": "Lessons · destination calendar",
-              "lesson_prefix": "Lessons · title prefix"
+              "lesson_prefix": "Lessons · title prefix",
+              "lesson_homework": "Include homework in lesson descriptions"
             },
             "data_description": {
               "lesson_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
-              "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title."
+              "lesson_prefix": "Placeholder: {student_placeholder}. Added before each lesson title.",
+              "lesson_homework": "Add homework to the HA timetable and lesson export. Only appointment assignments with exactly one matching start time and subject are included. Day/week assignments are not matched. Completion is shown only when known. No to-do list required."
             }
           },
           "holidays": {

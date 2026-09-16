@@ -40,7 +40,7 @@ async def async_get_config_entry_diagnostics(hass, entry):
         ],
         "homework_sync_mode": data.get("homework_sync_status", {}).get("mode"),
         "export_ready": bool(getattr(coordinator, "export_ready", False)),
-        "version": "0.9.0-beta.4",
+        "version": "0.9.0-beta.5",
         "assignment_source_errors": [
             {key: value for key, value in failure.items()
              if (key == "source" and value in {"appointment", "day", "week", "authentication"})

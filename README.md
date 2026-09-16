@@ -456,6 +456,26 @@ while investigating; removing/recreating them can obscure the cause.
 
 ### Diagnosing unavailable homework or tests
 
+### Homework in lesson descriptions (beta.5)
+
+Under the child's **Calendars and event titles → Lessons** block, enable
+**Include homework in lesson descriptions**. This enriches the HA timetable and
+exported individual lessons; a to-do list is not required. Existing descriptions
+are retained, followed by homework topics, contents and known completion status.
+The option is off by default and configured separately for each child.
+
+Only appointment-scoped homework with exactly one matching lesson start time and
+subject is included. This is a conservative match, not a confirmed appointment-ID
+relationship. Ambiguous matches, day/week homework and unknown dates are omitted.
+The source's per-child completion flag is used; unknown progress is not labelled
+incomplete. Calendar text is read-only: editing it does not complete homework.
+
+Description changes are synchronized like other event changes. If the homework
+source fails, lesson export is paused for that child so existing exported homework
+is not erased. The HA timetable still shows the available roster without homework
+until the source recovers. A successful empty response removes old homework text.
+
+
 Since `0.9.0-beta.3`, the **Homework sync** attributes include `source_errors`.
 These identify the failing assignment source (`appointment`, `day`, or `week`),
 a safe error category, and the HTTP status when available. `authentication`

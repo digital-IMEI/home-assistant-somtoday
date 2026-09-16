@@ -29,7 +29,7 @@ from .export import (
 )
 from .sync import CalendarSync
 from .holidays import holiday_status
-from .homework import HomeworkSync
+from .homework import HomeworkSync, lesson_homework
 
 
 class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -145,6 +145,10 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             for pupil in students:
                 student = item_id(pupil)
                 _, selected = select_student(appointments, students, student)
+                route = dict(self.entry.options.get("exports", {}).get(student, {}))
+                if route.get("lesson_homework") and self._assessment_assignments.get(student) is not None:
+                    selected = lesson_homework(selected, self._assessment_assignments[student], student,
+                                               start, start + timedelta(days=self.entry.options.get("days_ahead", 14)))
                 by_student[student] = selected
                 days_by_student[student] = school_day_bounds(selected)
                 route = dict(self.entry.options.get("exports", {}).get(student, {}))
@@ -165,6 +169,12 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if target := route.get(field):
                         targets.setdefault(target, set()).add(scope_marker(self.entry.entry_id, f"{student}:{kind}"))
                 desired.update(desired_events(selected, route, student, window_start, window_end))
+                if route.get("lesson_homework") and self._assessment_assignments.get(student) is None:
+                    target = route.get("lesson_calendar")
+                    if target:
+                        targets.get(target, set()).discard(scope_marker(self.entry.entry_id, f"{student}:lesson"))
+                        desired = {key: value for key, value in desired.items()
+                                   if not (key[0] == target and key[1].startswith(f"{student}:lesson:"))}
                 holiday_items = self._holidays.get(student)
                 if holiday_items is not None:
                     desired.update(

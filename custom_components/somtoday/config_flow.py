@@ -420,6 +420,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 return self._save_options(
                     {
                         "day_calendar": user_input.get("day_calendar", ""),
+                        "lesson_homework": user_input.get("lesson_homework", old.get("lesson_homework", False)),
                         "lesson_calendar": user_input.get("lesson_calendar", ""),
                         "holiday_calendar": user_input.get("holiday_calendar", ""),
                         "assessment_calendar": user_input.get(
@@ -489,6 +490,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             title_schema[vol.Optional(
                 "lesson_prefix", description={"suggested_value": old.get("lesson_prefix", "{student} · ")}
             )] = str
+            title_schema[vol.Required("lesson_homework", default=old.get("lesson_homework", False))] = bool
         if self._enable_holidays:
             title_schema[vol.Required(
                 "holiday_title", default=old.get("holiday_title", "{student} · {holiday}")
@@ -516,7 +518,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         fields = {**calendar_schema, **title_schema}
         groups = {
             "school_days": ("day_calendar", "day_title", "automatic_day_title"),
-            "lessons": ("lesson_calendar", "lesson_prefix"),
+            "lessons": ("lesson_calendar", "lesson_prefix", "lesson_homework"),
             "holidays": ("holiday_calendar", "holiday_title", "holiday_mode"),
             "tests": ("assessment_calendar", "assessment_title"),
             "homework": ("homework_list", "homework_title", "homework_bidirectional"),

@@ -150,11 +150,13 @@
             "description": "",
             "data": {
               "lesson_calendar": "Lessen · doelagenda",
-              "lesson_prefix": "Lessen · voorvoegsel"
+              "lesson_prefix": "Lessen · voorvoegsel",
+              "lesson_homework": "Huiswerk in lesomschrijvingen"
             },
             "data_description": {
               "lesson_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
-              "lesson_prefix": "Placeholder: {student_placeholder}. Wordt vóór iedere lestitel gezet."
+              "lesson_prefix": "Placeholder: {student_placeholder}. Wordt vóór iedere lestitel gezet.",
+              "lesson_homework": "Voeg huiswerk toe aan het HA-rooster en de lesexport. Alleen lesgebonden opdrachten met precies één overeenkomst in begintijd en vak. Dag- en weekhuiswerk worden niet gekoppeld. Voortgang wordt alleen getoond indien bekend. Geen takenlijst nodig."
             }
           },
           "holidays": {

@@ -70,6 +70,7 @@ def desired_events(appointments, options, student, start, end):
                 "dtend": parse_datetime(item["eindDatumTijd"]),
                 "summary": options.get("lesson_prefix", "") + str(subject or item.get("titel") or "Lesson"),
                 "location": str(item.get("locatie") or ""),
+                "description": str(item.get("omschrijving") or "") if options.get("lesson_homework") else "",
             }
     return result
 
@@ -172,4 +173,5 @@ def scope_marker(entry_id, scope):
 def same_event(event, desired):
     return (event.start == desired["dtstart"] and event.end == desired["dtend"]
             and event.summary == desired["summary"]
-            and (event.location or "") == desired["location"])
+            and (event.location or "") == desired["location"]
+            and (event.description or "").partition("\n\n")[2] == desired.get("description", ""))
