@@ -462,6 +462,11 @@ exported individual lessons; a to-do list is not required. Existing descriptions
 are retained, followed by homework topics, contents and known completion status.
 The option is off by default and configured separately for each child.
 
+Since beta.6, HTML homework is converted to readable plain text, preserving line
+breaks and decoding entities (also in synchronized to-do tasks). School-day bounds
+exclude breaks identified by appointment type, title or subject name. A trailing
+break no longer extends the school day; breaks remain visible in the HA timetable.
+
 Only appointment-scoped homework with exactly one matching lesson start time and
 subject is included. This is a conservative match, not a confirmed appointment-ID
 relationship. Ambiguous matches, day/week homework and unknown dates are omitted.

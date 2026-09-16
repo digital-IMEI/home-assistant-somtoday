@@ -1,11 +1,38 @@
 from copy import deepcopy
 from datetime import date
 
-from custom_components.somtoday.homework import lesson_homework
+import pytest
+
+from custom_components.somtoday.homework import homework_text, lesson_homework, normalize_homework
 
 
 FIRST = date(2026, 9, 16)
 LAST = date(2026, 9, 17)
+
+
+@pytest.mark.parametrize(("raw", "expected"), [
+    ("<p>Huiswerk:</p><p></p><p>1.6B opgave 81, 82</p><p>Extra uitdaging: 86</p>",
+     "Huiswerk:\n1.6B opgave 81, 82\nExtra uitdaging: 86"),
+    ("<p>&nbsp;L: pagina 36</p><p>\u00a0M: 20 / 21</p>", "L: pagina 36\nM: 20 / 21"),
+    ("<ul><li>A &amp; B</li><li>C<br>D</li></ul>", "• A & B\n• C\nD"),
+    ("2 < 3 en 5 > 4", "2 < 3 en 5 > 4"),
+    ("<p>Lees <b>hoofdstuk 2</b></p><script>secret</script><style>hidden</style>", "Lees hoofdstuk 2"),
+    (None, ""),
+])
+def test_homework_plain_text(raw, expected):
+    assert homework_text(raw) == expected
+
+
+def test_html_is_normalized_for_lessons_and_tasks():
+    value = assignment()
+    value["studiewijzerItem"].update(onderwerp="<b>woordenboek</b>",
+                                   omschrijving="<p>maken opdrachten 6,7 + 8 blz. 21</p>")
+    normalized = normalize_homework([value], "a", FIRST, LAST)[0]
+    assert normalized["topic"] == "woordenboek"
+    assert normalized["description"] == "maken opdrachten 6,7 + 8 blz. 21"
+    enriched = lesson_homework([lesson()], [value], "a", FIRST, LAST)[0]
+    assert "woordenboek · maken opdrachten 6,7 + 8 blz. 21" in enriched["omschrijving"]
+    assert "<p>" not in enriched["omschrijving"]
 
 
 def lesson():

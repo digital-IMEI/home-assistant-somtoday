@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from custom_components.somtoday.models import school_day_bounds
 
 
@@ -68,3 +70,19 @@ def test_school_day_includes_active_study_test_outside_roster_category():
         datetime.fromisoformat("2026-09-16T08:30:00+02:00"),
         datetime.fromisoformat("2026-09-16T15:00:00+02:00"),
     )
+@pytest.mark.parametrize("subject", ["Pauze", " pauze ", "BREAK"])
+def test_subject_only_break_does_not_extend_school_day(subject):
+    def item(start, end, name):
+        return {"beginDatumTijd": f"2026-09-18T{start}:00+02:00",
+                "eindDatumTijd": f"2026-09-18T{end}:00+02:00",
+                "afspraakType": {"naam": "Les"},
+                "additionalObjects": {"vak": {"naam": name}}}
+    first = item("08:00", "08:30", subject)
+    last = item("12:55", "13:20", subject)
+    appointments = [first, item("08:30", "09:20", "Nederlandse taal"),
+                    item("12:05", "12:55", "onderzoek en ontwerpen"), last]
+    assert school_day_bounds(appointments)["2026-09-18"] == (
+        datetime.fromisoformat("2026-09-18T08:30:00+02:00"),
+        datetime.fromisoformat("2026-09-18T12:55:00+02:00"),
+    )
+    assert school_day_bounds([first, last]) == {}

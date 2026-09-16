@@ -19,7 +19,8 @@ def is_active_school_appointment(item: dict[str, Any]) -> bool:
     appointment_type = item.get("afspraakType") or {}
     name = str(appointment_type.get("naam", "")).strip().casefold()
     title = str(item.get("titel", "")).strip().casefold()
-    if name in {"pauze", "break"} or title == "pauze":
+    subject = str(((item.get("additionalObjects") or {}).get("vak") or {}).get("naam", "")).strip().casefold()
+    if any(value in {"pauze", "break"} for value in (name, title, subject)):
         return False
     # Somtoday displays some valid timetable entries (for example study or a
     # test period) with another category/activity than Rooster/Verplicht. The
