@@ -13,16 +13,19 @@ def parse_datetime(value: str) -> datetime:
 
 
 def is_active_school_appointment(item: dict[str, Any]) -> bool:
-    """Return whether an appointment should count towards the school day."""
+    """Return whether a visible active appointment counts towards the school day."""
     if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF":
         return False
     appointment_type = item.get("afspraakType") or {}
     name = str(appointment_type.get("naam", "")).strip().casefold()
-    category = str(appointment_type.get("categorie", "")).strip().casefold()
     title = str(item.get("titel", "")).strip().casefold()
     if name in {"pauze", "break"} or title == "pauze":
         return False
-    return category == "rooster" or appointment_type.get("activiteit") == "Verplicht"
+    # Somtoday displays some valid timetable entries (for example study or a
+    # test period) with another category/activity than Rooster/Verplicht. The
+    # schedule calendar already exposes every active appointment, so applying
+    # a second classification filter here can incorrectly shorten a school day.
+    return True
 
 
 def school_day_bounds(
