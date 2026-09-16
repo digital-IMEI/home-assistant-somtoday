@@ -53,6 +53,23 @@ class MemoryStore:
 
 
 @pytest.mark.asyncio
+async def test_trailing_subject_break_shortens_existing_export(monkeypatch):
+    calendar = FakeCalendar()
+    sync = synchronizer(calendar, monkeypatch)
+    targets = {"calendar.family": {scope_marker("test", "a:day")}}
+    options = {"day_calendar": "calendar.family"}
+    items = [lesson(), lesson("2", 10)]
+    await sync.run(desired_events(items, options, "a", START, END), targets, START, END, False)
+    assert calendar.events[0].end.hour == 11
+    items[-1]["additionalObjects"]["vak"] = {"naam": "Pauze"}
+    desired = desired_events(items, options, "a", START, END)
+    await sync.run(desired, targets, START, END, False)
+    await sync.run(desired, targets, START, END, False)
+    assert len(calendar.events) == 1
+    assert calendar.events[0].end.hour == 10
+
+
+@pytest.mark.asyncio
 async def test_homework_description_changes_reconcile_without_duplicates(monkeypatch):
     calendar = FakeCalendar()
     sync = synchronizer(calendar, monkeypatch)
