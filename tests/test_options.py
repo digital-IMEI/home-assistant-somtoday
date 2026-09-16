@@ -96,7 +96,7 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
     )
     assert destinations["step_id"] == "calendar_destinations"
     fields = [key.schema for key in destinations["data_schema"].schema]
-    assert fields == ["school_days"]
+    assert fields == ["school_days", "lessons"]
     calendar_section = next(
         value
         for key, value in destinations["data_schema"].schema.items()
@@ -120,6 +120,7 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
     assert result["data"]["exports"]["a"] == {
         "day_calendar": "calendar.family",
         "lesson_calendar": "",
+        "lesson_homework": False,
         "automatic_day_title": False,
         "holiday_calendar": "",
         "assessment_calendar": "",
@@ -169,6 +170,7 @@ async def test_disabled_exports_still_offer_titles_without_writable_calendars():
     assert result["data"]["exports"]["a"] == {
         "day_calendar": "",
         "lesson_calendar": "",
+        "lesson_homework": False,
         "automatic_day_title": False,
         "holiday_calendar": "",
         "assessment_calendar": "",

@@ -486,11 +486,15 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 "automatic_day_title", default=old.get("automatic_day_title", False)
             ): bool,
         }
+        # The native HA timetable always contains individual lessons, so this
+        # option is useful even when external lesson export is disabled.
+        title_schema[vol.Required(
+            "lesson_homework", default=old.get("lesson_homework", False)
+        )] = bool
         if self._enable_lessons:
             title_schema[vol.Optional(
                 "lesson_prefix", description={"suggested_value": old.get("lesson_prefix", "{student} · ")}
             )] = str
-            title_schema[vol.Required("lesson_homework", default=old.get("lesson_homework", False))] = bool
         if self._enable_holidays:
             title_schema[vol.Required(
                 "holiday_title", default=old.get("holiday_title", "{student} · {holiday}")

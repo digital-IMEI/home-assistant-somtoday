@@ -454,8 +454,6 @@ or private homework descriptions. Logs from this homework exporter contain fixed
 codes rather than provider exception text. Leave existing tasks and the account in place
 while investigating; removing/recreating them can obscure the cause.
 
-### Diagnosing unavailable homework or tests
-
 ### Homework in lesson descriptions (beta.5)
 
 Under the child's **Calendars and event titles → Lessons** block, enable
@@ -475,6 +473,7 @@ source fails, lesson export is paused for that child so existing exported homewo
 is not erased. The HA timetable still shows the available roster without homework
 until the source recovers. A successful empty response removes old homework text.
 
+### Diagnosing unavailable homework or tests
 
 Since `0.9.0-beta.3`, the **Homework sync** attributes include `source_errors`.
 These identify the failing assignment source (`appointment`, `day`, or `week`),
