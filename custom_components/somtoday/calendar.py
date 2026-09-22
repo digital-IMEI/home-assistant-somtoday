@@ -14,7 +14,7 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN
 from .coordinator import SomtodayCoordinator
 from .assessments import assessment_description, assessment_summary
-from .models import automatic_day_titles, parse_datetime
+from .models import automatic_day_titles, parse_datetime, school_day_appointments
 from .export import item_id
 
 
@@ -110,6 +110,7 @@ class SomtodaySchoolDayCalendar(
         self.student = item_id(student)
         self._attr_name = f"{student.get('roepnaam') or self.student} · Schooldag"
         self._automatic_day_title = entry.options.get("exports", {}).get(self.student, {}).get("automatic_day_title", False)
+        self._day_options = entry.options.get("exports", {}).get(self.student, {})
         self._day_title = entry.options.get("exports", {}).get(self.student, {}).get("day_title", "Schooldag").replace("{student}", student.get("roepnaam") or self.student)
         self._attr_unique_id = (
             f"{entry.entry_id}_school_day"
@@ -137,7 +138,7 @@ class SomtodaySchoolDayCalendar(
             self.student, {}
         )
         titles = automatic_day_titles(
-            self.coordinator.data.get("appointments_by_student", {}).get(self.student, [])
+            school_day_appointments(self.coordinator.data.get("appointments_by_student", {}).get(self.student, []), self._day_options)
         ) if self._automatic_day_title else {}
         for day, (event_start, event_end) in school_days.items():
             if event_end < start or (end is not None and event_start > end):

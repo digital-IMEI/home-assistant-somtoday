@@ -454,6 +454,24 @@ or private homework descriptions. Logs from this homework exporter contain fixed
 codes rather than provider exception text. Leave existing tasks and the account in place
 while investigating; removing/recreating them can obscure the cause.
 
+### School-day filters and homework types (beta.7)
+
+In each child's **School days** block, enter **Excluded names**, one per line
+(for example `Flexlessen`). Matching ignores case and compares both the subject
+name and appointment title. **Exact name** is the default; **Contains text** is
+optional. Leave the field empty to disable the filter. Only school-day bounds,
+automatic school-day titles and school-day exports are affected; individual
+lessons remain visible and exported. If every appointment is excluded, there is
+no school-day event. Existing managed school-day exports are reconciled on sync.
+
+In **Homework**, independently select lesson-linked, daily and weekly homework
+for the to-do list. All three default to enabled, preserving existing behavior.
+You can send only daily/weekly tasks to the list and keep lesson homework in
+calendar descriptions. Disabling a type stops its synchronization (including
+completion write-back); existing tasks are retained, not deleted. Re-enabling
+resumes synchronization. Weekly tasks without an explicit deadline stay undated.
+These selections do not affect homework in lesson descriptions.
+
 ### Homework in lesson descriptions (beta.5)
 
 Under the child's **Calendars and event titles → Lessons** block, enable

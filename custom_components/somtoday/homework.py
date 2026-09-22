@@ -140,6 +140,13 @@ def completion(assignment, student):
     return None
 
 
+def selected_homework(assignments, route):
+    """Preserve legacy all-types behavior; never filter lesson descriptions here."""
+    return [item for item in assignments if route.get(
+        "homework_include_" + str(item.get("_somtoday_assignment_kind", "")), True
+    )]
+
+
 def normalize_homework(assignments, student, first, last):
     """Use only explicit dates; weekly assignments remain undated."""
     result, seen = [], set()
@@ -270,7 +277,7 @@ class HomeworkSync:
                         if not isinstance(items, list):
                             raise HomeworkOperationError("invalid_task_snapshot")
                         snapshots[target] = items
-                    values = normalize_homework(assignments[student], student, first, last)
+                    values = normalize_homework(selected_homework(assignments[student], route), student, first, last)
                     counts["homework_found"] += len(values)
                     for value in values:
                         try:

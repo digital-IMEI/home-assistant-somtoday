@@ -20,6 +20,9 @@ async def async_get_config_entry_diagnostics(hass, entry):
         destinations.append({
             "route_index": index,
             "homework_enabled": bool(target),
+            "homework_types": {kind: bool(route.get(f"homework_include_{kind}", True)) for kind in ("appointment", "day", "week")},
+            "school_day_filter_count": len([line for line in route.get("day_excluded_names", "").splitlines() if line.strip()]),
+            "school_day_match_mode": "contains" if route.get("day_exclusion_match") == "contains" else "exact",
             "write_back_enabled": bool(route.get("homework_bidirectional", False)),
             "target_exists": state is not None,
             "target_available": state is not None and state.state not in {"unavailable", "unknown"},
@@ -40,7 +43,7 @@ async def async_get_config_entry_diagnostics(hass, entry):
         ],
         "homework_sync_mode": data.get("homework_sync_status", {}).get("mode"),
         "export_ready": bool(getattr(coordinator, "export_ready", False)),
-        "version": "0.9.0-beta.6",
+        "version": "0.9.0-beta.7",
         "assignment_source_errors": [
             {key: value for key, value in failure.items()
              if (key == "source" and value in {"appointment", "day", "week", "authentication"})

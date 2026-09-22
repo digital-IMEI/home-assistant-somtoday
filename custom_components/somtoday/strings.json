@@ -137,12 +137,16 @@
             "data": {
               "day_calendar": "School days · destination calendar",
               "day_title": "School days · event title",
-              "automatic_day_title": "Automatic school-day title"
+              "automatic_day_title": "Automatic school-day title",
+              "day_excluded_names": "School days · excluded names",
+              "day_exclusion_match": "School days · text matching"
             },
             "data_description": {
               "day_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
               "day_title": "Placeholder: {student_placeholder}. Base title for the HA school-day calendar and export. Automatic naming takes precedence when a shared title is available.",
-              "automatic_day_title": "When all active appointments on a day share one non-empty title, use that title for the school-day event. Breaks and cancelled appointments are ignored. Text before the first underscore is removed and remaining underscores become spaces: PREFIX_Special_activity becomes Special activity. Otherwise the normal school-day title is used. Applies to the HA school-day calendar and school-day export, including when export is disabled."
+              "automatic_day_title": "When all active appointments on a day share one non-empty title, use that title for the school-day event. Breaks and cancelled appointments are ignored. Text before the first underscore is removed and remaining underscores become spaces: PREFIX_Special_activity becomes Special activity. Otherwise the normal school-day title is used. Applies to the HA school-day calendar and school-day export, including when export is disabled.",
+              "day_excluded_names": "One name per line, e.g. Flexlessen. Matches subject names and appointment titles, ignoring case. Applies only to school-day bounds and automatic day titles; individual lessons remain. Leave empty for no additional exclusions.",
+              "day_exclusion_match": "Exact is safest. Contains excludes any appointment whose name contains the text. If all appointments are excluded, there is no school-day event."
             }
           },
           "lessons": {
@@ -190,12 +194,18 @@
             "data": {
               "homework_list": "To-do list",
               "homework_title": "Task title",
-              "homework_bidirectional": "Write completion back to Somtoday"
+              "homework_bidirectional": "Write completion back to Somtoday",
+              "homework_include_appointment": "Lesson-linked homework",
+              "homework_include_day": "Daily homework",
+              "homework_include_week": "Weekly homework"
             },
             "data_description": {
               "homework_list": "Dates are assigned only when explicitly known and supported by the list.",
               "homework_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {topic_placeholder}.",
-              "homework_bidirectional": "Experimental: send completed/reopened changes from HA to Somtoday. Requires Somtoday write permission; parent accounts may be denied. Somtoday wins simultaneous changes. Unknown progress is not written back."
+              "homework_bidirectional": "Experimental: send completed/reopened changes from HA to Somtoday. Requires Somtoday write permission; parent accounts may be denied. Somtoday wins simultaneous changes. Unknown progress is not written back.",
+              "homework_include_appointment": "Sync this type to the to-do list. When disabled, existing tasks remain and are no longer updated. Independent of homework in lesson descriptions.",
+              "homework_include_day": "Sync this type to the to-do list. When disabled, existing tasks remain and are no longer updated. Independent of homework in lesson descriptions.",
+              "homework_include_week": "Sync this type to the to-do list. When disabled, existing tasks remain and are no longer updated. Independent of homework in lesson descriptions."
             }
           }
         },
@@ -221,6 +231,12 @@
         "school_days": "One event · published Somtoday dates",
         "full_weeks": "One event · including surrounding weekends",
         "daily": "One all-day event per published date"
+      }
+    },
+    "day_exclusion_match": {
+      "options": {
+        "exact": "Exact name",
+        "contains": "Contains text"
       }
     }
   }

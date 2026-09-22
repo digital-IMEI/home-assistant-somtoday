@@ -17,7 +17,7 @@ from homeassistant.helpers import issue_registry as ir
 from .api import (SomtodayApiError, SomtodayClient, SomtodayAuthenticationError,
                   SomtodayAssignmentsError, assignment_failure)
 from .const import CONF_TOKEN, DOMAIN, SCHEDULE_DAYS, UPDATE_INTERVAL
-from .models import school_day_bounds
+from .models import school_day_bounds, school_day_appointments
 from .assessments import normalize_assessments
 from .export import (
     desired_assessment_events,
@@ -150,7 +150,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     selected = lesson_homework(selected, self._assessment_assignments[student], student,
                                                start, start + timedelta(days=self.entry.options.get("days_ahead", 14)))
                 by_student[student] = selected
-                days_by_student[student] = school_day_bounds(selected)
+                days_by_student[student] = school_day_bounds(school_day_appointments(selected, route))
                 route = dict(self.entry.options.get("exports", {}).get(student, {}))
                 name = str(pupil.get("roepnaam") or student)
                 for field, default in (

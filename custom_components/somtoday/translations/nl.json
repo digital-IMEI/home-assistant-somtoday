@@ -137,12 +137,16 @@
             "data": {
               "day_calendar": "Schooldagen · doelagenda",
               "day_title": "Schooldagen · afspraaknaam",
-              "automatic_day_title": "Automatische naam voor schooldag"
+              "automatic_day_title": "Automatische naam voor schooldag",
+              "day_excluded_names": "Schooldagen · uitgesloten namen",
+              "day_exclusion_match": "Schooldagen · tekstvergelijking"
             },
             "data_description": {
               "day_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
               "day_title": "Placeholder: {student_placeholder}. Basisnaam voor de HA-schooldagagenda en export. De automatische naam heeft voorrang wanneer een gezamenlijke titel beschikbaar is.",
-              "automatic_day_title": "Als alle actieve afspraken op een dag dezelfde niet-lege titel hebben, wordt die titel gebruikt voor de schooldag. Pauzes en geannuleerde afspraken tellen niet mee. Tekst vóór de eerste underscore wordt verwijderd en overige underscores worden spaties: PREFIX_Special_activity wordt Special activity. Anders blijft de normale schooldagnaam staan. Geldt voor de HA-schooldagagenda én de schooldagexport, ook wanneer export uitstaat."
+              "automatic_day_title": "Als alle actieve afspraken op een dag dezelfde niet-lege titel hebben, wordt die titel gebruikt voor de schooldag. Pauzes en geannuleerde afspraken tellen niet mee. Tekst vóór de eerste underscore wordt verwijderd en overige underscores worden spaties: PREFIX_Special_activity wordt Special activity. Anders blijft de normale schooldagnaam staan. Geldt voor de HA-schooldagagenda én de schooldagexport, ook wanneer export uitstaat.",
+              "day_excluded_names": "Eén naam per regel, bijvoorbeeld Flexlessen. Vergelijkt vaknaam en afspraaktitel zonder hoofdletterverschil. Alleen voor de schooldag en automatische dagtitel; losse lessen blijven staan. Leeg betekent geen extra uitsluitingen.",
+              "day_exclusion_match": "Exact is het veiligst. Bevat sluit elke afspraak uit waarin de opgegeven tekst voorkomt. Als alles wordt uitgesloten, vervalt de schooldagafspraak."
             }
           },
           "lessons": {
@@ -190,12 +194,18 @@
             "data": {
               "homework_list": "Takenlijst",
               "homework_title": "Taaktitel",
-              "homework_bidirectional": "Voltooiing terugschrijven naar Somtoday"
+              "homework_bidirectional": "Voltooiing terugschrijven naar Somtoday",
+              "homework_include_appointment": "Lesgebonden huiswerk",
+              "homework_include_day": "Daghuiswerk",
+              "homework_include_week": "Weekhuiswerk"
             },
             "data_description": {
               "homework_list": "Een datum wordt alleen gekoppeld als deze expliciet bekend is en de takenlijst dit ondersteunt.",
               "homework_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {topic_placeholder}.",
-              "homework_bidirectional": "Experimenteel: openstaand/voltooid ook vanuit HA terugschrijven. Vereist Somtoday-schrijfrechten; ouderaccounts kunnen worden geweigerd. Somtoday wint bij gelijktijdige wijzigingen. Onbekende voortgang wordt niet teruggeschreven."
+              "homework_bidirectional": "Experimenteel: openstaand/voltooid ook vanuit HA terugschrijven. Vereist Somtoday-schrijfrechten; ouderaccounts kunnen worden geweigerd. Somtoday wint bij gelijktijdige wijzigingen. Onbekende voortgang wordt niet teruggeschreven.",
+              "homework_include_appointment": "Synchroniseer dit type met de takenlijst. Uitgeschakeld: bestaande taken blijven staan en worden niet meer bijgewerkt. Staat los van huiswerk in lesbeschrijvingen.",
+              "homework_include_day": "Synchroniseer dit type met de takenlijst. Uitgeschakeld: bestaande taken blijven staan en worden niet meer bijgewerkt. Staat los van huiswerk in lesbeschrijvingen.",
+              "homework_include_week": "Synchroniseer dit type met de takenlijst. Uitgeschakeld: bestaande taken blijven staan en worden niet meer bijgewerkt. Staat los van huiswerk in lesbeschrijvingen."
             }
           }
         },
@@ -221,6 +231,12 @@
         "school_days": "Eén afspraak · gepubliceerde Somtoday-datums",
         "full_weeks": "Eén afspraak · inclusief omliggende weekenden",
         "daily": "Per gepubliceerde datum een hele-dagafspraak"
+      }
+    },
+    "day_exclusion_match": {
+      "options": {
+        "exact": "Exacte naam",
+        "contains": "Bevat tekst"
       }
     }
   }

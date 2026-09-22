@@ -29,6 +29,21 @@ def is_active_school_appointment(item: dict[str, Any]) -> bool:
     return True
 
 
+def school_day_appointments(appointments, options=None):
+    """Apply per-child name exclusions only to school-day calculations."""
+    options = options or {}
+    excluded = [line.strip().casefold() for line in options.get("day_excluded_names", "").splitlines() if line.strip()]
+    contains = options.get("day_exclusion_match", "exact") == "contains"
+    result = []
+    for item in appointments:
+        subject = ((item.get("additionalObjects") or {}).get("vak") or {}).get("naam")
+        names = [str(value or "").strip().casefold() for value in (subject, item.get("titel"))]
+        if any(term in name if contains else term == name for term in excluded for name in names):
+            continue
+        result.append(item)
+    return result
+
+
 def school_day_bounds(
     appointments: list[dict[str, Any]],
 ) -> dict[str, tuple[datetime, datetime]]:

@@ -15,6 +15,7 @@ from homeassistant.data_entry_flow import section
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
 from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 
 from .api import (
     SomtodayApiError,
@@ -267,6 +268,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         options.pop("preview", None)
         routes = dict(options.get("exports", {}))
         route["automatic_day_title"] = self._automatic_day_title
+        for kind in ("appointment", "day", "week"):
+            key = f"homework_include_{kind}"
+            route[key] = self._old_options().get(key, True)
         if getattr(self, "_enable_homework", False):
             route.update(self._homework_route)
 
@@ -413,6 +417,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     "homework_list": user_input.get("homework_list", ""),
                     "homework_title": user_input.get("homework_title", old.get("homework_title", "{student} · {subject} · {topic}")),
                     "homework_bidirectional": user_input.get("homework_bidirectional", False),
+                    **{f"homework_include_{kind}": user_input.get(f"homework_include_{kind}", old.get(f"homework_include_{kind}", True)) for kind in ("appointment", "day", "week")},
                 }
                 self._automatic_day_title = user_input.get(
                     "automatic_day_title", old.get("automatic_day_title", False)
@@ -420,6 +425,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 return self._save_options(
                     {
                         "day_calendar": user_input.get("day_calendar", ""),
+                        "day_excluded_names": user_input.get("day_excluded_names", "").strip(),
+                        "day_exclusion_match": user_input.get("day_exclusion_match", old.get("day_exclusion_match", "exact")),
                         "lesson_homework": user_input.get("lesson_homework", old.get("lesson_homework", False)),
                         "lesson_calendar": user_input.get("lesson_calendar", ""),
                         "holiday_calendar": user_input.get("holiday_calendar", ""),
@@ -479,6 +486,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             calendar_schema[assessment_key] = vol.In(choices)
 
         title_schema = {
+            vol.Optional("day_excluded_names", description={"suggested_value": old.get("day_excluded_names", "")}): TextSelector(TextSelectorConfig(multiline=True)),
+            vol.Required("day_exclusion_match", default=old.get("day_exclusion_match", "exact")): SelectSelector(SelectSelectorConfig(options=["exact", "contains"], translation_key="day_exclusion_match", mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(
                 "day_title", default=old.get("day_title", "School · {student}")
             ): vol.All(str, vol.Length(min=1, max=100)),
@@ -512,6 +521,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             )] = vol.All(str, vol.Length(min=1, max=100))
 
         if getattr(self, "_enable_homework", False):
+            for kind in ("appointment", "day", "week"):
+                title_schema[vol.Required(f"homework_include_{kind}", default=old.get(f"homework_include_{kind}", True))] = bool
             todo_key = vol.Required("homework_list")
             if old.get("homework_list") in todo_choices:
                 todo_key = vol.Required("homework_list", default=old["homework_list"])
@@ -521,11 +532,11 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         schema = {}
         fields = {**calendar_schema, **title_schema}
         groups = {
-            "school_days": ("day_calendar", "day_title", "automatic_day_title"),
+            "school_days": ("day_calendar", "day_title", "automatic_day_title", "day_excluded_names", "day_exclusion_match"),
             "lessons": ("lesson_calendar", "lesson_prefix", "lesson_homework"),
             "holidays": ("holiday_calendar", "holiday_title", "holiday_mode"),
             "tests": ("assessment_calendar", "assessment_title"),
-            "homework": ("homework_list", "homework_title", "homework_bidirectional"),
+            "homework": ("homework_list", "homework_title", "homework_bidirectional", "homework_include_appointment", "homework_include_day", "homework_include_week"),
         }
         for name, names in groups.items():
             group = {key: value for key, value in fields.items() if key.schema in names}
