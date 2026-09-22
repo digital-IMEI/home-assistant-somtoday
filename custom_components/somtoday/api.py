@@ -165,6 +165,41 @@ class SomtodayClient:
         from urllib.parse import quote
         return await self._get_all("/rest/v1/vakanties/leerling/" + quote(student_id, safe=""))
 
+    async def registrations(self, student_id: str) -> dict[str, Any]:
+        """Fetch the pupil's registration overview, the source behind "Afwezigheid".
+
+        This is the single call the pupil portal itself makes for that page. It
+        returns one object already grouped into the buckets the portal shows,
+        scoped to the running school year, so no client-side date arithmetic is
+        needed. ``periode=SCHOOLJAAR`` is required: every other value, and
+        omitting it, answered HTTP 500 on the verified account.
+
+        Reaching the same information through the list endpoints does not work.
+        ``/rest/v1/absentiemeldingen`` carries only the absence side, and
+        ``/rest/v1/waarnemingen`` proved to hold nothing but Aanwezig and
+        Afwezig across 1045 rows, so "Huiswerk niet gemaakt" and "Materiaal niet
+        in orde" are not reachable there at all.
+        """
+        from urllib.parse import quote
+
+        return await self._get(
+            "/rest/v1/leerlingen/" + quote(student_id, safe="") + "/registratieOverzicht",
+            params=[("periode", "SCHOOLJAAR")],
+        )
+
+    async def active_measures(self, student_id: str) -> list[dict[str, Any]]:
+        """Fetch measures still outstanding, the part a parent can act on.
+
+        The overview above lists the lessons a registration came from but not
+        whether the resulting measure has been complied with, so this adds
+        ``nagekomen``. Only active assignments are returned by this path.
+        """
+        from urllib.parse import quote
+
+        return await self._get_all(
+            "/rest/v1/maatregeltoekenningen/actief/" + quote(student_id, safe="")
+        )
+
     async def assessments(
         self, student_id: str, start: date
     ) -> list[dict[str, Any]]:

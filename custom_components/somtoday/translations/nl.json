@@ -69,7 +69,8 @@
           "enable_assessments": "Toetsen exporteren",
           "days_ahead": "Dagen vooruit (1–60)",
           "scan_interval": "Bijwerkinterval in minuten (5–120)",
-          "enable_homework": "Huiswerk exporteren"
+          "enable_homework": "Huiswerk exporteren",
+          "enable_absences": "Absentieoverzicht (de pagina Afwezigheid)"
         },
         "data_description": {
           "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
@@ -89,14 +90,16 @@
               "enable_lessons": "Lessen exporteren",
               "enable_holidays": "Vakanties exporteren",
               "enable_assessments": "Toetsen exporteren",
-              "enable_homework": "Huiswerk exporteren"
+              "enable_homework": "Huiswerk exporteren",
+              "enable_absences": "Absentieoverzicht (de pagina Afwezigheid)"
             },
             "data_description": {
               "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
               "enable_lessons": "Een aparte afspraak voor iedere les.",
               "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
               "enable_assessments": "Toetsen met een gepubliceerde datum.",
-              "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden."
+              "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden.",
+              "enable_absences": "Leest hetzelfde overzicht dat het leerlingportaal toont: absenties, te laat, verwijderd, plus \"Huiswerk niet gemaakt\" en \"Materiaal niet in orde\" met de les waar ze vandaan komen. Standaard uit, want deze gegevens bevatten tekst van medewerkers."
             }
           }
         },
@@ -117,7 +120,8 @@
           "lesson_prefix": "Lessen · voorvoegsel",
           "holiday_title": "Vakanties · afspraaknaam",
           "holiday_mode": "Vakanties · afspraakindeling",
-          "assessment_title": "Toetsen · afspraaknaam"
+          "assessment_title": "Toetsen · afspraaknaam",
+          "absence_remarks": "Tekst van school meenemen"
         },
         "data_description": {
           "day_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
@@ -196,6 +200,16 @@
               "homework_list": "Een datum wordt alleen gekoppeld als deze expliciet bekend is en de takenlijst dit ondersteunt.",
               "homework_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {topic_placeholder}.",
               "homework_bidirectional": "Experimenteel: openstaand/voltooid ook vanuit HA terugschrijven. Vereist Somtoday-schrijfrechten; ouderaccounts kunnen worden geweigerd. Somtoday wint bij gelijktijdige wijzigingen. Onbekende voortgang wordt niet teruggeschreven."
+            }
+          },
+          "absences": {
+            "name": "Absentieoverzicht",
+            "description": "Een aanvraag per kind naar het overzicht van het portaal zelf, al beperkt tot het lopende schooljaar. Aanwezigheid per les wordt niet gelezen: die lijst bleek alleen aanwezig en afwezig te bevatten en kan de huiswerk- en materiaalregistraties dus niet leveren.",
+            "data": {
+              "absence_remarks": "Tekst van school meenemen"
+            },
+            "data_description": {
+              "absence_remarks": "De redentekst kan een incident in gewone woorden beschrijven. Laat dit uit als het dashboard zichtbaar is voor bezoek; datums, categorieen en aantallen worden hoe dan ook getoond."
             }
           }
         },

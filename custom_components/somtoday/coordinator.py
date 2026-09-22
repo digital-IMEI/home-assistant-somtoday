@@ -30,6 +30,11 @@ from .export import (
 from .sync import CalendarSync
 from .holidays import holiday_status
 from .homework import HomeworkSync, lesson_homework
+from .absences import (
+    normalize_absence_registrations,
+    normalize_lesson_registrations,
+    outstanding_measures,
+)
 
 
 class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -51,6 +56,8 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.homework_sync = HomeworkSync(hass, entry, client)
         self._holidays = {}
         self._holidays_checked = None
+        self._absences = {}
+        self._measures = {}
         self._assessment_assignments = {}
         self._assignment_source_errors = []
         self.export_ready = False
@@ -77,6 +84,46 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         holiday_data[student_id] = None
                 self._holidays = holiday_data
                 self._holidays_checked = now
+            # Absence overview is opt-in: the reports carry staff remarks, so
+            # nothing is fetched until a child is explicitly configured for it.
+            absence_data: dict[str, Any] = {}
+            measure_data: dict[str, Any] = {}
+            routes = self.entry.options.get("exports", {})
+            for pupil in students:
+                pupil_id = item_id(pupil)
+                route = routes.get(pupil_id)
+                if not isinstance(route, dict) or not route.get("absences_enabled"):
+                    # Opt-in per child: the overview carries staff wording, so
+                    # nothing is requested until this child is configured for it.
+                    continue
+                try:
+                    overview = await self.client.registrations(pupil_id)
+                except SomtodayAuthenticationError:
+                    raise
+                except (SomtodayApiError, ValueError, KeyError, TypeError):
+                    # Permissions differ per school and account; an unreadable
+                    # endpoint must never be published as "no absences".
+                    overview = None
+                if overview is None:
+                    absence_data[pupil_id] = None
+                    measure_data[pupil_id] = None
+                    continue
+                absence_data[pupil_id] = normalize_absence_registrations(overview)
+                lessons = normalize_lesson_registrations(overview)
+                try:
+                    active = await self.client.active_measures(pupil_id)
+                except SomtodayAuthenticationError:
+                    raise
+                except (SomtodayApiError, ValueError, KeyError, TypeError):
+                    # The lesson list stands on its own; only the "still to make
+                    # good" count is lost, so it is reported as unknown.
+                    active = None
+                measure_data[pupil_id] = {
+                    "lessons": lessons,
+                    "outstanding": None if active is None else outstanding_measures(active),
+                }
+            self._absences = absence_data
+            self._measures = measure_data
             student_ids = [item_id(pupil) for pupil in students]
             self._assignment_checked_at = dt_util.utcnow().isoformat()
             self.client.assignment_reports = {}
@@ -283,4 +330,6 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for student, items in self._holidays.items()
             },
             "assessments_by_student": assessments_by_student,
+            "absences_by_student": self._absences,
+            "measures_by_student": self._measures,
         }
