@@ -103,7 +103,7 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
         if key.schema == "school_days"
     )
     calendar_fields = {key.schema for key in calendar_section.schema.schema}
-    assert calendar_fields == {"day_calendar", "day_title", "automatic_day_title"}
+    assert calendar_fields == {"day_calendar", "day_title", "automatic_day_title", "day_excluded_names", "day_exclusion_match"}
     calendar_validator = next(
         validator
         for key, validator in calendar_section.schema.schema.items()
@@ -119,6 +119,8 @@ async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibli
     assert result["data"]["exports"]["b"] == entry.options["exports"]["b"]
     assert result["data"]["exports"]["a"] == {
         "day_calendar": "calendar.family",
+        "day_excluded_names": "", "day_exclusion_match": "exact",
+        "homework_include_appointment": True, "homework_include_day": True, "homework_include_week": True,
         "lesson_calendar": "",
         "lesson_homework": False,
         "automatic_day_title": False,
@@ -169,6 +171,8 @@ async def test_disabled_exports_still_offer_titles_without_writable_calendars():
     assert result["type"] == "create_entry"
     assert result["data"]["exports"]["a"] == {
         "day_calendar": "",
+        "day_excluded_names": "", "day_exclusion_match": "exact",
+        "homework_include_appointment": True, "homework_include_day": True, "homework_include_week": True,
         "lesson_calendar": "",
         "lesson_homework": False,
         "automatic_day_title": False,
@@ -347,10 +351,14 @@ async def test_homework_form_roundtrip_and_disable():
     dest = await flow.async_step_settings(values)
     assert not dest["errors"]
     data = dest["data_schema"]({"homework": {"homework_list": "todo.school",
+                                           "homework_include_appointment": False,
                                            "homework_bidirectional": True}})
     result = await flow.async_step_destinations(data)
     assert result["data"]["exports"]["a"]["homework_list"] == "todo.school"
     assert result["data"]["exports"]["a"]["homework_bidirectional"] is True
+    assert result["data"]["exports"]["a"]["homework_include_appointment"] is False
+    assert result["data"]["exports"]["a"]["homework_include_day"] is True
+    assert result["data"]["exports"]["a"]["homework_include_week"] is True
     assert result["data"]["exports"]["b"]["homework_list"] == "todo.sibling"
     again, _ = make_flow(result["data"], states)
     form = await again.async_step_init({"student_id": "a"})
@@ -360,6 +368,7 @@ async def test_homework_form_roundtrip_and_disable():
     dest = await again.async_step_settings(values)
     saved = await again.async_step_destinations(dest["data_schema"]({}))
     assert not saved["data"]["exports"]["a"].get("homework_list")
+    assert saved["data"]["exports"]["a"]["homework_include_appointment"] is False
     for lang in ("en", "nl"):
         t = json.loads((Path(__file__).parents[1] / "custom_components/somtoday/translations" / f"{lang}.json").read_text())
         assert t["options"]["step"]["calendar_destinations"]["sections"]["homework"]["data"]["homework_list"]
