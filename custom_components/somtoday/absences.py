@@ -1,38 +1,51 @@
-"""Absence overview: reports and measures, as the pupil portal shows them.
+"""Absence overview, read the way the pupil portal reads it.
 
-The "Afwezigheid" page is fed by more than one source, so a single endpoint
-cannot reproduce it:
+`/rest/v1/leerlingen/{id}/registratieOverzicht?periode=SCHOOLJAAR` is the single
+call the portal makes for its "Afwezigheid" page. It answers with one object
+already grouped into the buckets shown there, scoped to the running school year.
 
-* ``/rest/v1/absentiemeldingen`` holds absence reports (reason, period, remark).
-* ``/rest/v1/maatregeltoekenningen`` holds measures such as "Huiswerk niet in
-  orde" or being removed from a lesson. These never appear in the absence
-  reports, which is why a reports-only implementation looks incomplete to a
-  parent who sees both in the portal.
-* ``/rest/v1/waarnemingen`` holds per-lesson presence. It is deliberately not
-  used here: on the verified account it returned 1043 rows while the
-  ``Content-Range`` total claimed 200, so a paginated read cannot be proven
-  complete, and its non-present rows duplicated the absence reports anyway.
+Two shapes appear inside it:
 
-``geoorloofd`` is bookkeeping, never a verdict. The flag belongs to the
-configured reason, and schools pick their own. On the verified school "Is er uit
-gestuurd" (sent out of the lesson) is stored as ``geoorloofd: true`` while
-"Terugkomklas" (detention) is ``false``. The flag therefore answers whether the
-school books the absence as authorised and says nothing about fault. Reason and
-flag are exposed side by side and never combined into a judgement.
+* Absence buckets (`afwezigWaarnemingen`, `ongeoorloofdAfwezig`,
+  `geoorloofdAfwezig`, `teLaat`, `verwijderd`) hold registrations with a period,
+  a reason, `geoorloofd` and `afgehandeld`.
+* Lesson buckets (`huiswerkNietGemaakt`, `materiaalNietInOrde`) hold the lesson
+  the registration was made in, with subject, lesson hour and room.
+
+The lesson buckets are the reason this endpoint is used instead of the list
+endpoints. `/rest/v1/absentiemeldingen` carries only the absence side, and
+`/rest/v1/waarnemingen` held nothing but Aanwezig and Afwezig across 1045 rows
+on the verified account, so "Materiaal niet in orde" is not reachable there at
+all. A parent looking at the portal sees it, and an overview without it looks
+broken.
+
+`geoorloofd` is bookkeeping, never a verdict. It belongs to the configured
+reason and schools configure their own. On the verified school "Is er uit
+gestuurd" is stored as `geoorloofd: true` while "Terugkomklas" is `false`, so
+the flag says how the school books the absence and nothing about fault. Reason
+and flag are exposed side by side and never combined into a judgement.
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any
 
 from .export import item_id
 from .models import parse_datetime
 
+ABSENCE_BUCKETS: tuple[tuple[str, str], ...] = (
+    ("ongeoorloofdAfwezig", "ongeoorloofd_afwezig"),
+    ("geoorloofdAfwezig", "geoorloofd_afwezig"),
+    ("teLaat", "te_laat"),
+    ("verwijderd", "verwijderd"),
+    ("afwezigWaarnemingen", "afwezig_waarnemingen"),
+)
 
-def school_year_start(today: date) -> date:
-    """Dutch school years begin in August; before August the previous one still runs."""
-    return date(today.year if today.month >= 8 else today.year - 1, 8, 1)
+LESSON_BUCKETS: tuple[tuple[str, str], ...] = (
+    ("huiswerkNietGemaakt", "huiswerk_niet_gemaakt"),
+    ("materiaalNietInOrde", "materiaal_niet_in_orde"),
+)
 
 
 def _flag(value: Any) -> bool | None:
@@ -40,23 +53,15 @@ def _flag(value: Any) -> bool | None:
     return value if isinstance(value, bool) else None
 
 
-def _moment(item: dict[str, Any], key: str) -> datetime | None:
-    value = item.get(key)
-    if not isinstance(value, str) or not value:
-        return None
-    try:
-        return parse_datetime(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _owned_by(item: dict[str, Any], student_id: str) -> bool:
-    """A guardian account lists every child in one response."""
-    owner = item.get("leerling")
-    if not isinstance(owner, dict):
-        return True
-    owner_id = item_id(owner)
-    return not owner_id or owner_id == student_id
+def _moment(source: dict[str, Any], *keys: str) -> datetime | None:
+    for key in keys:
+        value = source.get(key)
+        if isinstance(value, str) and value:
+            try:
+                return parse_datetime(value)
+            except (TypeError, ValueError):
+                return None
+    return None
 
 
 def _text(source: dict[str, Any], *keys: str) -> str:
@@ -68,93 +73,85 @@ def _text(source: dict[str, Any], *keys: str) -> str:
     return ""
 
 
-def normalize_absences(
-    items: list[dict[str, Any]], student_id: str, since: date
-) -> list[dict[str, Any]]:
-    """Return this pupil's absence reports, newest first."""
+def _bucket(overview: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    value = overview.get(key)
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def normalize_absence_registrations(overview: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten the absence buckets into one timeline, newest first."""
     values: list[dict[str, Any]] = []
-    for item in items:
-        if not isinstance(item, dict) or not _owned_by(item, student_id):
-            continue
-        start = _moment(item, "beginDatumTijd")
-        if start is None or start.date() < since:
-            # A report without a usable start cannot be placed on a timeline and
-            # would silently distort every count derived from it.
-            continue
-        reason = item.get("absentieReden")
-        reason = reason if isinstance(reason, dict) else {}
-        values.append(
-            {
-                "id": item_id(item),
-                "start": start,
-                "end": _moment(item, "eindDatumTijd"),
-                "reason": _text(reason, "omschrijving", "afkorting") or "Onbekend",
-                "authorised": _flag(reason.get("geoorloofd")),
-                "handled": _flag(item.get("afgehandeld")),
-                "remark": _text(item, "opmerkingen"),
-            }
-        )
+    for source_key, name in ABSENCE_BUCKETS:
+        for item in _bucket(overview, source_key):
+            start = _moment(item, "begin", "beginDatumTijd")
+            if start is None:
+                # Without a start the entry cannot be placed on a timeline and
+                # would silently distort every count derived from it.
+                continue
+            values.append(
+                {
+                    "category": name,
+                    "start": start,
+                    "end": _moment(item, "eind", "eindDatumTijd"),
+                    "reason": _text(item, "omschrijving") or "Onbekend",
+                    "authorised": _flag(item.get("geoorloofd")),
+                    "handled": _flag(item.get("afgehandeld")),
+                    "id": str(item.get("registratieId") or item_id(item) or ""),
+                }
+            )
     values.sort(key=lambda value: value["start"], reverse=True)
     return values
 
 
-def normalize_measures(
-    items: list[dict[str, Any]], student_id: str, since: date
-) -> list[dict[str, Any]]:
-    """Return this pupil's measures, newest first.
+def normalize_lesson_registrations(overview: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten the lesson buckets, newest first, keeping subject and lesson hour.
 
-    ``nagekomen`` states whether the measure has been complied with. An
-    outstanding measure is the part a parent can still act on, so it is kept as
-    a plain flag rather than folded into the absence counts.
+    These entries describe the lesson a registration was made in, not an
+    absence, so the subject and the lesson hour are the useful part: "Duits,
+    Friday, third hour" is what the portal shows and what a parent recognises.
     """
     values: list[dict[str, Any]] = []
-    for item in items:
-        if not isinstance(item, dict) or not _owned_by(item, student_id):
-            continue
-        moment = _moment(item, "maatregelDatum")
-        if moment is None or moment.date() < since:
-            continue
-        measure = item.get("maatregel")
-        measure = measure if isinstance(measure, dict) else {}
-        values.append(
-            {
-                "id": item_id(item),
-                "date": moment.date(),
-                "label": _text(measure, "omschrijving", "naam") or "Onbekend",
-                "complied": _flag(item.get("nagekomen")),
-                "automatic": _flag(item.get("automatischToegekend")),
-            }
-        )
-    values.sort(key=lambda value: value["date"], reverse=True)
+    for source_key, name in LESSON_BUCKETS:
+        for item in _bucket(overview, source_key):
+            start = _moment(item, "beginDatumTijd", "begin")
+            if start is None:
+                continue
+            subject = item.get("vak")
+            subject = subject if isinstance(subject, dict) else {}
+            values.append(
+                {
+                    "category": name,
+                    "start": start,
+                    "subject": _text(subject, "naam", "afkorting") or "Onbekend vak",
+                    "lesson_hour": item.get("beginLesuur"),
+                    "location": _text(item, "locatie"),
+                    "id": str(item.get("uniqueIdentifier") or item_id(item) or ""),
+                }
+            )
+    values.sort(key=lambda value: value["start"], reverse=True)
     return values
 
 
-def absence_counts(values: list[dict[str, Any]]) -> dict[str, int]:
-    """Count only what the source states; an unknown flag counts as neither."""
-    return {
-        "total": len(values),
-        "authorised": sum(value["authorised"] is True for value in values),
-        "unauthorised": sum(value["authorised"] is False for value in values),
-        "open": sum(value["handled"] is False for value in values),
-    }
+def category_counts(values: list[dict[str, Any]], names: tuple[str, ...]) -> dict[str, int]:
+    """Count per portal bucket, including the buckets that are empty.
 
-
-def measure_counts(values: list[dict[str, Any]]) -> dict[str, int]:
-    """Outstanding measures are the actionable number, so they are counted apart."""
-    return {
-        "total": len(values),
-        "outstanding": sum(value["complied"] is False for value in values),
-    }
-
-
-def label_counts(values: list[dict[str, Any]], key: str) -> dict[str, int]:
-    """Break down by the school's own wording instead of guessing categories.
-
-    A school calling lateness "Te laat in de les" and another calling it "Te
-    laat" would both be mangled by pattern matching, so labels are passed
-    through unchanged and the consumer decides what matters.
+    An empty bucket is reported as zero on purpose: "no lates this year" is a
+    useful answer, and leaving the key out would make a template fall back to
+    an attribute that does not exist.
     """
-    counts: dict[str, int] = {}
+    counts = {name: 0 for name in names}
     for value in values:
-        counts[value[key]] = counts.get(value[key], 0) + 1
-    return dict(sorted(counts.items(), key=lambda pair: (-pair[1], pair[0])))
+        if value["category"] in counts:
+            counts[value["category"]] += 1
+    return counts
+
+
+def outstanding_measures(items: list[dict[str, Any]]) -> int:
+    """Measures not yet complied with; an unknown flag is not counted as open."""
+    return sum(
+        1
+        for item in items
+        if isinstance(item, dict) and item.get("nagekomen") is False
+    )

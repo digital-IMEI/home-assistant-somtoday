@@ -70,7 +70,7 @@
           "days_ahead": "Days ahead (1–60)",
           "scan_interval": "Update interval in minutes (5–120)",
           "enable_homework": "Export homework",
-          "enable_absences": "Absence overview (reports and measures)"
+          "enable_absences": "Absence overview (the portal’s Afwezigheid page)"
         },
         "data_description": {
           "enable_day": "One event from the first lesson to the last.",
@@ -91,7 +91,7 @@
               "enable_holidays": "Export holidays",
               "enable_assessments": "Export tests",
               "enable_homework": "Export homework",
-              "enable_absences": "Absence overview (reports and measures)"
+              "enable_absences": "Absence overview (the portal’s Afwezigheid page)"
             },
             "data_description": {
               "enable_day": "One event from the first lesson to the last.",
@@ -99,7 +99,7 @@
               "enable_holidays": "Published school holidays, using your chosen event layout.",
               "enable_assessments": "Tests with a published date.",
               "enable_homework": "Homework to an HA to-do list. Does not export tests or submit files.",
-              "enable_absences": "Reads absence reports and measures such as \"Huiswerk niet in orde\". Off by default: these records contain remarks written by school staff."
+              "enable_absences": "Reads the same overview the pupil portal shows: absences, lates, removals, plus \"Huiswerk niet gemaakt\" and \"Materiaal niet in orde\" with the lesson they came from. Off by default, because these records carry wording written by school staff."
             }
           }
         },
@@ -121,7 +121,7 @@
           "holiday_title": "Holidays · event title",
           "holiday_mode": "Holidays · event layout",
           "assessment_title": "Tests · event title",
-          "absence_remarks": "Include staff remarks"
+          "absence_remarks": "Include the school’s wording"
         },
         "data_description": {
           "day_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
@@ -204,12 +204,12 @@
           },
           "absences": {
             "name": "Absence overview",
-            "description": "Reports and measures are read for this child. Measures are a separate source from absence reports, which is why the portal shows both on one page. Presence per lesson is not read.",
+            "description": "One request per child to the portal’s own overview, already scoped to the running school year. Presence per lesson is not read: that list proved to contain only present and absent, so it cannot supply the homework and materials registrations.",
             "data": {
-              "absence_remarks": "Include staff remarks"
+              "absence_remarks": "Include the school’s wording"
             },
             "data_description": {
-              "absence_remarks": "A remark can describe an incident in plain words. Leave this off if the dashboard is visible to visitors; date and reason are shown either way."
+              "absence_remarks": "The reason text can describe an incident in plain words. Leave this off if the dashboard is visible to visitors; dates, categories and counts are shown either way."
             }
           }
         },

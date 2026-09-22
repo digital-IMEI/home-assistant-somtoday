@@ -17,8 +17,8 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 - The account-level **Calendar sync** diagnostic
   sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
   button can explicitly clear an uncertain write after the destination has been repaired.
-- Optional absence overview per child: absence reports and measures such as
-  "Huiswerk niet in orde", both off by default.
+- Optional absence overview per child, mirroring the portal's Afwezigheid page:
+  absences, lates, and "Huiswerk niet gemaakt" / "Materiaal niet in orde" per lesson. Off by default.
 - Adjustable look-ahead (1–60 days; default 14) and polling (5–120 minutes, default 15).
 - Default titles include the child's name: `School · Seth`, `Seth · Mathematics`.
 
@@ -309,39 +309,52 @@ preserved and no absence is inferred. The next valid Somtoday response resumes r
 ## Absence overview (experimental)
 
 Off by default. Switch on **Absence overview** for a child under **Configure**; nothing is
-requested from these endpoints until you do.
+requested until you do.
 
-The pupil portal shows absences and measures on one page, but they come from two different
-endpoints, so both are read. An overview built on absence reports alone looks broken to a
-parent who sees both in the portal.
+This reads the same overview the pupil portal shows on its "Afwezigheid" page, through the one
+request that page itself makes:
 
-| Entity | What it counts |
-| --- | --- |
-| `<child> · Absenties` | Absence reports in the running school year |
-| `<child> · Maatregelen` | Measures such as "Huiswerk niet in orde" |
+```
+GET /rest/v1/leerlingen/{id}/registratieOverzicht?periode=SCHOOLJAAR
+```
 
-Attributes carry the school's own wording, a per-label breakdown and the most recent entry.
-The measure entity also exposes `outstanding`: the number not yet complied with
-(`nagekomen: false`), which is usually the part a parent can still act on.
+It answers with one object already grouped into the portal's buckets and already limited to the
+running school year, so no client-side date arithmetic is involved. `periode=SCHOOLJAAR` is
+required: every other value, and omitting it, answered HTTP 500 on the verified account.
 
-**`geoorloofd` is bookkeeping, not a verdict.** The flag belongs to the reason, and schools
-configure their own reasons. On the school this was verified against, "Is er uit gestuurd"
-(sent out of the lesson) is stored as authorised while "Terugkomklas" (detention) is not. The
-flag answers whether the school books the absence as authorised and says nothing about fault,
-so reason and flag are exposed side by side and never combined into a judgement. An automation
-that treats `authorised: false` as trouble would mislabel both of those cases.
+| Entity | State | Buckets it counts |
+| --- | --- | --- |
+| `<child> · Absenties` | absence registrations this school year | `ongeoorloofd_afwezig`, `geoorloofd_afwezig`, `te_laat`, `verwijderd`, `afwezig_waarnemingen` |
+| `<child> · Lesregistraties` | homework and materials registrations | `huiswerk_niet_gemaakt`, `materiaal_niet_in_orde` |
 
-**Staff remarks are a second, narrower opt-in.** A remark can describe an incident in plain
-words. Date and reason are always exposed; **Include staff remarks** adds `remark` to each
-report. Leave it off when the dashboard is visible to visitors.
+Every bucket is present as an attribute even when it is zero, so a template asking for lates
+gets `0` rather than a missing attribute. Lesson registrations keep the subject, lesson hour
+and room, because "Duits, Friday, third hour" is what the portal shows and what a parent
+recognises. The lesson entity also exposes `outstanding_measures`, the count still to be made
+good (`nagekomen: false`), read separately from `/rest/v1/maatregeltoekenningen/actief/{id}`;
+it is `null`, not `0`, when that endpoint cannot be read.
 
-Presence per lesson (`/rest/v1/waarnemingen`) is deliberately not read: on the verified
-account it returned 1043 rows while the `Content-Range` total claimed 200, so a paginated read
-cannot be proven complete, and its non-present rows duplicated the absence reports anyway.
+**Why not the list endpoints.** `/rest/v1/absentiemeldingen` carries only the absence side.
+`/rest/v1/waarnemingen` looks like the obvious source for per-lesson registrations but held
+nothing except `Aanwezig` (1014) and `Afwezig` (31) across all 1045 rows on the verified
+account, so "Materiaal niet in orde" is not reachable there at all. An implementation built on
+those two endpoints is missing exactly the rows a parent checks most often. That list also
+returns oldest first and reported a `Content-Range` total of 200 for 1045 rows, so a paginated
+read of it cannot be proven complete either.
 
-School years are treated as starting on 1 August. Both entities become unavailable rather than
-reporting zero when an endpoint cannot be read, because permissions differ per school and per
-account.
+**`geoorloofd` is bookkeeping, not a verdict.** The flag belongs to the configured reason, and
+schools configure their own. On the verified school "Is er uit gestuurd" (sent out of the
+lesson) is stored as authorised while "Terugkomklas" (detention) is not. It answers whether the
+school books the absence as authorised and says nothing about fault, so category and flag are
+exposed side by side and never combined. An automation treating `authorised: false` as trouble
+would mislabel both of those.
+
+**The school's wording is a second, narrower opt-in.** `omschrijving` can describe an incident
+in plain words. Categories, dates and counts are always exposed; **Include the school's wording**
+adds the reason text. Leave it off when the dashboard is visible to visitors.
+
+Both entities become unavailable rather than reporting zero when the overview cannot be read,
+because permissions differ per school and per account.
 
 ## Tests and reminders
 

@@ -94,13 +94,18 @@ async def async_get_config_entry_diagnostics(hass, entry):
             for values in data.get("absences_by_student", {}).values()
             if values is not None
         ),
-        "measure_available_count": sum(
+        "lesson_registration_available_count": sum(
             value is not None for value in data.get("measures_by_student", {}).values()
         ),
-        "measure_count": sum(
-            len(values)
-            for values in data.get("measures_by_student", {}).values()
-            if values is not None
+        "lesson_registration_count": sum(
+            len(value.get("lessons") or [])
+            for value in data.get("measures_by_student", {}).values()
+            if isinstance(value, dict)
+        ),
+        "outstanding_measure_count": sum(
+            value["outstanding"]
+            for value in data.get("measures_by_student", {}).values()
+            if isinstance(value, dict) and isinstance(value.get("outstanding"), int)
         ),
         "assessment_available_count": sum(
             value is not None

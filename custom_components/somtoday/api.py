@@ -165,27 +165,40 @@ class SomtodayClient:
         from urllib.parse import quote
         return await self._get_all("/rest/v1/vakanties/leerling/" + quote(student_id, safe=""))
 
-    async def absences(self, start: date) -> list[dict[str, Any]]:
-        """Fetch absence reports; an inaccessible endpoint is not an empty list.
+    async def registrations(self, student_id: str) -> dict[str, Any]:
+        """Fetch the pupil's registration overview, the source behind "Afwezigheid".
 
-        A guardian account returns every visible child in one response, so the
-        caller filters per pupil. ``begintNaOfOp`` is honoured here, which keeps
-        a long history out of every refresh.
+        This is the single call the pupil portal itself makes for that page. It
+        returns one object already grouped into the buckets the portal shows,
+        scoped to the running school year, so no client-side date arithmetic is
+        needed. ``periode=SCHOOLJAAR`` is required: every other value, and
+        omitting it, answered HTTP 500 on the verified account.
+
+        Reaching the same information through the list endpoints does not work.
+        ``/rest/v1/absentiemeldingen`` carries only the absence side, and
+        ``/rest/v1/waarnemingen`` proved to hold nothing but Aanwezig and
+        Afwezig across 1045 rows, so "Huiswerk niet gemaakt" and "Materiaal niet
+        in orde" are not reachable there at all.
         """
-        return await self._get_all(
-            "/rest/v1/absentiemeldingen",
-            params=[("begintNaOfOp", start.isoformat())],
+        from urllib.parse import quote
+
+        return await self._get(
+            "/rest/v1/leerlingen/" + quote(student_id, safe="") + "/registratieOverzicht",
+            params=[("periode", "SCHOOLJAAR")],
         )
 
-    async def measures(self) -> list[dict[str, Any]]:
-        """Fetch assigned measures ("Huiswerk niet in orde" and similar).
+    async def active_measures(self, student_id: str) -> list[dict[str, Any]]:
+        """Fetch measures still outstanding, the part a parent can act on.
 
-        These never appear among the absence reports, yet the pupil portal shows
-        both on one page, so an overview that omits them looks broken to a
-        parent. No date filter is applied: the endpoint ignored the schedule
-        filters on the verified account, and the result set is small.
+        The overview above lists the lessons a registration came from but not
+        whether the resulting measure has been complied with, so this adds
+        ``nagekomen``. Only active assignments are returned by this path.
         """
-        return await self._get_all("/rest/v1/maatregeltoekenningen")
+        from urllib.parse import quote
+
+        return await self._get_all(
+            "/rest/v1/maatregeltoekenningen/actief/" + quote(student_id, safe="")
+        )
 
     async def assessments(
         self, student_id: str, start: date

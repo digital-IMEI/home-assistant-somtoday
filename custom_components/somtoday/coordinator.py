@@ -31,9 +31,9 @@ from .sync import CalendarSync
 from .holidays import holiday_status
 from .homework import HomeworkSync, lesson_homework
 from .absences import (
-    normalize_absences,
-    normalize_measures,
-    school_year_start,
+    normalize_absence_registrations,
+    normalize_lesson_registrations,
+    outstanding_measures,
 )
 
 
@@ -88,36 +88,40 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # nothing is fetched until a child is explicitly configured for it.
             absence_data: dict[str, Any] = {}
             measure_data: dict[str, Any] = {}
-            if any(
-                route.get("absences_enabled")
-                for route in self.entry.options.get("exports", {}).values()
-                if isinstance(route, dict)
-            ):
-                since = school_year_start(start)
+            routes = self.entry.options.get("exports", {})
+            for pupil in students:
+                pupil_id = item_id(pupil)
+                route = routes.get(pupil_id)
+                if not isinstance(route, dict) or not route.get("absences_enabled"):
+                    # Opt-in per child: the overview carries staff wording, so
+                    # nothing is requested until this child is configured for it.
+                    continue
                 try:
-                    reports = await self.client.absences(since)
+                    overview = await self.client.registrations(pupil_id)
                 except SomtodayAuthenticationError:
                     raise
                 except (SomtodayApiError, ValueError, KeyError, TypeError):
                     # Permissions differ per school and account; an unreadable
                     # endpoint must never be published as "no absences".
-                    reports = None
+                    overview = None
+                if overview is None:
+                    absence_data[pupil_id] = None
+                    measure_data[pupil_id] = None
+                    continue
+                absence_data[pupil_id] = normalize_absence_registrations(overview)
+                lessons = normalize_lesson_registrations(overview)
                 try:
-                    measures = await self.client.measures()
+                    active = await self.client.active_measures(pupil_id)
                 except SomtodayAuthenticationError:
                     raise
                 except (SomtodayApiError, ValueError, KeyError, TypeError):
-                    measures = None
-                for pupil in students:
-                    pupil_id = item_id(pupil)
-                    absence_data[pupil_id] = (
-                        None if reports is None
-                        else normalize_absences(reports, pupil_id, since)
-                    )
-                    measure_data[pupil_id] = (
-                        None if measures is None
-                        else normalize_measures(measures, pupil_id, since)
-                    )
+                    # The lesson list stands on its own; only the "still to make
+                    # good" count is lost, so it is reported as unknown.
+                    active = None
+                measure_data[pupil_id] = {
+                    "lessons": lessons,
+                    "outstanding": None if active is None else outstanding_measures(active),
+                }
             self._absences = absence_data
             self._measures = measure_data
             student_ids = [item_id(pupil) for pupil in students]
