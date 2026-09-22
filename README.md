@@ -17,6 +17,8 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 - The account-level **Calendar sync** diagnostic
   sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
   button can explicitly clear an uncertain write after the destination has been repaired.
+- Optional absence overview per child: absence reports and measures such as
+  "Huiswerk niet in orde", both off by default.
 - Adjustable look-ahead (1–60 days; default 14) and polling (5–120 minutes, default 15).
 - Default titles include the child's name: `School · Seth`, `Seth · Mathematics`.
 
@@ -303,6 +305,43 @@ calendars are available. Only an unavailable destination can consume the full tw
 window before a repair is raised.
 If the optional holiday endpoint becomes unavailable, existing exported holiday events are
 preserved and no absence is inferred. The next valid Somtoday response resumes reconciliation.
+
+## Absence overview (experimental)
+
+Off by default. Switch on **Absence overview** for a child under **Configure**; nothing is
+requested from these endpoints until you do.
+
+The pupil portal shows absences and measures on one page, but they come from two different
+endpoints, so both are read. An overview built on absence reports alone looks broken to a
+parent who sees both in the portal.
+
+| Entity | What it counts |
+| --- | --- |
+| `<child> · Absenties` | Absence reports in the running school year |
+| `<child> · Maatregelen` | Measures such as "Huiswerk niet in orde" |
+
+Attributes carry the school's own wording, a per-label breakdown and the most recent entry.
+The measure entity also exposes `outstanding`: the number not yet complied with
+(`nagekomen: false`), which is usually the part a parent can still act on.
+
+**`geoorloofd` is bookkeeping, not a verdict.** The flag belongs to the reason, and schools
+configure their own reasons. On the school this was verified against, "Is er uit gestuurd"
+(sent out of the lesson) is stored as authorised while "Terugkomklas" (detention) is not. The
+flag answers whether the school books the absence as authorised and says nothing about fault,
+so reason and flag are exposed side by side and never combined into a judgement. An automation
+that treats `authorised: false` as trouble would mislabel both of those cases.
+
+**Staff remarks are a second, narrower opt-in.** A remark can describe an incident in plain
+words. Date and reason are always exposed; **Include staff remarks** adds `remark` to each
+report. Leave it off when the dashboard is visible to visitors.
+
+Presence per lesson (`/rest/v1/waarnemingen`) is deliberately not read: on the verified
+account it returned 1043 rows while the `Content-Range` total claimed 200, so a paginated read
+cannot be proven complete, and its non-present rows duplicated the absence reports anyway.
+
+School years are treated as starting on 1 August. Both entities become unavailable rather than
+reporting zero when an endpoint cannot be read, because permissions differ per school and per
+account.
 
 ## Tests and reminders
 

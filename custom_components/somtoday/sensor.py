@@ -15,6 +15,12 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN
 from .export import item_id
 from .coordinator import SomtodayCoordinator
+from .absences import (
+    absence_counts,
+    label_counts,
+    measure_counts,
+    school_year_start,
+)
 
 
 async def async_setup_entry(
@@ -26,6 +32,11 @@ async def async_setup_entry(
         SomtodayNextAssessmentSensor(coordinator, entry, student)
         for student in coordinator.data.get("students", [])
     )
+    for student in coordinator.data.get("students", []):
+        route = entry.options.get("exports", {}).get(item_id(student), {})
+        if isinstance(route, dict) and route.get("absences_enabled"):
+            entities.append(SomtodayAbsenceSensor(coordinator, entry, student))
+            entities.append(SomtodayMeasureSensor(coordinator, entry, student))
     async_add_entities(entities)
 
 
@@ -124,6 +135,124 @@ class SomtodayNextAssessmentSensor(
                 days_until=(start_day - dt_util.now().date()).days,
                 all_day=value["all_day"],
                 made=value["made"],
+            )
+        return attributes
+
+
+class _SomtodayStudentSensor(CoordinatorEntity[SomtodayCoordinator], SensorEntity):
+    """Shared plumbing for the opt-in absence overview entities."""
+
+    _attr_has_entity_name = True
+    _key = ""
+
+    def __init__(self, coordinator, entry, student):
+        super().__init__(coordinator)
+        self.entry = entry
+        self.student = item_id(student)
+        self._name = student.get("roepnaam") or self.student
+
+    def _values(self):
+        return self.coordinator.data.get(self._key, {}).get(self.student)
+
+    @property
+    def route(self):
+        route = self.entry.options.get("exports", {}).get(self.student, {})
+        return route if isinstance(route, dict) else {}
+
+    @property
+    def available(self):
+        # An unreadable endpoint is not an empty overview, so the entity goes
+        # unavailable rather than reporting a reassuring zero.
+        return super().available and self._values() is not None
+
+
+class SomtodayAbsenceSensor(_SomtodayStudentSensor):
+    """Absence reports for the running school year."""
+
+    _attr_icon = "mdi:account-alert-outline"
+    _key = "absences_by_student"
+
+    def __init__(self, coordinator, entry, student):
+        super().__init__(coordinator, entry, student)
+        self._attr_name = f"{self._name} · Absenties"
+        self._attr_unique_id = f"{entry.entry_id}_{self.student}_absences"
+
+    @property
+    def native_value(self):
+        values = self._values()
+        return None if values is None else len(values)
+
+    @property
+    def extra_state_attributes(self):
+        values = self._values() or []
+        # Staff remarks are a separate opt-in: a date and a reason belong on a
+        # family dashboard, the wording of an incident usually does not.
+        include_remarks = bool(self.route.get("absence_remarks"))
+        attributes = {
+            **absence_counts(values),
+            "reasons": label_counts(values, "reason"),
+            "school_year_start": school_year_start(dt_util.now().date()).isoformat(),
+            "reports": [
+                {
+                    "start": value["start"].isoformat(),
+                    "end": value["end"].isoformat() if value["end"] else None,
+                    "reason": value["reason"],
+                    "authorised": value["authorised"],
+                    "handled": value["handled"],
+                    **({"remark": value["remark"]} if include_remarks else {}),
+                }
+                for value in values[:25]
+            ],
+        }
+        if values:
+            latest = values[0]
+            attributes.update(
+                latest_start=latest["start"].isoformat(),
+                latest_reason=latest["reason"],
+                latest_authorised=latest["authorised"],
+            )
+        return attributes
+
+
+class SomtodayMeasureSensor(_SomtodayStudentSensor):
+    """Measures such as "Huiswerk niet in orde", which absence reports never contain."""
+
+    _attr_icon = "mdi:gavel"
+    _key = "measures_by_student"
+
+    def __init__(self, coordinator, entry, student):
+        super().__init__(coordinator, entry, student)
+        self._attr_name = f"{self._name} · Maatregelen"
+        self._attr_unique_id = f"{entry.entry_id}_{self.student}_measures"
+
+    @property
+    def native_value(self):
+        values = self._values()
+        return None if values is None else len(values)
+
+    @property
+    def extra_state_attributes(self):
+        values = self._values() or []
+        attributes = {
+            **measure_counts(values),
+            "labels": label_counts(values, "label"),
+            "school_year_start": school_year_start(dt_util.now().date()).isoformat(),
+            "measures": [
+                {
+                    "date": value["date"].isoformat(),
+                    "label": value["label"],
+                    "complied": value["complied"],
+                    "automatic": value["automatic"],
+                }
+                for value in values[:25]
+            ],
+        }
+        if values:
+            latest = values[0]
+            attributes.update(
+                latest_date=latest["date"].isoformat(),
+                latest_label=latest["label"],
+                latest_complied=latest["complied"],
             )
         return attributes
 

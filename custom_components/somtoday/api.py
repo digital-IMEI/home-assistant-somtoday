@@ -165,6 +165,28 @@ class SomtodayClient:
         from urllib.parse import quote
         return await self._get_all("/rest/v1/vakanties/leerling/" + quote(student_id, safe=""))
 
+    async def absences(self, start: date) -> list[dict[str, Any]]:
+        """Fetch absence reports; an inaccessible endpoint is not an empty list.
+
+        A guardian account returns every visible child in one response, so the
+        caller filters per pupil. ``begintNaOfOp`` is honoured here, which keeps
+        a long history out of every refresh.
+        """
+        return await self._get_all(
+            "/rest/v1/absentiemeldingen",
+            params=[("begintNaOfOp", start.isoformat())],
+        )
+
+    async def measures(self) -> list[dict[str, Any]]:
+        """Fetch assigned measures ("Huiswerk niet in orde" and similar).
+
+        These never appear among the absence reports, yet the pupil portal shows
+        both on one page, so an overview that omits them looks broken to a
+        parent. No date filter is applied: the endpoint ignored the schedule
+        filters on the verified account, and the result set is small.
+        """
+        return await self._get_all("/rest/v1/maatregeltoekenningen")
+
     async def assessments(
         self, student_id: str, start: date
     ) -> list[dict[str, Any]]:

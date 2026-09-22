@@ -269,6 +269,13 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         route["automatic_day_title"] = self._automatic_day_title
         if getattr(self, "_enable_homework", False):
             route.update(self._homework_route)
+        if getattr(self, "_enable_absences", False):
+            route.update(getattr(self, "_absence_route", {}))
+        else:
+            # Removed rather than set to false, so switching the overview off
+            # cannot leave a stale enabled flag that keeps the fetch alive.
+            route.pop("absences_enabled", None)
+            route.pop("absence_remarks", None)
 
         routes[self.student] = route
         options.update(self._pending_settings)
@@ -314,6 +321,11 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         schema = vol.Schema(
             {
                 vol.Required("enable_homework", default=bool(old.get("homework_list"))): bool,
+                # Opt-in: absence reports and measures carry staff remarks, so
+                # nothing is fetched until this is switched on for the child.
+                vol.Required(
+                    "enable_absences", default=bool(old.get("absences_enabled"))
+                ): bool,
                 vol.Required(
                     "enable_day", default=bool(old.get("day_calendar"))
                 ): bool,
@@ -336,7 +348,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             }
         )
         groups = {
-            "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments", "enable_homework"),
+            "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments", "enable_homework", "enable_absences"),
         }
         schema = vol.Schema({
             vol.Required(name, default={key.schema: key.default() for key in schema.schema if key.schema in fields}): section(
@@ -358,6 +370,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     description_placeholders={"student": self.student},
                 )
             self._enable_homework = user_input.get("enable_homework", False)
+            self._enable_absences = user_input.get("enable_absences", False)
             self._enable_day = user_input["enable_day"]
             self._enable_lessons = user_input["enable_lessons"]
             self._enable_holidays = user_input["enable_holidays"]
@@ -398,7 +411,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             # Sections are presentation-only. Accept both the sectioned form used by
             # current HA and the flat form used by older clients/tests.
             user_input = dict(user_input)
-            for name in ("calendar_destinations", "event_titles", "school_days", "lessons", "holidays", "holiday_layout", "tests", "homework"):
+            for name in ("calendar_destinations", "event_titles", "school_days", "lessons", "holidays", "holiday_layout", "tests", "homework", "absences"):
                 nested = user_input.pop(name, None)
                 if isinstance(nested, dict):
                     user_input.update(nested)
@@ -413,6 +426,10 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     "homework_list": user_input.get("homework_list", ""),
                     "homework_title": user_input.get("homework_title", old.get("homework_title", "{student} · {subject} · {topic}")),
                     "homework_bidirectional": user_input.get("homework_bidirectional", False),
+                }
+                self._absence_route = {
+                    "absences_enabled": bool(getattr(self, "_enable_absences", False)),
+                    "absence_remarks": user_input.get("absence_remarks", False),
                 }
                 self._automatic_day_title = user_input.get(
                     "automatic_day_title", old.get("automatic_day_title", False)
@@ -518,6 +535,11 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             title_schema[todo_key] = vol.In(todo_choices)
             title_schema[vol.Required("homework_title", default=old.get("homework_title", "{student} · {subject} · {topic}"))] = vol.All(str, vol.Length(min=1, max=200))
             title_schema[vol.Required("homework_bidirectional", default=old.get("homework_bidirectional", False))] = bool
+        if getattr(self, "_enable_absences", False):
+            # Second, narrower opt-in. Date and reason are useful on a family
+            # dashboard; the staff wording about an incident usually is not, and
+            # a dashboard is often visible to visitors.
+            title_schema[vol.Required("absence_remarks", default=old.get("absence_remarks", False))] = bool
         schema = {}
         fields = {**calendar_schema, **title_schema}
         groups = {
@@ -526,6 +548,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             "holidays": ("holiday_calendar", "holiday_title", "holiday_mode"),
             "tests": ("assessment_calendar", "assessment_title"),
             "homework": ("homework_list", "homework_title", "homework_bidirectional"),
+            "absences": ("absence_remarks",),
         }
         for name, names in groups.items():
             group = {key: value for key, value in fields.items() if key.schema in names}
