@@ -92,6 +92,7 @@ class SomtodayClient:
         self._session = session
         self.token = token or {}
         self.assignment_reports = {}
+        self._refresh_lock = asyncio.Lock()
 
     async def organizations(self) -> list[dict[str, Any]]:
         """Fetch all Somtoday organizations."""
@@ -153,8 +154,11 @@ class SomtodayClient:
 
     async def ensure_token(self) -> None:
         """Refresh shortly before expiry."""
-        if int(self.token.get("expires_at", 0)) <= int(time.time()) + 60:
-            await self.refresh()
+        async with self._refresh_lock:
+            # Refresh tokens rotate. Recheck after taking the lock so parallel
+            # assignment requests cannot exchange the same token twice.
+            if int(self.token.get("expires_at", 0)) <= int(time.time()) + 60:
+                await self.refresh()
 
     async def students(self) -> list[dict[str, Any]]:
         """Return students visible to the account."""
@@ -194,6 +198,8 @@ class SomtodayClient:
         ]
         failures = []
         for (kind, _), page in zip(sources, pages, strict=True):
+            if isinstance(page, SomtodayAuthenticationError):
+                raise page
             if isinstance(page, SomtodayApiError):
                 failures.append(assignment_failure(kind, page))
             elif isinstance(page, BaseException):
@@ -298,7 +304,7 @@ class SomtodayClient:
                 except ValueError as err:
                     raise SomtodayApiError("Invalid pagination; refusing partial snapshot") from err
         except ClientResponseError as err:
-            if err.status in (401, 403):
+            if err.status == 401:
                 raise SomtodayAuthenticationError("Somtoday authorization expired") from err
             raise SomtodayApiError(f"Somtoday API returned HTTP {err.status}") from err
         except (ClientError, TimeoutError, ValueError) as err:

@@ -11,6 +11,24 @@ from custom_components.somtoday.const import DOMAIN
 from custom_components.somtoday.coordinator import SomtodayCoordinator
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["holidays", "assessments"])
+async def test_optional_source_expired_login_requests_reauthentication(source):
+    from homeassistant.exceptions import ConfigEntryAuthFailed
+    from custom_components.somtoday.api import SomtodayAuthenticationError
+    coordinator = object.__new__(SomtodayCoordinator)
+    coordinator.entry = SimpleNamespace(entry_id="test", data={"token": {}}, options={})
+    coordinator.client = SimpleNamespace(
+        token={}, students=AsyncMock(return_value=[{"links": [{"id": "a"}]}]),
+        appointments=AsyncMock(return_value=[]), holidays=AsyncMock(return_value=[]),
+        assessments=AsyncMock(return_value=[]),
+    )
+    coordinator._holidays_checked = None
+    getattr(coordinator.client, source).side_effect = SomtodayAuthenticationError("expired")
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+
 def test_configured_calendar_targets_are_unique_and_ignore_disabled_exports():
     entry = SimpleNamespace(
         options={

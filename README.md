@@ -6,6 +6,21 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 
 ## Features
 
+### Version 0.9.0 — production release
+
+Promotes the 0.9 beta features: homework to-do synchronization, readable homework
+in lesson descriptions, per-child homework type selection and school-day text
+filters. Includes corrected school-day break handling and privacy-safe source
+diagnostics. Parallel requests now share one token refresh; expired optional-source
+authentication triggers reauthentication, while an endpoint permission denial
+remains a source error. Existing options and managed event identities are retained.
+
+Update in HACS and restart Home Assistant. No account removal is needed.
+Completion write-back remains **experimental and disabled by default**; support
+depends on school/account permissions and has not been confirmed for all account types.
+
+### Available features
+
 - School dropdown and browser login (password stays on the school's login page).
 - Two source calendars per child: **Name · Rooster** with individual lessons and
   **Name · Schooldag** with one event from the first lesson start through the last lesson end.
@@ -358,12 +373,13 @@ when validating a reminder.
 Tokens are stored in the HA configuration, never in this repository. Treat backups as private.
 Export sends titles, lesson times, child names and locations to your chosen calendar provider.
 Grades and messages are not fetched by this version. Ordinary homework may be present in the
-study-guide response used to find tests, but is filtered out and is not exposed or exported.
+study-guide response used to find tests. It is exposed in lesson descriptions or
+sent to your selected to-do provider only when you enable those homework options.
 
 For an issue include integration/HA version, browser, school organization, selected output
 mode, sanitized error and whether source times match. Redact names, locations and all auth data.
-Do not include raw diagnostics or HAR files. The integration remains experimental while
-multi-school and live calendar-provider compatibility are being established.
+Do not include raw API responses or HAR files. Only share the integration's redacted
+diagnostics. Compatibility still depends on school/account and calendar-provider capabilities.
 
 See [community roadmap](docs/ROADMAP.md) for researched follow-up features and limitations.
 
@@ -385,9 +401,9 @@ After updating through HACS, **restart Home Assistant** to load the new Python c
 Existing per-child destinations and settings are retained when upgrading. Automated tests cover serialized form defaults, translation paths, holiday choices, saving and reopening settings, and preserving other children’s options. They do not replace a visual check on your actual HA frontend.
 
 
-## Homework tasks (experimental)
+## Homework tasks
 
-This development version adds per-child export to an existing Home Assistant to-do list.
+Version 0.9.0 supports per-child export to an existing Home Assistant to-do list.
 Start with a separate **Local to-do** list and a 1-day export window. Configure Somtoday,
 select a child, enable **Export homework**, then choose the list and title.
 Supported placeholders: `{student}`, `{subject}`, `{topic}`.
@@ -400,7 +416,7 @@ Supported placeholders: `{student}`, `{subject}`, `{topic}`.
   represent the deadline, it appears in the description.
 - Progress is read only from a completion flag identifying the selected child. An unknown
   flag is not assumed to mean incomplete; no sibling's progress is copied.
-- Optional **Write completion back to Somtoday** is off by default. It sends only completion
+- Optional **Write completion back to Somtoday** remains experimental and off by default. It sends only completion
   or reopening, never submissions/files. School/parent permissions may reject it.
   On first import or concurrent changes Somtoday wins. Newly created completed tasks may
   need another refresh to discover the destination UID before their status can be set.

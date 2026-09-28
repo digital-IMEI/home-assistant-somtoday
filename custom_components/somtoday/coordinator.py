@@ -71,6 +71,8 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         items = await self.client.holidays(student_id)
                         holiday_status(items, start)  # Validate before retaining a snapshot.
                         holiday_data[student_id] = items
+                    except SomtodayAuthenticationError:
+                        raise
                     except (SomtodayApiError, ValueError, KeyError, TypeError):
                         # Optional endpoint permissions vary by school/account.
                         # Do not block the roster or interpret failure as "no holiday".
@@ -95,6 +97,12 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     student_ids, assessment_results, strict=True
                 )
             }
+            authentication_error = next(
+                (result for result in assessment_results
+                 if isinstance(result, SomtodayAuthenticationError)), None
+            )
+            if authentication_error is not None:
+                raise authentication_error
             unexpected = next(
                 (
                     result

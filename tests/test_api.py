@@ -1,9 +1,44 @@
 from datetime import date
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
 
 from custom_components.somtoday.api import SomtodayClient, SomtodayApiError
+
+
+@pytest.mark.asyncio
+async def test_parallel_requests_refresh_rotating_token_only_once():
+    client = SomtodayClient(None, {"expires_at": 0})
+    async def refresh():
+        await asyncio.sleep(0)
+        client.token = {"expires_at": 9999999999}
+    client.refresh = AsyncMock(side_effect=refresh)
+    await asyncio.gather(*(client.ensure_token() for _ in range(6)))
+    client.refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_optional_endpoint_permission_denied_does_not_request_reauth():
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from aiohttp import ClientResponseError
+    from custom_components.somtoday.api import SomtodayAuthenticationError
+    response = SimpleNamespace(raise_for_status=Mock(side_effect=ClientResponseError(None, (), status=403)))
+    client = SomtodayClient(SimpleNamespace(get=AsyncMock(return_value=response)),
+                            {"access_token": "test", "expires_at": 9999999999})
+    with pytest.raises(SomtodayApiError) as caught:
+        await client._get("/optional")
+    assert not isinstance(caught.value, SomtodayAuthenticationError)
+
+
+@pytest.mark.asyncio
+async def test_assignment_authentication_failure_is_not_optional():
+    from custom_components.somtoday.api import SomtodayAuthenticationError
+    client = SomtodayClient(None, {"expires_at": 9999999999})
+    client._get_all = AsyncMock(side_effect=[[], SomtodayAuthenticationError("expired"), []])
+    with pytest.raises(SomtodayAuthenticationError):
+        await client.assessments("student", date(2026, 9, 28))
 
 
 @pytest.mark.asyncio
