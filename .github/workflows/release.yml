@@ -66,4 +66,4 @@ jobs:
             --target "$TARGET_SHA" \
             --title "$TAG" \
             "${prerelease[@]}" \
-            --generate-notes
+            --notes-file "docs/releases/${TAG}.md"
