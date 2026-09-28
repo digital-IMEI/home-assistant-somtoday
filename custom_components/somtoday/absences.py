@@ -24,12 +24,19 @@ reason and schools configure their own. On the verified school "Is er uit
 gestuurd" is stored as `geoorloofd: true` while "Terugkomklas" is `false`, so
 the flag says how the school books the absence and nothing about fault. Reason
 and flag are exposed side by side and never combined into a judgement.
+
+Nothing here publishes a partial snapshot. A response that is not an overview,
+a bucket of the wrong type or a row without a usable date raises ValueError, so
+the caller reports the source as unavailable instead of a lower count. A valid
+overview whose buckets are empty is accepted and counts zero.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+
+from homeassistant.util import dt as dt_util
 
 from .export import item_id
 from .models import parse_datetime
@@ -54,13 +61,19 @@ def _flag(value: Any) -> bool | None:
 
 
 def _moment(source: dict[str, Any], *keys: str) -> datetime | None:
+    """Parse the first date present, in local time; an unusable one raises.
+
+    The absence buckets carry an offset while the lesson buckets carry naive
+    local times. Both are converted to Home Assistant's time zone so they can
+    be compared and sorted, and a naive value is read as local school time.
+    """
     for key in keys:
         value = source.get(key)
-        if isinstance(value, str) and value:
-            try:
-                return parse_datetime(value)
-            except (TypeError, ValueError):
-                return None
+        if value is None or value == "":
+            continue
+        if not isinstance(value, str):
+            raise ValueError("Registration date is not text")
+        return dt_util.as_local(parse_datetime(value))
     return None
 
 
@@ -73,11 +86,31 @@ def _text(source: dict[str, Any], *keys: str) -> str:
     return ""
 
 
-def _bucket(overview: dict[str, Any], key: str) -> list[dict[str, Any]]:
+def _bucket(overview: Any, key: str) -> list[dict[str, Any]]:
+    """Return one bucket, refusing anything that is not an overview.
+
+    A missing or null bucket is empty. Any other non-list value, and any row
+    that is not an object, makes the whole overview unusable.
+    """
+    if not isinstance(overview, dict) or not any(
+        source_key in overview for source_key, _ in ABSENCE_BUCKETS + LESSON_BUCKETS
+    ):
+        raise ValueError("Not a registration overview")
     value = overview.get(key)
-    if not isinstance(value, list):
+    if value is None:
         return []
-    return [item for item in value if isinstance(item, dict)]
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise ValueError("Unexpected registration bucket")
+    return value
+
+
+def _start(item: dict[str, Any], *keys: str) -> datetime:
+    start = _moment(item, *keys)
+    if start is None:
+        # Without a start the entry cannot be placed on a timeline. Dropping it
+        # would lower every count derived from it, so the overview is refused.
+        raise ValueError("Registration without a usable start")
+    return start
 
 
 def normalize_absence_registrations(overview: dict[str, Any]) -> list[dict[str, Any]]:
@@ -85,11 +118,7 @@ def normalize_absence_registrations(overview: dict[str, Any]) -> list[dict[str, 
     values: list[dict[str, Any]] = []
     for source_key, name in ABSENCE_BUCKETS:
         for item in _bucket(overview, source_key):
-            start = _moment(item, "begin", "beginDatumTijd")
-            if start is None:
-                # Without a start the entry cannot be placed on a timeline and
-                # would silently distort every count derived from it.
-                continue
+            start = _start(item, "begin", "beginDatumTijd")
             values.append(
                 {
                     "category": name,
@@ -115,17 +144,16 @@ def normalize_lesson_registrations(overview: dict[str, Any]) -> list[dict[str, A
     values: list[dict[str, Any]] = []
     for source_key, name in LESSON_BUCKETS:
         for item in _bucket(overview, source_key):
-            start = _moment(item, "beginDatumTijd", "begin")
-            if start is None:
-                continue
+            start = _start(item, "beginDatumTijd", "begin")
             subject = item.get("vak")
             subject = subject if isinstance(subject, dict) else {}
+            hour = item.get("beginLesuur")
             values.append(
                 {
                     "category": name,
                     "start": start,
                     "subject": _text(subject, "naam", "afkorting") or "Onbekend vak",
-                    "lesson_hour": item.get("beginLesuur"),
+                    "lesson_hour": hour if type(hour) is int else None,
                     "location": _text(item, "locatie"),
                     "id": str(item.get("uniqueIdentifier") or item_id(item) or ""),
                 }
@@ -148,10 +176,23 @@ def category_counts(values: list[dict[str, Any]], names: tuple[str, ...]) -> dic
     return counts
 
 
+def registration_snapshot(overview: Any) -> dict[str, list[dict[str, Any]]]:
+    """Validate and normalize the whole overview before any of it is published."""
+    return {
+        "absences": normalize_absence_registrations(overview),
+        "lessons": normalize_lesson_registrations(overview),
+    }
+
+
 def outstanding_measures(items: list[dict[str, Any]]) -> int:
-    """Measures not yet complied with; an unknown flag is not counted as open."""
-    return sum(
-        1
+    """Measures not yet complied with (`nagekomen: false`).
+
+    A measure without a boolean flag makes the count unknown rather than lower,
+    so it raises and the caller reports the count as unavailable.
+    """
+    if not isinstance(items, list) or not all(
+        isinstance(item, dict) and isinstance(item.get("nagekomen"), bool)
         for item in items
-        if isinstance(item, dict) and item.get("nagekomen") is False
-    )
+    ):
+        raise ValueError("Unexpected measure list")
+    return sum(1 for item in items if item["nagekomen"] is False)

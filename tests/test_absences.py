@@ -1,6 +1,13 @@
+import json
+import logging
+from datetime import timedelta, timezone
+from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
+from aiohttp import ClientResponseError
+from homeassistant.util import dt as dt_util
 
 from custom_components.somtoday.absences import (
     ABSENCE_BUCKETS,
@@ -9,7 +16,10 @@ from custom_components.somtoday.absences import (
     normalize_absence_registrations,
     normalize_lesson_registrations,
     outstanding_measures,
+    registration_snapshot,
 )
+from custom_components.somtoday.api import SomtodayApiError, SomtodayAuthenticationError
+from custom_components.somtoday.coordinator import SomtodayCoordinator
 from custom_components.somtoday.sensor import (
     SomtodayAbsenceSensor,
     SomtodayLessonRegistrationSensor,
@@ -20,6 +30,16 @@ from custom_components.somtoday.config_flow import SomtodayOptionsFlow
 PUPIL = "pupil-1"
 ABSENCE_NAMES = tuple(name for _, name in ABSENCE_BUCKETS)
 LESSON_NAMES = tuple(name for _, name in LESSON_BUCKETS)
+ROOT = Path(__file__).resolve().parents[1] / "custom_components" / "somtoday"
+
+
+@pytest.fixture
+def school_time_zone():
+    """Dutch summer time as a fixed offset, so the result is the same on any runner."""
+    previous = dt_util.DEFAULT_TIME_ZONE
+    dt_util.set_default_time_zone(timezone(timedelta(hours=2)))
+    yield
+    dt_util.set_default_time_zone(previous)
 
 
 def _registration(reason, start, authorised, handled=True, identifier=1):
@@ -102,13 +122,74 @@ def test_empty_buckets_are_reported_as_zero_not_left_out():
     assert all(value == 0 for value in counts.values())
 
 
-def test_entry_without_a_usable_start_is_dropped_rather_than_counted():
+@pytest.mark.parametrize(
+    "overview",
+    [_overview(), {"teLaat": []}, {"teLaat": None, "materiaalNietInOrde": []}],
+    ids=["all-buckets-empty", "missing-buckets", "null-bucket"],
+)
+def test_a_valid_empty_overview_is_accepted_as_zero(overview):
+    assert registration_snapshot(overview) == {"absences": [], "lessons": []}
+
+
+@pytest.mark.parametrize(
+    "overview",
+    [{"error": "permission denied"}, {}, [], None, "text"],
+    ids=["error-object", "empty-object", "list", "null", "text"],
+)
+def test_a_response_that_is_not_an_overview_is_refused(overview):
+    """Accepting these published available sensors with zero registrations."""
+    with pytest.raises(ValueError):
+        registration_snapshot(overview)
+    with pytest.raises(ValueError):
+        normalize_absence_registrations(overview)
+
+
+@pytest.mark.parametrize(
+    "overview",
+    [
+        {"teLaat": "unexpected"},
+        {"teLaat": {}},
+        {"teLaat": ["row"]},
+        {"materiaalNietInOrde": [1]},
+    ],
+    ids=["text-bucket", "object-bucket", "text-row", "number-row"],
+)
+def test_a_bucket_of_the_wrong_type_is_refused(overview):
+    with pytest.raises(ValueError):
+        registration_snapshot(overview)
+
+
+@pytest.mark.parametrize(
+    "overview",
+    [
+        _overview(teLaat=[_registration("Te laat", "", False)]),
+        _overview(teLaat=[_registration("Te laat", "yesterday", False)]),
+        _overview(teLaat=[_registration("Te laat", 1757000000, False)]),
+        _overview(teLaat=[{**_registration("Te laat", "2026-09-04T08:30:00+02:00", False),
+                           "eind": "later"}]),
+        _overview(materiaalNietInOrde=[_lesson("Duits", "", 3)]),
+    ],
+    ids=["missing-start", "unparseable-start", "numeric-start", "unparseable-end", "lesson-without-start"],
+)
+def test_a_row_without_a_usable_date_refuses_the_overview_instead_of_lowering_the_count(overview):
+    with pytest.raises(ValueError):
+        registration_snapshot(overview)
+
+
+def test_times_with_and_without_offset_are_compared_in_school_time(school_time_zone):
+    """Absence buckets carry an offset, lesson buckets naive local time. Mixing
+    them used to raise TypeError while sorting; both are now local and aware."""
     overview = _overview(
-        teLaat=[_registration("Te laat", "", False)],
-        materiaalNietInOrde=[_lesson("Duits", "", 3)],
+        teLaat=[
+            _registration("Te laat", "2026-09-04T08:30:00", False, identifier=1),
+            _registration("Te laat", "2026-09-05T08:30:00+02:00", False, identifier=2),
+            _registration("Te laat", "2026-09-05T08:00:00", False, identifier=3),
+        ]
     )
-    assert normalize_absence_registrations(overview) == []
-    assert normalize_lesson_registrations(overview) == []
+    values = registration_snapshot(overview)["absences"]
+    assert [value["id"] for value in values] == ["2", "3", "1"]
+    assert all(value["start"].utcoffset() == timedelta(hours=2) for value in values)
+    assert values[2]["start"].isoformat() == "2026-09-04T08:30:00+02:00"
 
 
 def test_unknown_flag_stays_unknown_and_is_not_read_as_false():
@@ -135,12 +216,21 @@ def test_absence_buckets_merge_into_one_timeline_newest_first():
     ("items", "expected"),
     [
         ([{"nagekomen": False}, {"nagekomen": False}, {"nagekomen": True}], 2),
-        ([{"nagekomen": None}, {}], 0),
         ([], 0),
     ],
 )
 def test_only_an_explicit_false_counts_as_still_to_make_good(items, expected):
     assert outstanding_measures(items) == expected
+
+
+@pytest.mark.parametrize(
+    "items",
+    [[{"nagekomen": False}, {"nagekomen": None}], [{}], ["row"], {"items": []}],
+    ids=["null-flag", "missing-flag", "text-row", "object"],
+)
+def test_a_measure_without_a_flag_makes_the_count_unknown_not_lower(items):
+    with pytest.raises(ValueError):
+        outstanding_measures(items)
 
 
 def _sensors(absences, measures, *, reasons):
@@ -193,6 +283,21 @@ def test_unreadable_measure_endpoint_does_not_claim_nothing_is_outstanding():
     assert sensor.native_value == 1
     assert sensor.extra_state_attributes["outstanding_measures"] is None
     assert sensor.extra_state_attributes["subjects"] == {"Duits": 1}
+
+
+def test_entity_names_are_translated_with_the_child_filled_in():
+    absences, lessons = _sensors([], {"lessons": [], "outstanding": 0}, reasons=False)
+    assert absences.translation_key == "absences"
+    assert lessons.translation_key == "lesson_registrations"
+    assert absences.translation_placeholders == {"student": "Seth"}
+    for language, expected in (
+        ("en", ("{student} · Absences", "{student} · Lesson registrations")),
+        ("nl", ("{student} · Absenties", "{student} · Lesregistraties")),
+    ):
+        names = json.loads(
+            (ROOT / "translations" / f"{language}.json").read_text(encoding="utf-8")
+        )["entity"]["sensor"]
+        assert (names["absences"]["name"], names["lesson_registrations"]["name"]) == expected
 
 
 def _options_flow(options):
@@ -257,6 +362,15 @@ async def test_diagnostics_reports_counts_without_any_wording():
             "absences_by_student": {PUPIL: absences},
             "measures_by_student": {PUPIL: {"lessons": lessons, "outstanding": 3}},
         },
+        _registration_reports={
+            PUPIL: [
+                {"source": "overview", "checked_at": "2026-09-28T10:00:00+00:00",
+                 "status": "failed", "category": "http_error", "http_status": 403,
+                 "detail": "PRIVATE_RESPONSE_BODY"},
+                {"source": "measures", "checked_at": "2026-09-28T10:00:01+00:00",
+                 "status": "ok"},
+            ]
+        },
     )
     entry = SimpleNamespace(
         entry_id="entry",
@@ -271,7 +385,146 @@ async def test_diagnostics_reports_counts_without_any_wording():
         entry,
     )
     assert "PRIVATE" not in str(result)
+    assert PUPIL not in str(result)
     assert result["absence_report_count"] == 1
     assert result["lesson_registration_count"] == 1
     assert result["outstanding_measure_count"] == 3
     assert result["absence_enabled_count"] == 1
+    assert result["absence_source_results"] == [
+        {"source": "overview", "checked_at": "2026-09-28T10:00:00+00:00",
+         "status": "failed", "category": "http_error", "http_status": 403},
+        {"source": "measures", "checked_at": "2026-09-28T10:00:01+00:00", "status": "ok"},
+    ]
+
+
+def _coordinator(monkeypatch, **client):
+    """A coordinator for one opted-in child, built like the upstream startup tests."""
+    import custom_components.somtoday.coordinator as module
+
+    coordinator = object.__new__(SomtodayCoordinator)
+    coordinator.entry = SimpleNamespace(
+        entry_id="test", data={"token": {}},
+        options={"exports": {PUPIL: {"absences_enabled": True}}},
+    )
+    coordinator.hass = SimpleNamespace()
+    methods = {
+        "students": AsyncMock(return_value=[{"links": [{"id": PUPIL}], "roepnaam": "Seth"}]),
+        "appointments": AsyncMock(return_value=[]),
+        "holidays": AsyncMock(return_value=[]),
+        "assessments": AsyncMock(return_value=[]),
+        "registrations": AsyncMock(return_value=_overview()),
+        "active_measures": AsyncMock(return_value=[]),
+    }
+    methods.update(client)
+    coordinator.client = SimpleNamespace(token={}, **methods)
+    coordinator._holidays = {}
+    coordinator._holidays_checked = None
+    coordinator.export_ready = False
+    monkeypatch.setattr(module.ir, "async_delete_issue", Mock())
+    return coordinator
+
+
+def _statuses(coordinator):
+    return {report["source"]: report["status"] for report in coordinator._registration_reports[PUPIL]}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "overview",
+    [
+        {"error": "permission denied"},
+        {"teLaat": "unexpected"},
+        {"teLaat": [{"begin": "2026-09-04T08:30:00+02:00"}, "row"]},
+        {"teLaat": [{"omschrijving": "PRIVATE_REASON", "begin": "not a date"}]},
+        # Not a ValueError: the id lookup trips over a malformed link.
+        {"teLaat": [{"begin": "2026-09-04T08:30:00+02:00", "links": "x"}]},
+    ],
+    ids=["error-object", "text-bucket", "text-row", "unparseable-date", "malformed-link"],
+)
+async def test_malformed_overview_leaves_the_roster_and_only_its_own_source_unavailable(
+    monkeypatch, caplog, overview
+):
+    coordinator = _coordinator(monkeypatch, registrations=AsyncMock(return_value=overview))
+    result = await coordinator._async_update_data()
+    # The shared refresh completed: roster and the other sources are published.
+    assert len(result["students"]) == 1
+    assert result["assessments_by_student"] == {PUPIL: []}
+    assert result["holidays_by_student"][PUPIL] is not None
+    # Only the absence entities go unavailable, and the reason is recorded.
+    assert result["absences_by_student"] == {PUPIL: None}
+    assert result["measures_by_student"] == {PUPIL: None}
+    assert _statuses(coordinator) == {"overview": "failed", "measures": "ok"}
+    assert coordinator._registration_reports[PUPIL][0]["category"] == "invalid_response"
+    assert "invalid_response" in caplog.text
+    assert PUPIL not in caplog.text
+    assert "PRIVATE" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_mixed_offsets_from_the_review_no_longer_abort_the_refresh(monkeypatch):
+    overview = {"teLaat": [{"begin": "2026-09-04T08:30:00"}, {"begin": "2026-09-05T08:30:00+02:00"}]}
+    coordinator = _coordinator(monkeypatch, registrations=AsyncMock(return_value=overview))
+    result = await coordinator._async_update_data()
+    assert len(result["absences_by_student"][PUPIL]) == 2
+    assert result["measures_by_student"][PUPIL] == {"lessons": [], "outstanding": 0}
+    assert _statuses(coordinator) == {"overview": "ok", "measures": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_each_source_reports_its_own_failure_class_and_recovers(monkeypatch, caplog):
+    caplog.set_level(logging.INFO)
+    forbidden = SomtodayApiError("Somtoday API returned HTTP 403")
+    forbidden.__cause__ = ClientResponseError(Mock(real_url="https://private"), (), status=403)
+    timeout = SomtodayApiError("Invalid response from Somtoday")
+    timeout.__cause__ = TimeoutError()
+    coordinator = _coordinator(
+        monkeypatch,
+        registrations=AsyncMock(side_effect=forbidden),
+        active_measures=AsyncMock(side_effect=timeout),
+    )
+    result = await coordinator._async_update_data()
+    assert result["absences_by_student"] == {PUPIL: None}
+    overview, measures = coordinator._registration_reports[PUPIL]
+    assert (overview["source"], overview["category"], overview["http_status"]) == ("overview", "http_error", 403)
+    assert (measures["source"], measures["category"]) == ("measures", "timeout")
+    assert overview["checked_at"] and measures["checked_at"]
+    assert "private" not in caplog.text
+
+    # The overview recovers while the measure list stays unreadable: the
+    # entities come back and only the outstanding count is unknown.
+    coordinator.client.registrations = AsyncMock(return_value=_overview())
+    result = await coordinator._async_update_data()
+    assert result["absences_by_student"] == {PUPIL: []}
+    assert result["measures_by_student"] == {PUPIL: {"lessons": [], "outstanding": None}}
+    assert _statuses(coordinator) == {"overview": "ok", "measures": "failed"}
+
+    coordinator.client.active_measures = AsyncMock(return_value=[{"nagekomen": False}])
+    result = await coordinator._async_update_data()
+    assert result["measures_by_student"][PUPIL]["outstanding"] == 1
+    assert _statuses(coordinator) == {"overview": "ok", "measures": "ok"}
+    assert "recovered" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["registrations", "active_measures"])
+async def test_expired_sign_in_from_an_absence_source_still_requests_reauthentication(
+    monkeypatch, source
+):
+    from homeassistant.exceptions import ConfigEntryAuthFailed
+
+    coordinator = _coordinator(
+        monkeypatch, **{source: AsyncMock(side_effect=SomtodayAuthenticationError("expired"))}
+    )
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_nothing_is_requested_for_a_child_that_is_not_opted_in(monkeypatch):
+    coordinator = _coordinator(monkeypatch)
+    coordinator.entry.options = {"exports": {PUPIL: {"day_calendar": ""}}}
+    result = await coordinator._async_update_data()
+    coordinator.client.registrations.assert_not_awaited()
+    coordinator.client.active_measures.assert_not_awaited()
+    assert result["absences_by_student"] == {}
+    assert coordinator._registration_reports == {}

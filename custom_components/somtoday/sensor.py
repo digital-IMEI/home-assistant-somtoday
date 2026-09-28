@@ -148,7 +148,10 @@ class _SomtodayRegistrationSensor(
         super().__init__(coordinator)
         self.entry = entry
         self.student = item_id(student)
-        self._name = student.get("roepnaam") or self.student
+        # The name comes from the translations (NL and EN) with the child filled in.
+        self._attr_translation_placeholders = {
+            "student": str(student.get("roepnaam") or self.student)
+        }
 
     def _raw(self):
         return self.coordinator.data.get(self._key, {}).get(self.student)
@@ -164,11 +167,11 @@ class SomtodayAbsenceSensor(_SomtodayRegistrationSensor):
     """Absence registrations of the running school year, per portal bucket."""
 
     _attr_icon = "mdi:account-alert-outline"
+    _attr_translation_key = "absences"
     _key = "absences_by_student"
 
     def __init__(self, coordinator, entry, student):
         super().__init__(coordinator, entry, student)
-        self._attr_name = f"{self._name} · Absenties"
         self._attr_unique_id = f"{entry.entry_id}_{self.student}_absences"
 
     @property
@@ -216,11 +219,11 @@ class SomtodayLessonRegistrationSensor(_SomtodayRegistrationSensor):
     """
 
     _attr_icon = "mdi:book-alert-outline"
+    _attr_translation_key = "lesson_registrations"
     _key = "measures_by_student"
 
     def __init__(self, coordinator, entry, student):
         super().__init__(coordinator, entry, student)
-        self._attr_name = f"{self._name} · Lesregistraties"
         self._attr_unique_id = f"{entry.entry_id}_{self.student}_lesson_registrations"
 
     def _lessons(self):

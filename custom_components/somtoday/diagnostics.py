@@ -110,6 +110,18 @@ async def async_get_config_entry_diagnostics(hass, entry):
             for value in data.get("measures_by_student", {}).values()
             if isinstance(value, dict) and isinstance(value.get("outstanding"), int)
         ),
+        # Why an absence entity is unavailable: last attempt and outcome per
+        # source, with a failure class or HTTP status. Never a response body.
+        "absence_source_results": [
+            {key: value for key, value in report.items()
+             if (key == "source" and value in {"overview", "measures"})
+             or (key == "status" and value in {"ok", "failed"})
+             or (key == "checked_at" and isinstance(value, str))
+             or (key == "http_status" and isinstance(value, int))
+             or (key == "category" and value in {"invalid_response", "http_error", "timeout", "connection_error", "authentication_error"})}
+            for reports in getattr(coordinator, "_registration_reports", {}).values()
+            for report in reports
+        ],
         "assessment_available_count": sum(
             value is not None
             for value in data.get("assessments_by_student", {}).values()

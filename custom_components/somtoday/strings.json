@@ -70,7 +70,7 @@
           "days_ahead": "Days ahead (1–60)",
           "scan_interval": "Update interval in minutes (5–120)",
           "enable_homework": "Export homework",
-          "enable_absences": "Absence overview (the portal’s Afwezigheid page)"
+          "enable_absences": "Absence overview"
         },
         "data_description": {
           "enable_day": "One event from the first lesson to the last.",
@@ -91,7 +91,7 @@
               "enable_holidays": "Export holidays",
               "enable_assessments": "Export tests",
               "enable_homework": "Export homework",
-              "enable_absences": "Absence overview (the portal’s Afwezigheid page)"
+              "enable_absences": "Absence overview"
             },
             "data_description": {
               "enable_day": "One event from the first lesson to the last.",
@@ -99,7 +99,7 @@
               "enable_holidays": "Published school holidays, using your chosen event layout.",
               "enable_assessments": "Tests with a published date.",
               "enable_homework": "Homework to an HA to-do list. Does not export tests or submit files.",
-              "enable_absences": "Reads the same overview the pupil portal shows: absences, lates, removals, plus \"Huiswerk niet gemaakt\" and \"Materiaal niet in orde\" with the lesson they came from. Off by default, because these records carry wording written by school staff."
+              "enable_absences": "Adds two sensors for this child: absences this school year (absent, late, removed from class) and lesson registrations (homework not done, materials not in order) with subject and lesson hour. Off by default, because this is sensitive school data."
             }
           }
         },
@@ -214,12 +214,12 @@
           },
           "absences": {
             "name": "Absence overview",
-            "description": "One request per child to the portal’s own overview, already scoped to the running school year. Presence per lesson is not read: that list proved to contain only present and absent, so it cannot supply the homework and materials registrations.",
+            "description": "Dates, categories and counts are always included. The school’s own wording is only added when you switch it on below.",
             "data": {
               "absence_remarks": "Include the school’s wording"
             },
             "data_description": {
-              "absence_remarks": "The reason text can describe an incident in plain words. Leave this off if the dashboard is visible to visitors; dates, categories and counts are shown either way."
+              "absence_remarks": "Adds the reason text written by the school, which can describe an incident in plain words. It becomes a sensor attribute, so Home Assistant also keeps it in its history database and backups, not only on dashboards that show it. Switching it off later stops new entries; what is already in the history stays until Home Assistant purges it."
             }
           }
         },
@@ -231,6 +231,16 @@
       "invalid_student": "Child no longer available.",
       "no_writable_calendars": "No compatible calendar is available. Add a calendar supporting event creation and deletion and check write permissions.",
       "invalid_todo": "Choose an available to-do list supporting creation, updates and descriptions, such as Local to-do."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "absences": {
+        "name": "{student} · Absences"
+      },
+      "lesson_registrations": {
+        "name": "{student} · Lesson registrations"
+      }
     }
   },
   "issues": {

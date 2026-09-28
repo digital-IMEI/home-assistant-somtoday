@@ -30,11 +30,7 @@ from .export import (
 from .sync import CalendarSync
 from .holidays import holiday_status
 from .homework import HomeworkSync, lesson_homework
-from .absences import (
-    normalize_absence_registrations,
-    normalize_lesson_registrations,
-    outstanding_measures,
-)
+from .absences import outstanding_measures, registration_snapshot
 
 
 class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -58,9 +54,28 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._holidays_checked = None
         self._absences = {}
         self._measures = {}
+        self._registration_reports = {}
+        self._registration_source_errors = []
         self._assessment_assignments = {}
         self._assignment_source_errors = []
         self.export_ready = False
+
+    async def _registration_source(self, source, request, student_id, parse):
+        """Read one optional absence source; any failure stays inside it.
+
+        Validation runs inside the guard too, so a malformed payload makes only
+        this source unavailable instead of aborting the shared refresh. Expired
+        sign-ins still propagate so reauthentication is requested. The report
+        holds the attempt time, the outcome and a privacy-safe failure class.
+        """
+        report = {"source": source, "checked_at": dt_util.utcnow().isoformat()}
+        try:
+            value = parse(await request(student_id))
+        except SomtodayAuthenticationError:
+            raise
+        except Exception as err:
+            return None, {**report, "status": "failed", **assignment_failure(source, err)}
+        return value, {**report, "status": "ok"}
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -86,44 +101,46 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         holiday_data[student_id] = None
                 self._holidays = holiday_data
                 self._holidays_checked = now
-            # Absence overview is opt-in: the reports carry staff remarks, so
+            # Absence overview is opt-in: the records carry staff wording, so
             # nothing is fetched until a child is explicitly configured for it.
             absence_data: dict[str, Any] = {}
             measure_data: dict[str, Any] = {}
+            registration_reports: dict[str, list[dict[str, Any]]] = {}
             routes = self.entry.options.get("exports", {})
             for pupil in students:
                 pupil_id = item_id(pupil)
                 route = routes.get(pupil_id)
                 if not isinstance(route, dict) or not route.get("absences_enabled"):
-                    # Opt-in per child: the overview carries staff wording, so
-                    # nothing is requested until this child is configured for it.
                     continue
-                try:
-                    overview = await self.client.registrations(pupil_id)
-                except SomtodayAuthenticationError:
-                    raise
-                except (SomtodayApiError, ValueError, KeyError, TypeError):
-                    # Permissions differ per school and account; an unreadable
-                    # endpoint must never be published as "no absences".
-                    overview = None
-                if overview is None:
-                    absence_data[pupil_id] = None
-                    measure_data[pupil_id] = None
-                    continue
-                absence_data[pupil_id] = normalize_absence_registrations(overview)
-                lessons = normalize_lesson_registrations(overview)
-                try:
-                    active = await self.client.active_measures(pupil_id)
-                except SomtodayAuthenticationError:
-                    raise
-                except (SomtodayApiError, ValueError, KeyError, TypeError):
-                    # The lesson list stands on its own; only the "still to make
-                    # good" count is lost, so it is reported as unknown.
-                    active = None
-                measure_data[pupil_id] = {
-                    "lessons": lessons,
-                    "outstanding": None if active is None else outstanding_measures(active),
+                snapshot, overview_report = await self._registration_source(
+                    "overview", self.client.registrations, pupil_id, registration_snapshot
+                )
+                outstanding, measures_report = await self._registration_source(
+                    "measures", self.client.active_measures, pupil_id, outstanding_measures
+                )
+                registration_reports[pupil_id] = [overview_report, measures_report]
+                # An unreadable overview is never published as "no absences";
+                # an unreadable measure list only makes its count unknown.
+                absence_data[pupil_id] = None if snapshot is None else snapshot["absences"]
+                measure_data[pupil_id] = None if snapshot is None else {
+                    "lessons": snapshot["lessons"],
+                    "outstanding": outstanding,
                 }
+            failures = [
+                {key: report[key] for key in ("source", "category", "http_status") if key in report}
+                for reports in registration_reports.values()
+                for report in reports
+                if report["status"] == "failed"
+            ]
+            if failures != getattr(self, "_registration_source_errors", []):
+                if failures:
+                    logging.getLogger(__name__).warning(
+                        "Somtoday absence sources unavailable: %s", failures
+                    )
+                elif getattr(self, "_registration_source_errors", []):
+                    logging.getLogger(__name__).info("Somtoday absence sources recovered")
+            self._registration_source_errors = failures
+            self._registration_reports = registration_reports
             self._absences = absence_data
             self._measures = measure_data
             student_ids = [item_id(pupil) for pupil in students]
