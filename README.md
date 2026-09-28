@@ -32,6 +32,8 @@ depends on school/account permissions and has not been confirmed for all account
 - The account-level **Calendar sync** diagnostic
   sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
   button can explicitly clear an uncertain write after the destination has been repaired.
+- Optional absence overview per child, mirroring the portal's Afwezigheid page:
+  absences, lates, and "Huiswerk niet gemaakt" / "Materiaal niet in orde" per lesson. Off by default.
 - Adjustable look-ahead (1–60 days; default 14) and polling (5–120 minutes, default 15).
 - Default titles include the child's name: `School · Seth`, `Seth · Mathematics`.
 
@@ -318,6 +320,69 @@ calendars are available. Only an unavailable destination can consume the full tw
 window before a repair is raised.
 If the optional holiday endpoint becomes unavailable, existing exported holiday events are
 preserved and no absence is inferred. The next valid Somtoday response resumes reconciliation.
+
+## Absence overview (experimental)
+
+Off by default. Switch on **Absence overview** for a child under **Configure**; nothing is
+requested until you do. You then get two sensors for that child with the numbers the pupil
+portal shows on its "Afwezigheid" page for the running school year:
+
+| Entity (EN / NL) | State | Attributes, one per portal bucket |
+| --- | --- | --- |
+| `<child> · Absences` / `<child> · Absenties` | absence registrations this school year | `ongeoorloofd_afwezig`, `geoorloofd_afwezig`, `te_laat`, `verwijderd`, `afwezig_waarnemingen` |
+| `<child> · Lesson registrations` / `<child> · Lesregistraties` | homework and materials registrations | `huiswerk_niet_gemaakt`, `materiaal_niet_in_orde` |
+
+Every bucket is present as an attribute even when it is zero, so a template asking for lates
+gets `0` rather than a missing attribute. Lesson registrations keep the subject, lesson hour
+and room, because "Duits, Friday, third hour" is what the portal shows and what a parent
+recognises. The lesson entity also exposes `outstanding_measures`, the count still to be made
+good (`nagekomen: false`); it is `null`, not `0`, when that count cannot be read. Times are
+given in Home Assistant's time zone.
+
+**The school's wording is a second, narrower opt-in.** `omschrijving` can describe an incident
+in plain words. Categories, dates and counts are always exposed; **Include the school's wording**
+adds the reason text as a sensor attribute. Like every attribute, Home Assistant then stores it
+in its history database, and with that in backups, not only on dashboards that show it.
+Switching the option off stops new entries; what is already recorded stays until the recorder
+purges it. To keep the entity out of the history altogether, exclude it from the
+[recorder](https://www.home-assistant.io/integrations/recorder/).
+
+**`geoorloofd` is bookkeeping, not a verdict.** The flag belongs to the configured reason, and
+schools configure their own. On the verified school "Is er uit gestuurd" (sent out of the
+lesson) is stored as authorised while "Terugkomklas" (detention) is not. It answers whether the
+school books the absence as authorised and says nothing about fault, so category and flag are
+exposed side by side and never combined. An automation treating `authorised: false` as trouble
+would mislabel both of those.
+
+**When the data cannot be read.** Both entities become unavailable rather than reporting zero
+when the overview cannot be read or does not look like one: an error object, a bucket of the
+wrong type, or a row without a usable date. A partial overview is never published, because a
+lower count looks exactly like good news. An unreadable measure list only turns
+`outstanding_measures` into `null`. Neither failure blocks the timetable, homework or calendar
+export. **Download diagnostics** shows why: `absence_source_results` lists, per source
+(`overview`, `measures`), the last attempt, `ok` or `failed`, and the failure class or HTTP
+status. Response bodies and the school's wording are never logged or included.
+
+### How the overview is read
+
+The sensors use the one request the portal's own "Afwezigheid" page makes:
+
+```
+GET /rest/v1/leerlingen/{id}/registratieOverzicht?periode=SCHOOLJAAR
+```
+
+It answers with one object already grouped into the portal's buckets and already limited to the
+running school year, so no client-side date arithmetic is involved. `periode=SCHOOLJAAR` is
+required: every other value, and omitting it, answered HTTP 500 on the verified account. The
+outstanding count comes from `/rest/v1/maatregeltoekenningen/actief/{id}`.
+
+**Why not the list endpoints.** `/rest/v1/absentiemeldingen` carries only the absence side.
+`/rest/v1/waarnemingen` looks like the obvious source for per-lesson registrations but held
+nothing except `Aanwezig` (1014) and `Afwezig` (31) across all 1045 rows on the verified
+account, so "Materiaal niet in orde" is not reachable there at all. An implementation built on
+those two endpoints is missing exactly the rows a parent checks most often. That list also
+returns oldest first and reported a `Content-Range` total of 200 for 1045 rows, so a paginated
+read of it cannot be proven complete either.
 
 ## Tests and reminders
 

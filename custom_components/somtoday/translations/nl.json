@@ -69,7 +69,8 @@
           "enable_assessments": "Toetsen exporteren",
           "days_ahead": "Dagen vooruit (1–60)",
           "scan_interval": "Bijwerkinterval in minuten (5–120)",
-          "enable_homework": "Huiswerk exporteren"
+          "enable_homework": "Huiswerk exporteren",
+          "enable_absences": "Absentieoverzicht"
         },
         "data_description": {
           "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
@@ -89,14 +90,16 @@
               "enable_lessons": "Lessen exporteren",
               "enable_holidays": "Vakanties exporteren",
               "enable_assessments": "Toetsen exporteren",
-              "enable_homework": "Huiswerk exporteren"
+              "enable_homework": "Huiswerk exporteren",
+              "enable_absences": "Absentieoverzicht"
             },
             "data_description": {
               "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
               "enable_lessons": "Een aparte afspraak voor iedere les.",
               "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
               "enable_assessments": "Toetsen met een gepubliceerde datum.",
-              "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden."
+              "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden.",
+              "enable_absences": "Voegt voor dit kind twee sensoren toe: absenties van dit schooljaar (afwezig, te laat, verwijderd) en lesregistraties (huiswerk niet gemaakt, materiaal niet in orde) met vak en lesuur. Standaard uit, want dit zijn gevoelige schoolgegevens."
             }
           }
         },
@@ -117,7 +120,8 @@
           "lesson_prefix": "Lessen · voorvoegsel",
           "holiday_title": "Vakanties · afspraaknaam",
           "holiday_mode": "Vakanties · afspraakindeling",
-          "assessment_title": "Toetsen · afspraaknaam"
+          "assessment_title": "Toetsen · afspraaknaam",
+          "absence_remarks": "Tekst van school meenemen"
         },
         "data_description": {
           "day_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
@@ -207,6 +211,16 @@
               "homework_include_day": "Synchroniseer dit type met de takenlijst. Uitgeschakeld: bestaande taken blijven staan en worden niet meer bijgewerkt. Staat los van huiswerk in lesbeschrijvingen.",
               "homework_include_week": "Synchroniseer dit type met de takenlijst. Uitgeschakeld: bestaande taken blijven staan en worden niet meer bijgewerkt. Staat los van huiswerk in lesbeschrijvingen."
             }
+          },
+          "absences": {
+            "name": "Absentieoverzicht",
+            "description": "Datums, categorieën en aantallen staan er altijd in. De eigen tekst van school komt er alleen bij als je die hieronder aanzet.",
+            "data": {
+              "absence_remarks": "Tekst van school meenemen"
+            },
+            "data_description": {
+              "absence_remarks": "Voegt de redentekst van school toe, die een incident in gewone woorden kan beschrijven. De tekst wordt een sensorattribuut en komt daardoor ook in de geschiedenis van Home Assistant (database en back-ups), niet alleen op dashboards die hem tonen. Later uitzetten stopt nieuwe vermeldingen; wat al in de geschiedenis staat, blijft tot Home Assistant het opschoont."
+            }
           }
         },
         "submit": "Opslaan"
@@ -217,6 +231,16 @@
       "invalid_student": "Dit kind is niet meer beschikbaar.",
       "no_writable_calendars": "Geen geschikte agenda beschikbaar. Voeg een agenda toe die afspraken kan maken en verwijderen en controleer de schrijfrechten.",
       "invalid_todo": "Kies een beschikbare takenlijst met ondersteuning voor aanmaken, wijzigen en omschrijvingen, bijvoorbeeld Local to-do."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "absences": {
+        "name": "{student} · Absenties"
+      },
+      "lesson_registrations": {
+        "name": "{student} · Lesregistraties"
+      }
     }
   },
   "issues": {

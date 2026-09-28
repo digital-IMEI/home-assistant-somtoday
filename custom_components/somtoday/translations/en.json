@@ -69,7 +69,8 @@
           "enable_assessments": "Export tests",
           "days_ahead": "Days ahead (1–60)",
           "scan_interval": "Update interval in minutes (5–120)",
-          "enable_homework": "Export homework"
+          "enable_homework": "Export homework",
+          "enable_absences": "Absence overview"
         },
         "data_description": {
           "enable_day": "One event from the first lesson to the last.",
@@ -89,14 +90,16 @@
               "enable_lessons": "Export lessons",
               "enable_holidays": "Export holidays",
               "enable_assessments": "Export tests",
-              "enable_homework": "Export homework"
+              "enable_homework": "Export homework",
+              "enable_absences": "Absence overview"
             },
             "data_description": {
               "enable_day": "One event from the first lesson to the last.",
               "enable_lessons": "A separate event for each lesson.",
               "enable_holidays": "Published school holidays, using your chosen event layout.",
               "enable_assessments": "Tests with a published date.",
-              "enable_homework": "Homework to an HA to-do list. Does not export tests or submit files."
+              "enable_homework": "Homework to an HA to-do list. Does not export tests or submit files.",
+              "enable_absences": "Adds two sensors for this child: absences this school year (absent, late, removed from class) and lesson registrations (homework not done, materials not in order) with subject and lesson hour. Off by default, because this is sensitive school data."
             }
           }
         },
@@ -117,7 +120,8 @@
           "lesson_prefix": "Lessons · title prefix",
           "holiday_title": "Holidays · event title",
           "holiday_mode": "Holidays · event layout",
-          "assessment_title": "Tests · event title"
+          "assessment_title": "Tests · event title",
+          "absence_remarks": "Include the school’s wording"
         },
         "data_description": {
           "day_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
@@ -207,6 +211,16 @@
               "homework_include_day": "Sync this type to the to-do list. When disabled, existing tasks remain and are no longer updated. Independent of homework in lesson descriptions.",
               "homework_include_week": "Sync this type to the to-do list. When disabled, existing tasks remain and are no longer updated. Independent of homework in lesson descriptions."
             }
+          },
+          "absences": {
+            "name": "Absence overview",
+            "description": "Dates, categories and counts are always included. The school’s own wording is only added when you switch it on below.",
+            "data": {
+              "absence_remarks": "Include the school’s wording"
+            },
+            "data_description": {
+              "absence_remarks": "Adds the reason text written by the school, which can describe an incident in plain words. It becomes a sensor attribute, so Home Assistant also keeps it in its history database and backups, not only on dashboards that show it. Switching it off later stops new entries; what is already in the history stays until Home Assistant purges it."
+            }
           }
         },
         "submit": "Save"
@@ -217,6 +231,16 @@
       "invalid_student": "Child no longer available.",
       "no_writable_calendars": "No compatible calendar is available. Add a calendar supporting event creation and deletion and check write permissions.",
       "invalid_todo": "Choose an available to-do list supporting creation, updates and descriptions, such as Local to-do."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "absences": {
+        "name": "{student} · Absences"
+      },
+      "lesson_registrations": {
+        "name": "{student} · Lesson registrations"
+      }
     }
   },
   "issues": {

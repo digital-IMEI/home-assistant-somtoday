@@ -77,6 +77,51 @@ async def async_get_config_entry_diagnostics(hass, entry):
         "scan_interval": entry.options.get("scan_interval", 15),
         "sync_counts": {key: sync[key] for key in ("create", "replace", "delete", "unchanged", "pending", "awaiting_visibility") if isinstance(sync.get(key), int)},
         "holiday_available_count": sum(value is not None for value in data.get("holidays_by_student", {}).values()),
+        # Absence overview: counts only. Reasons, remarks and dates stay out of
+        # diagnostics, which users attach to public issue reports.
+        "absence_enabled_count": sum(
+            bool(route.get("absences_enabled"))
+            for route in routes.values()
+            if isinstance(route, dict)
+        ),
+        "absence_remarks_enabled_count": sum(
+            bool(route.get("absence_remarks"))
+            for route in routes.values()
+            if isinstance(route, dict)
+        ),
+        "absence_available_count": sum(
+            value is not None for value in data.get("absences_by_student", {}).values()
+        ),
+        "absence_report_count": sum(
+            len(values)
+            for values in data.get("absences_by_student", {}).values()
+            if values is not None
+        ),
+        "lesson_registration_available_count": sum(
+            value is not None for value in data.get("measures_by_student", {}).values()
+        ),
+        "lesson_registration_count": sum(
+            len(value.get("lessons") or [])
+            for value in data.get("measures_by_student", {}).values()
+            if isinstance(value, dict)
+        ),
+        "outstanding_measure_count": sum(
+            value["outstanding"]
+            for value in data.get("measures_by_student", {}).values()
+            if isinstance(value, dict) and isinstance(value.get("outstanding"), int)
+        ),
+        # Why an absence entity is unavailable: last attempt and outcome per
+        # source, with a failure class or HTTP status. Never a response body.
+        "absence_source_results": [
+            {key: value for key, value in report.items()
+             if (key == "source" and value in {"overview", "measures"})
+             or (key == "status" and value in {"ok", "failed"})
+             or (key == "checked_at" and isinstance(value, str))
+             or (key == "http_status" and isinstance(value, int))
+             or (key == "category" and value in {"invalid_response", "http_error", "timeout", "connection_error", "authentication_error"})}
+            for reports in getattr(coordinator, "_registration_reports", {}).values()
+            for report in reports
+        ],
         "assessment_available_count": sum(
             value is not None
             for value in data.get("assessments_by_student", {}).values()
