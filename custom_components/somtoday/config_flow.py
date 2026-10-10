@@ -281,6 +281,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             route.pop("absences_enabled", None)
             route.pop("absence_remarks", None)
 
+        if getattr(self, "_enable_live_activity", False):
+            route.update(self._live_activity_route)
+
         routes[self.student] = route
         options.update(self._pending_settings)
         options["exports"] = routes
@@ -325,6 +328,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         schema = vol.Schema(
             {
                 vol.Required("enable_homework", default=bool(old.get("homework_list"))): bool,
+                vol.Required("enable_live_activity", default=bool(old.get("live_activity_targets"))): bool,
                 # Opt-in: absence reports and measures carry staff remarks, so
                 # nothing is fetched until this is switched on for the child.
                 vol.Required(
@@ -352,7 +356,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             }
         )
         groups = {
-            "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments", "enable_homework", "enable_absences"),
+            "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments", "enable_homework", "enable_absences", "enable_live_activity"),
         }
         schema = vol.Schema({
             vol.Required(name, default={key.schema: key.default() for key in schema.schema if key.schema in fields}): section(
@@ -374,6 +378,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     description_placeholders={"student": self.student},
                 )
             self._enable_homework = user_input.get("enable_homework", False)
+            self._enable_live_activity = user_input.get("enable_live_activity", False)
             self._enable_absences = user_input.get("enable_absences", False)
             self._enable_day = user_input["enable_day"]
             self._enable_lessons = user_input["enable_lessons"]
@@ -400,6 +405,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         choices = self._calendar_choices()
         todo_choices = self._todo_choices()
         old = self._old_options()
+        services = getattr(self.hass, "services", None)
+        notify_services = services.async_services().get("notify", {}) if services else {}
+        phone_choices = [f"notify.{name}" for name in notify_services if name.startswith("mobile_app_")]
         errors = {}
         enabled_fields = []
         if self._enable_day:
@@ -415,7 +423,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             # Sections are presentation-only. Accept both the sectioned form used by
             # current HA and the flat form used by older clients/tests.
             user_input = dict(user_input)
-            for name in ("calendar_destinations", "event_titles", "school_days", "lessons", "holidays", "holiday_layout", "tests", "homework", "absences"):
+            for name in ("calendar_destinations", "event_titles", "school_days", "lessons", "holidays", "holiday_layout", "tests", "homework", "absences", "live_activity"):
                 nested = user_input.pop(name, None)
                 if isinstance(nested, dict):
                     user_input.update(nested)
@@ -425,7 +433,17 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 errors["base"] = "invalid_calendar"
             elif getattr(self, "_enable_homework", False) and user_input.get("homework_list") not in todo_choices:
                 errors["base"] = "invalid_todo"
+            elif getattr(self, "_enable_live_activity", False) and (
+                not user_input.get("live_activity_targets")
+                or any(target not in phone_choices for target in user_input["live_activity_targets"])
+                or user_input.get("live_activity_language", "nl") not in ("nl", "en")
+            ):
+                errors["base"] = "invalid_live_activity_target"
             else:
+                self._live_activity_route = {
+                    "live_activity_targets": user_input.get("live_activity_targets", []),
+                    "live_activity_language": user_input.get("live_activity_language", old.get("live_activity_language", "nl")),
+                }
                 self._homework_route = {
                     "homework_list": user_input.get("homework_list", ""),
                     "homework_title": user_input.get("homework_title", old.get("homework_title", "{student} · {subject} · {topic}")),
@@ -512,6 +530,13 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 "automatic_day_title", default=old.get("automatic_day_title", False)
             ): bool,
         }
+        if getattr(self, "_enable_live_activity", False):
+            title_schema[vol.Required("live_activity_targets", default=old.get("live_activity_targets", []))] = SelectSelector(
+                SelectSelectorConfig(options=phone_choices, multiple=True, mode=SelectSelectorMode.DROPDOWN)
+            )
+            title_schema[vol.Required("live_activity_language", default=old.get("live_activity_language", "nl"))] = SelectSelector(
+                SelectSelectorConfig(options=[{"value": "nl", "label": "Nederlands"}, {"value": "en", "label": "English"}], mode=SelectSelectorMode.DROPDOWN)
+            )
         # The native HA timetable always contains individual lessons, so this
         # option is useful even when external lesson export is disabled.
         title_schema[vol.Required(
@@ -560,6 +585,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             "tests": ("assessment_calendar", "assessment_title"),
             "homework": ("homework_list", "homework_title", "homework_bidirectional", "homework_include_appointment", "homework_include_day", "homework_include_week"),
             "absences": ("absence_remarks",),
+            "live_activity": ("live_activity_targets", "live_activity_language"),
         }
         for name, names in groups.items():
             group = {key: value for key, value in fields.items() if key.schema in names}
@@ -575,6 +601,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             )
         if getattr(self, "_enable_homework", False) and not todo_choices:
             errors["base"] = "invalid_todo"
+        if getattr(self, "_enable_live_activity", False) and not phone_choices:
+            errors["base"] = "invalid_live_activity_target"
         if enabled_fields and not choices:
             errors["base"] = "no_writable_calendars"
         return self.async_show_form(

@@ -52,6 +52,51 @@ def make_flow(options=None, calendar_states=None):
 
 
 @pytest.mark.asyncio
+async def test_live_activity_phone_selection_roundtrip_and_disable_preserves_sibling():
+    sibling = {"live_activity_targets": ["notify.mobile_app_other"]}
+    flow, _ = make_flow({"exports": {"b": sibling}})
+    flow.hass.services = SimpleNamespace(async_services=lambda: {"notify": {
+        "mobile_app_seth": {}, "mobile_app_ivo": {}, "other_service": {},
+    }})
+    settings = await flow.async_step_init({"student_id": "a"})
+    values = settings["data_schema"]({})
+    values["exports"]["enable_live_activity"] = True
+    dest = await flow.async_step_settings(values)
+    assert "live_activity" in [key.schema for key in dest["data_schema"].schema]
+    submitted = dest["data_schema"]({"live_activity": {
+        "live_activity_targets": ["notify.mobile_app_seth", "notify.mobile_app_ivo"],
+        "live_activity_language": "nl",
+    }})
+    result = await flow.async_step_destinations(submitted)
+    assert result["type"] == "create_entry"
+    assert result["data"]["exports"]["a"]["live_activity_targets"] == ["notify.mobile_app_seth", "notify.mobile_app_ivo"]
+    assert result["data"]["exports"]["b"] == sibling
+    reopened, _ = make_flow(result["data"])
+    reopened.hass.services = flow.hass.services
+    settings = await reopened.async_step_init({"student_id": "a"})
+    values = settings["data_schema"]({})
+    assert values["exports"]["enable_live_activity"] is True
+    values["exports"]["enable_live_activity"] = False
+    dest = await reopened.async_step_settings(values)
+    saved = await reopened.async_step_destinations(dest["data_schema"]({}))
+    assert "live_activity_targets" not in saved["data"]["exports"]["a"]
+    assert saved["data"]["exports"]["b"] == sibling
+
+
+@pytest.mark.asyncio
+async def test_live_activity_requires_available_companion_phone():
+    flow, _ = make_flow()
+    flow.hass.services = SimpleNamespace(async_services=lambda: {"notify": {"mobile_app_seth": {}, "other_service": {}}})
+    settings = await flow.async_step_init({"student_id": "a"})
+    values = settings["data_schema"]({})
+    values["exports"]["enable_live_activity"] = True
+    await flow.async_step_settings(values)
+    for targets in ([], ["notify.other_service"], ["notify.mobile_app_missing"]):
+        result = await flow.async_step_destinations({"live_activity_targets": targets})
+        assert result["errors"]["base"] == "invalid_live_activity_target"
+
+
+@pytest.mark.asyncio
 async def test_enabled_school_day_shows_only_its_destination_and_preserves_sibling():
     flow, entry = make_flow(
         options={

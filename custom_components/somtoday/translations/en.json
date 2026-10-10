@@ -70,7 +70,8 @@
           "days_ahead": "Days ahead (1–60)",
           "scan_interval": "Update interval in minutes (5–120)",
           "enable_homework": "Export homework",
-          "enable_absences": "Absence overview"
+          "enable_absences": "Absence overview",
+          "enable_live_activity": "Timetable Live Activity"
         },
         "data_description": {
           "enable_day": "One event from the first lesson to the last.",
@@ -79,7 +80,8 @@
           "enable_assessments": "Tests with a published date.",
           "days_ahead": "Applies to every child in this account. Start with 1 day to verify your calendar exports.",
           "scan_interval": "How often to refresh Somtoday data. Applies to every child in this account.",
-          "enable_homework": "Homework to an HA to-do list. Does not export tests or submit files."
+          "enable_homework": "Homework to an HA to-do list. Does not export tests or submit files.",
+          "enable_live_activity": "Adds a switch to show the current lesson and next classroom on selected phones."
         },
         "sections": {
           "exports": {
@@ -91,7 +93,8 @@
               "enable_holidays": "Export holidays",
               "enable_assessments": "Export tests",
               "enable_homework": "Export homework",
-              "enable_absences": "Absence overview"
+              "enable_absences": "Absence overview",
+              "enable_live_activity": "Timetable Live Activity"
             },
             "data_description": {
               "enable_day": "One event from the first lesson to the last.",
@@ -99,7 +102,8 @@
               "enable_holidays": "Published school holidays, using your chosen event layout.",
               "enable_assessments": "Tests with a published date.",
               "enable_homework": "Homework to an HA to-do list. Does not export tests or submit files.",
-              "enable_absences": "Adds two sensors for this child: absences this school year (absent, late, removed from class) and lesson registrations (homework not done, materials not in order) with subject and lesson hour. Off by default, because this is sensitive school data."
+              "enable_absences": "Adds two sensors for this child: absences this school year (absent, late, removed from class) and lesson registrations (homework not done, materials not in order) with subject and lesson hour. Off by default, because this is sensitive school data.",
+              "enable_live_activity": "Adds a switch to show the current lesson and next classroom on selected phones."
             }
           }
         },
@@ -221,6 +225,17 @@
             "data_description": {
               "absence_remarks": "Adds the reason text written by the school, which can describe an incident in plain words. It becomes a sensor attribute, so Home Assistant also keeps it in its history database and backups, not only on dashboards that show it. Switching it off later stops new entries; what is already in the history stays until Home Assistant purges it."
             }
+          },
+          "live_activity": {
+            "name": "Live Activity",
+            "description": "Enable the Live Activity using this child’s new switch. Starts 15 minutes before the first lesson; ends 10 minutes after the last. The next classroom appears on the right and in the Dynamic Island. Current and next lessons appear in the body. Requires Home Assistant Companion with Live Activities and access to Home Assistant at school.",
+            "data": {
+              "live_activity_targets": "Phones",
+              "live_activity_language": "Card language"
+            },
+            "data_description": {
+              "live_activity_targets": "Select the child’s Home Assistant Companion phone. Multiple phones are supported."
+            }
           }
         },
         "submit": "Save"
@@ -230,7 +245,8 @@
       "invalid_calendar": "Choose an available calendar supporting event creation and deletion.",
       "invalid_student": "Child no longer available.",
       "no_writable_calendars": "No compatible calendar is available. Add a calendar supporting event creation and deletion and check write permissions.",
-      "invalid_todo": "Choose an available to-do list supporting creation, updates and descriptions, such as Local to-do."
+      "invalid_todo": "Choose an available to-do list supporting creation, updates and descriptions, such as Local to-do.",
+      "invalid_live_activity_target": "Choose at least one available Home Assistant Companion phone. Open the app if the phone is not listed."
     }
   },
   "entity": {
