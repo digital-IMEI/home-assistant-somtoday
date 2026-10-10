@@ -161,11 +161,14 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
             if not self._attr_is_on:
                 self._phase = "off"
             elif not self.coordinator.last_update_success:
-                self._phase = "unavailable"
+                view = activity_view(self.coordinator.data.get("appointments_by_student", {}).get(self.student, []), now, self.language)
+                self._phase = "unavailable" if view.message is not None else "idle"
                 # Do not display a stale room, or start a new unavailable card.
                 message = "Timetable temporarily unavailable" if self.language == "en" else "Rooster tijdelijk niet beschikbaar"
-                payload = self._payload(message, "—")
-                next_change = now + timedelta(minutes=1)
+                if view.message is not None:
+                    payload = self._payload(message, "—")
+                # Still stop after school, even if the source has gone offline.
+                next_change = min(view.next_change, now + timedelta(minutes=1))
             else:
                 view = activity_view(self.coordinator.data.get("appointments_by_student", {}).get(self.student, []), now, self.language)
                 self._phase = view.phase
@@ -187,6 +190,8 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                         if not await self._send(target, None):
                             failures += 1
                             continue
+                        if self._phase == "unavailable":
+                            target_payload = None
                     elif next_change is not None:
                         next_change = min(next_change, renewal)
                 if not await self._send(target, target_payload):

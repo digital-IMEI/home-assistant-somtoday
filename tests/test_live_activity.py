@@ -187,6 +187,16 @@ async def test_source_failure_does_not_start_new_activity(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_source_outage_does_not_keep_card_alive_after_school(monkeypatch):
+    switch = make_switch(monkeypatch)
+    await switch.async_turn_on()
+    switch.coordinator.last_update_success = False
+    monkeypatch.setattr("custom_components.somtoday.switch.dt_util.now", lambda: at("11:40"))
+    await switch._async_refresh()
+    assert switch.hass.services.async_call.call_args.args[2]["message"] == "clear_notification"
+
+
+@pytest.mark.asyncio
 async def test_all_cancelled_lessons_clear_active_card(monkeypatch):
     switch = make_switch(monkeypatch)
     await switch.async_turn_on()
