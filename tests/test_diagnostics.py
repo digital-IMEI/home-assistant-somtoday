@@ -22,6 +22,7 @@ async def test_diagnostics_contains_support_context_without_private_fields():
     entry = SimpleNamespace(entry_id="entry", options={"exports": {"PRIVATE_STUDENT": {
         "homework_list": "todo.PRIVATE_LIST", "homework_bidirectional": True,
         "homework_title": "PRIVATE_TITLE",
+        "live_activity_targets": ["notify.mobile_app_PRIVATE_PHONE"],
     }}})
     hass = SimpleNamespace(data={"somtoday": {"entry": coordinator}},
                            states=SimpleNamespace(get=Mock(return_value=SimpleNamespace(
@@ -32,3 +33,5 @@ async def test_diagnostics_contains_support_context_without_private_fields():
     assert result["assignment_source_results"][1]["count"] == 0
     assert result["assignment_source_errors"][0]["http_status"] == 403
     assert result["home_assistant_version"]
+    assert result["version"] == "0.11.0"
+    assert result["live_activity_enabled_count"] == 1
