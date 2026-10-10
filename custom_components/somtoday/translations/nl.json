@@ -70,7 +70,8 @@
           "days_ahead": "Dagen vooruit (1–60)",
           "scan_interval": "Bijwerkinterval in minuten (5–120)",
           "enable_homework": "Huiswerk exporteren",
-          "enable_absences": "Absentieoverzicht"
+          "enable_absences": "Absentieoverzicht",
+          "enable_live_activity": "Live Activity voor het rooster"
         },
         "data_description": {
           "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
@@ -79,7 +80,8 @@
           "enable_assessments": "Toetsen met een gepubliceerde datum.",
           "days_ahead": "Geldt voor ieder kind in dit account. Begin met 1 dag om de export te controleren.",
           "scan_interval": "Hoe vaak Somtoday wordt vernieuwd. Geldt voor ieder kind in dit account.",
-          "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden."
+          "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden.",
+          "enable_live_activity": "Voegt een schakelaar toe om de huidige les en het volgende lokaal op geselecteerde telefoons te tonen."
         },
         "sections": {
           "exports": {
@@ -91,7 +93,8 @@
               "enable_holidays": "Vakanties exporteren",
               "enable_assessments": "Toetsen exporteren",
               "enable_homework": "Huiswerk exporteren",
-              "enable_absences": "Absentieoverzicht"
+              "enable_absences": "Absentieoverzicht",
+              "enable_live_activity": "Live Activity voor het rooster"
             },
             "data_description": {
               "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
@@ -99,7 +102,8 @@
               "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
               "enable_assessments": "Toetsen met een gepubliceerde datum.",
               "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden.",
-              "enable_absences": "Voegt voor dit kind twee sensoren toe: absenties van dit schooljaar (afwezig, te laat, verwijderd) en lesregistraties (huiswerk niet gemaakt, materiaal niet in orde) met vak en lesuur. Standaard uit, want dit zijn gevoelige schoolgegevens."
+              "enable_absences": "Voegt voor dit kind twee sensoren toe: absenties van dit schooljaar (afwezig, te laat, verwijderd) en lesregistraties (huiswerk niet gemaakt, materiaal niet in orde) met vak en lesuur. Standaard uit, want dit zijn gevoelige schoolgegevens.",
+              "enable_live_activity": "Voegt een schakelaar toe om de huidige les en het volgende lokaal op geselecteerde telefoons te tonen."
             }
           }
         },
@@ -221,6 +225,17 @@
             "data_description": {
               "absence_remarks": "Voegt de redentekst van school toe, die een incident in gewone woorden kan beschrijven. De tekst wordt een sensorattribuut en komt daardoor ook in de geschiedenis van Home Assistant (database en back-ups), niet alleen op dashboards die hem tonen. Later uitzetten stopt nieuwe vermeldingen; wat al in de geschiedenis staat, blijft tot Home Assistant het opschoont."
             }
+          },
+          "live_activity": {
+            "name": "Live Activity",
+            "description": "Schakel de Live Activity in via de nieuwe schakelaar van dit kind. Start 15 minuten voor de eerste les; stopt 10 minuten na de laatste les. Het volgende lokaal staat rechts en in de Dynamic Island. De huidige les en volgende les staan in de berichttekst. Vereist Home Assistant Companion met Live Activities en bereikbaarheid van Home Assistant op school.",
+            "data": {
+              "live_activity_targets": "Telefoons",
+              "live_activity_language": "Taal op de kaart"
+            },
+            "data_description": {
+              "live_activity_targets": "Kies de Home Assistant Companion-telefoon van het kind. Meerdere telefoons zijn mogelijk."
+            }
           }
         },
         "submit": "Opslaan"
@@ -230,7 +245,8 @@
       "invalid_calendar": "Kies een beschikbare agenda die afspraken kan maken en verwijderen.",
       "invalid_student": "Dit kind is niet meer beschikbaar.",
       "no_writable_calendars": "Geen geschikte agenda beschikbaar. Voeg een agenda toe die afspraken kan maken en verwijderen en controleer de schrijfrechten.",
-      "invalid_todo": "Kies een beschikbare takenlijst met ondersteuning voor aanmaken, wijzigen en omschrijvingen, bijvoorbeeld Local to-do."
+      "invalid_todo": "Kies een beschikbare takenlijst met ondersteuning voor aanmaken, wijzigen en omschrijvingen, bijvoorbeeld Local to-do.",
+      "invalid_live_activity_target": "Kies minstens één beschikbare Home Assistant Companion-telefoon. Open de app als de telefoon niet in de lijst staat."
     }
   },
   "entity": {

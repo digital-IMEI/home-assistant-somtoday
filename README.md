@@ -34,6 +34,8 @@ depends on school/account permissions and has not been confirmed for all account
   button can explicitly clear an uncertain write after the destination has been repaired.
 - Optional absence overview per child, mirroring the portal's Afwezigheid page:
   absences, lates, and "Huiswerk niet gemaakt" / "Materiaal niet in orde" per lesson. Off by default.
+- Optional per-child timetable Live Activity: current lesson, next lesson and the
+  next classroom on the Lock Screen and Dynamic Island, controlled by a switch.
 - Adjustable look-ahead (1–60 days; default 14) and polling (5–120 minutes, default 15).
 - Default titles include the child's name: `School · Seth`, `Seth · Mathematics`.
 
@@ -44,6 +46,52 @@ repository, category **Integration**. Download the latest numbered release and r
 Home Assistant. Add **Somtoday** under **Settings → Devices & services**.
 For manual installation, copy `custom_components/somtoday` into your HA configuration.
 After updates restart HA and reload the browser if setup text is cached.
+
+## Timetable Live Activity
+
+1. Open **Settings → Devices & services → Somtoday → Configure** and select the child.
+2. Enable **Timetable Live Activity**. In the following **Live Activity** section,
+   select the child's Home Assistant Companion phone and choose Dutch or English.
+   You can select several phones. Calendar export is not required.
+3. Save, then turn on **Name · Live Activity** (for Seth, normally
+   `switch.seth_live_activity`). Add this switch to your dashboard if desired.
+
+The switch stays armed across days and HA restarts. Turning it off clears the
+activity immediately. Disabling the feature in Configure removes its phone selection.
+Existing calendar exports and other children's settings are preserved.
+
+The card uses the **fixed Home Assistant Companion layout**. The title stays
+`Seth · Rooster`, the body shows the current lesson with its room and end time,
+followed by the next subject and start time. The short value at the top right,
+and in the compact Dynamic Island, is always the **next classroom**. No progress
+bar or chronometer is sent, since those replace the room/body in the native layout.
+
+| Time | Card content |
+| --- | --- |
+| 15 minutes before the first lesson | First subject, start time and classroom. |
+| During a lesson | Current subject, room and end time; next subject and start time. Next room on the right. |
+| Final 5 minutes, when another lesson follows | Next lesson moves to the first line with its start time and room; current lesson below. |
+| Between lessons and during breaks | Next subject, start time and classroom. |
+| Last lesson | Current lesson and “Last lesson today”; no next classroom. |
+| After the last lesson | “Done for today”, then removed after 10 minutes. |
+| No active lessons today | No card; the switch remains armed for the next school day. |
+
+Cancelled appointments and explicit breaks are skipped. Missing rooms are shown
+as unknown, not guessed. Lesson transitions are scheduled against the cached
+timetable at their exact times, independently of the Somtoday polling interval.
+Changes from Somtoday appear after the integration's next successful refresh.
+Only changed content is pushed. Failed phones retry after one minute independently
+of successful phones; the switch attributes report the phase and failed-target count.
+On source failure, an already active card shows “Timetable temporarily unavailable”
+and clears the displayed classroom until the source recovers.
+
+Requires HA Core 2026.7 or later, an iPhone with iOS 17.2 or later and a Companion
+version with Live Activities enabled and its tokens synchronized. HA must be
+reachable from the phone at school. iOS may delay pushes, so scheduled transitions
+are not a delivery guarantee. An unusually long school day renews the activity
+after 7 h 55 min, before iOS's 8-hour expiry. Cards are sent with sound disabled.
+Read the [Companion Live Activities documentation](https://companion.home-assistant.io/docs/notifications/live-activities/)
+for supported app versions, configuration and platform limitations.
 
 ## Signing in — read this before opening the login link
 

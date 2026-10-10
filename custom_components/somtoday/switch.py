@@ -1,0 +1,205 @@
+"""Opt-in per-child Live Activities using the Companion app's native layout."""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import logging
+from datetime import timedelta
+
+from homeassistant.components.switch import SwitchEntity
+from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
+
+from .const import DOMAIN
+from .export import item_id
+from .live_activity import activity_view
+
+_LOGGER = logging.getLogger(__name__)
+
+
+async def async_setup_entry(hass, entry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([
+        SomtodayLiveActivitySwitch(coordinator, entry, student)
+        for student in coordinator.data.get("students", [])
+        if entry.options.get("exports", {}).get(item_id(student), {}).get("live_activity_targets")
+    ])
+
+
+class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
+    """Arm the daily timetable on selected phones; off immediately clears it.
+
+    Clock transitions use cached appointments, independently of API polling.
+    A per-target fingerprint avoids redundant pushes; failed targets retry
+    independently without notifying successful targets again.
+    """
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:cellphone-text"
+    _attr_is_on = False
+
+    def __init__(self, coordinator, entry, student):
+        self.coordinator = coordinator
+        self.student = item_id(student)
+        self.name_in_title = str(student.get("roepnaam") or self.student)
+        self._attr_name = f"{self.name_in_title} · Live Activity"
+        self._attr_unique_id = f"{entry.entry_id}_{self.student}_live_activity"
+        route = entry.options.get("exports", {}).get(self.student, {})
+        self.targets = tuple(dict.fromkeys(route.get("live_activity_targets", [])))
+        self.language = route.get("live_activity_language", "nl")
+        # Stable, private, valid Companion tag, including account and pupil.
+        self.tag = "somtoday-" + hashlib.sha256(self._attr_unique_id.encode()).hexdigest()[:32]
+        self._lock = asyncio.Lock()
+        self._cancel_timer = None
+        self._last_sent = {}
+        self._started_at = {}
+        self._stopping = False
+        self._phase = "off"
+        self._failed_targets = 0
+
+    @property
+    def extra_state_attributes(self):
+        return {"phase": self._phase, "failed_targets": self._failed_targets}
+
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        if previous := await self.async_get_last_state():
+            self._attr_is_on = previous.state == "on"
+        self.async_on_remove(self.coordinator.async_add_listener(self._source_updated))
+        self.async_on_remove(self._cancel_scheduled)
+        # Defer I/O until state registration and mobile-app service startup.
+        self._schedule(1)
+
+    @callback
+    def _source_updated(self):
+        if not self._stopping:
+            self.hass.async_create_task(self._async_refresh())
+
+    @callback
+    def _cancel_scheduled(self):
+        if self._cancel_timer is not None:
+            self._cancel_timer()
+            self._cancel_timer = None
+
+    @callback
+    def _schedule(self, seconds):
+        self._cancel_scheduled()
+        if not self._stopping:
+            self._cancel_timer = async_call_later(self.hass, max(1, seconds), self._timer_fired)
+
+    async def _timer_fired(self, _now):
+        self._cancel_timer = None
+        await self._async_refresh()
+
+    async def async_turn_on(self, **kwargs):
+        async with self._lock:
+            self._attr_is_on = True
+        await self._async_refresh()
+
+    async def async_turn_off(self, **kwargs):
+        async with self._lock:
+            self._attr_is_on = False
+        await self._async_refresh()
+
+    async def async_will_remove_from_hass(self):
+        self._stopping = True
+        self._cancel_scheduled()
+        async with self._lock:
+            for target in self.targets:
+                await self._send(target, None)
+        await super().async_will_remove_from_hass()
+
+    def _payload(self, message, room):
+        return {
+            "title": f"{self.name_in_title} · {'Timetable' if self.language == 'en' else 'Rooster'}",
+            "message": message,
+            "data": {
+                "tag": self.tag,
+                "live_update": True,
+                "critical_text": room,
+                "notification_icon": "mdi:school",
+                "notification_icon_color": "#03A9F4",
+                "background_color": "#000000",
+                "text_color": "#FFFFFF",
+                "alert_once": True,
+                # Keep transition pushes high priority; no sound on updates.
+                "push": {"sound": None},
+            },
+        }
+
+    async def _send(self, target, payload):
+        if target in self._last_sent and self._last_sent[target] == payload:
+            return True
+        # Only configured Companion services can receive timetable content.
+        if not target.startswith("notify.mobile_app_"):
+            return False
+        service = target.partition(".")[2]
+        data = payload if payload is not None else {"message": "clear_notification", "data": {"tag": self.tag}}
+        try:
+            await self.hass.services.async_call("notify", service, data, blocking=True)
+        except HomeAssistantError:
+            _LOGGER.warning("Somtoday Live Activity delivery failed; retry scheduled")
+            return False
+        self._last_sent[target] = payload
+        if payload is None:
+            self._started_at.pop(target, None)
+        else:
+            self._started_at.setdefault(target, dt_util.now())
+        return True
+
+    async def _async_refresh(self):
+        async with self._lock:
+            if self._stopping:
+                return
+            now = dt_util.now()
+            payload = None
+            next_change = None
+            if not self._attr_is_on:
+                self._phase = "off"
+            elif not self.coordinator.last_update_success:
+                self._phase = "unavailable"
+                # Do not display a stale room, or start a new unavailable card.
+                message = "Timetable temporarily unavailable" if self.language == "en" else "Rooster tijdelijk niet beschikbaar"
+                payload = self._payload(message, "—")
+                next_change = now + timedelta(minutes=1)
+            else:
+                view = activity_view(self.coordinator.data.get("appointments_by_student", {}).get(self.student, []), now, self.language)
+                self._phase = view.phase
+                next_change = view.next_change
+                if view.message is not None:
+                    payload = self._payload(view.message, view.room)
+
+            failures = 0
+            for target in self.targets:
+                target_payload = payload
+                if self._phase == "unavailable" and not self._last_sent.get(target):
+                    target_payload = None
+                # iOS expires a card after 8 h. Renew once near that boundary
+                # for unusually long school days, not on every lesson change.
+                started = self._started_at.get(target)
+                if started and target_payload is not None:
+                    renewal = started + timedelta(hours=7, minutes=55)
+                    if now >= renewal:
+                        if not await self._send(target, None):
+                            failures += 1
+                            continue
+                    elif next_change is not None:
+                        next_change = min(next_change, renewal)
+                if not await self._send(target, target_payload):
+                    failures += 1
+                if target_payload is not None and (started := self._started_at.get(target)):
+                    renewal = started + timedelta(hours=7, minutes=55)
+                    if renewal > now and next_change is not None:
+                        next_change = min(next_change, renewal)
+            self._failed_targets = failures
+            self.async_write_ha_state()
+            self._cancel_scheduled()
+            if failures:
+                retry = now + timedelta(minutes=1)
+                next_change = min(next_change, retry) if next_change else retry
+            if next_change is not None:
+                self._schedule((next_change - now).total_seconds())
