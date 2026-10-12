@@ -236,6 +236,8 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for field, default in (
                     ("day_title", "School · {student}"),
                     ("lesson_prefix", "{student} · "),
+                    ("schedule_test_prefix", "{student} · "),
+                    ("other_prefix", "{student} · "),
                     ("holiday_title", "{student} · {holiday}"),
                     ("assessment_title", "{student} · {subject} · {type}"),
                 ):
@@ -243,6 +245,8 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for field, kind in (
                     ("day_calendar", "day"),
                     ("lesson_calendar", "lesson"),
+                    ("schedule_test_calendar", "schedule_test"),
+                    ("other_calendar", "other"),
                     ("holiday_calendar", "holiday"),
                     ("assessment_calendar", "assessment"),
                 ):

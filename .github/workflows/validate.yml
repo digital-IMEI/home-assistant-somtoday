@@ -53,7 +53,7 @@ jobs:
           TARGET_SHA: ${{ github.sha }}
         run: |
           version="$(jq -r '.version' custom_components/somtoday/manifest.json)"
-          if [[ "$version" != "0.11.1-beta.1" ]]; then
+          if [[ "$version" != "0.11.1-beta.2" ]]; then
             echo "Unexpected test version"
             exit 1
           fi

@@ -456,6 +456,29 @@ those two endpoints is missing exactly the rows a parent checks most often. That
 returns oldest first and reported a `Content-Range` total of 200 for 1045 rows, so a paginated
 read of it cannot be proven complete either.
 
+## Appointment categories and separate exports
+
+The native timetable calendar and regular lesson export include only appointments
+whose Somtoday category is **Rooster**. Per child, two additional exports are
+available and disabled by default:
+
+- **Timetable tests** exports category **Toets**. Some schools use this instead of
+  the study guide; others schedule recurring test periods that may actually be
+  reading periods. Enabling this exports the source category without interpreting
+  the title or colour.
+- **Non-regular lessons and appointments** exports all other categories, such as
+  individual appointments, activities or meetings. Schools may use or repurpose
+  these for different events, including exams.
+
+Each export has its own destination and optional title prefix. They may share a
+calendar. Original times, descriptions and locations are preserved for the two
+additional exports. Study-guide tests remain an independent export.
+
+After updating, existing timetable exports are restricted to **Rooster**.
+Enable the additional exports if you want the other categories included again.
+School-day bounds continue to use all active non-break appointments, including
+exam periods and other school activities.
+
 ## Tests and reminders
 
 Each child receives three assessment-focused entities in addition to the timetable and

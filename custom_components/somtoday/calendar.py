@@ -15,7 +15,7 @@ from .device import student_device_info
 from .const import DOMAIN
 from .coordinator import SomtodayCoordinator
 from .assessments import assessment_description, assessment_summary
-from .models import automatic_day_titles, parse_datetime, school_day_appointments
+from .models import appointment_category, automatic_day_titles, parse_datetime, school_day_appointments
 from .export import item_id
 from .appointment_debug import appointment_debug_rows
 
@@ -77,6 +77,8 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
     def _events(self, start: datetime, end: datetime | None) -> list[CalendarEvent]:
         events: list[CalendarEvent] = []
         for item in self.coordinator.data.get("appointments_by_student", {}).get(self.student, []):
+            if appointment_category(item) != "rooster":
+                continue
             if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF":
                 continue
             try:

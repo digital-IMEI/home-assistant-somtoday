@@ -30,6 +30,7 @@ def test_each_child_has_lesson_and_school_day_calendar_entities():
         "eindDatumTijd": (START + timedelta(minutes=50)).isoformat(),
         "titel": "Math",
         "afspraakStatus": "ACTIEF",
+        "afspraakType": {"categorie": "Rooster"},
     }
     coordinator = SimpleNamespace(
         data={

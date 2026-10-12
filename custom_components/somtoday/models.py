@@ -12,6 +12,12 @@ def parse_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def appointment_category(item: dict[str, Any]) -> str:
+    """Use Somtoday's source category, independently of name, title and colour."""
+    value = item.get("afspraakType") or {}
+    return str(value.get("categorie") or "").strip().casefold() if isinstance(value, dict) else ""
+
+
 def is_active_school_appointment(item: dict[str, Any]) -> bool:
     """Return whether a visible active appointment counts towards the school day."""
     if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF":
