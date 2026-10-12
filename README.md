@@ -723,3 +723,18 @@ Counts are assignment counts before filtering for homework or tests. A successfu
 source may return zero items. Share this file along with your account type and
 whether assignments are visible in Somtoday using that account. No task titles,
 student names, destination IDs, passwords, tokens or response bodies are included.
+
+### Readable calendar notes and timetable appearance
+
+Somtoday HTML descriptions are converted to readable plain text in native calendar
+entries, exported appointment notes and homework. Ordered lists retain numbering.
+Existing managed exports are reconciled with the new descriptions.
+
+Timetable Live Activities use subject icons and emoji labels, a coffee icon during
+breaks, a backpack before school and a check mark after the final lesson. Individual
+appointments are not classroom destinations: only Rooster and Toets categories are
+used. iOS requests a transparent background and adaptive text colour. Android
+retains its system notification background. Taps target the Somtoday app via
+`somtoday://` on iOS and the installed Somtoday package on Android.
+
+The app links and lock-screen appearance still require verification on a phone.

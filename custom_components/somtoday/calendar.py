@@ -18,6 +18,7 @@ from .assessments import assessment_description, assessment_summary
 from .models import appointment_category, automatic_day_titles, parse_datetime, school_day_appointments
 from .export import item_id
 from .appointment_debug import appointment_debug_rows
+from .text import plain_text
 
 
 async def async_setup_entry(
@@ -97,7 +98,7 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
                     end=event_end,
                     summary=str(summary),
                     location=item.get("locatie"),
-                    description=item.get("omschrijving"),
+                    description=plain_text(item.get("omschrijving")) or None,
                     uid=str((item.get("links") or [{}])[0].get("id", "")) or None,
                 )
             )

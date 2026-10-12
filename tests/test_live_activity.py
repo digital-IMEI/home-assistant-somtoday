@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.somtoday.live_activity import activity_view
+from custom_components.somtoday.live_activity import activity_view, subject_visual
 from custom_components.somtoday.switch import SomtodayLiveActivitySwitch, async_setup_entry
 
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -21,6 +21,7 @@ def lesson(start, end, subject="Wiskunde", room="B104", **extra):
         "beginDatumTijd": at(start).isoformat(),
         "eindDatumTijd": at(end).isoformat(),
         "additionalObjects": {"vak": {"naam": subject}},
+        "afspraakType": {"categorie": "Rooster"},
         "locatie": room,
         **extra,
     }
@@ -50,13 +51,13 @@ def test_exact_school_day_boundaries(clock, phase, next_time, room):
 
 def test_option_one_content_and_five_minute_emphasis():
     assert activity_view(SCHEDULE, at("10:12")).message == (
-        "Nu Wiskunde · B104 tot 10:35\nHierna Engels · 10:40"
+        "Nu 📐 Wiskunde · B104 tot 10:35\nHierna 🇬🇧 Engels · 10:40"
     )
     assert activity_view(SCHEDULE, at("10:30")).message == (
-        "Hierna Engels · 10:40 · C203\nNu Wiskunde · B104 tot 10:35"
+        "Hierna 🇬🇧 Engels · 10:40 · C203\nNu 📐 Wiskunde · B104 tot 10:35"
     )
     assert activity_view(SCHEDULE, at("10:35")).message == (
-        "Pauze · hierna Engels · 10:40\nLokaal C203"
+        "☕ Pauze · hierna 🇬🇧 Engels · 10:40\nLokaal C203"
     )
 
 
@@ -80,7 +81,7 @@ def test_cancelled_break_invalid_and_other_day_entries_are_not_destinations():
 
 def test_utc_dates_are_compared_in_local_timezone():
     # UTC Sunday is already Monday in the student's local timezone.
-    schedule = [{"beginDatumTijd": "2026-10-11T22:10:00Z", "eindDatumTijd": "2026-10-11T23:00:00Z", "titel": "Late lesson", "locatie": "A1"}]
+    schedule = [{"beginDatumTijd": "2026-10-11T22:10:00Z", "eindDatumTijd": "2026-10-11T23:00:00Z", "titel": "Late lesson", "locatie": "A1", "afspraakType": {"categorie": "Rooster"}}]
     view = activity_view(schedule, at("00:05"))
     assert view.phase == "before_school"
     assert view.room == "A1"
@@ -96,7 +97,7 @@ def test_empty_weekend_and_room_unknown():
 
 def test_english_card():
     view = activity_view(SCHEDULE, at("10:12"), "en")
-    assert view.message == "Now Wiskunde · B104 until 10:35\nNext Engels · 10:40"
+    assert view.message == "Now 📐 Wiskunde · B104 until 10:35\nNext 🇬🇧 Engels · 10:40"
 
 
 def make_switch(monkeypatch, now="10:12", targets=None):
@@ -120,9 +121,13 @@ async def test_switch_off_clears_and_no_duplicate_pushes(monkeypatch):
     assert notify.await_count == 1
     payload = notify.call_args.args[2]
     assert payload["title"] == "Seth · Rooster"
-    assert payload["message"].startswith("Nu Wiskunde")
+    assert payload["message"].startswith("Nu 📐 Wiskunde")
     assert payload["data"]["critical_text"] == "C203"
     assert payload["data"]["live_update"] is True
+    assert payload["data"]["url"] == "somtoday://"
+    assert payload["data"]["background_color"] == "transparent"
+    assert "text_color" not in payload["data"]
+    assert payload["data"]["notification_icon"] == "mdi:calculator-variant"
     assert "progress" not in payload["data"]
     assert "chronometer" not in payload["data"]
     assert "silent" not in payload["data"]
@@ -143,7 +148,7 @@ async def test_clock_transition_does_not_wait_for_api_and_room_changes_push(monk
     await switch.async_turn_on()
     monkeypatch.setattr("custom_components.somtoday.switch.dt_util.now", lambda: at("10:35"))
     await switch._timer_fired(None)
-    assert switch.hass.services.async_call.call_args.args[2]["message"].startswith("Pauze")
+    assert switch.hass.services.async_call.call_args.args[2]["message"].startswith("☕ Pauze")
     switch.coordinator.data["appointments_by_student"]["a"][1] = lesson("10:40", "11:30", "Engels", "C204")
     await switch._async_refresh()
     assert switch.hass.services.async_call.call_args.args[2]["data"]["critical_text"] == "C204"
@@ -299,7 +304,7 @@ async def test_android_payload_contains_next_room_and_silent_persistent_channel(
     register_phone(switch, "mobile_app_seth", "Android")
     await switch.async_turn_on()
     payload = switch.hass.services.async_call.call_args.args[2]
-    assert payload["message"] == "Nu Wiskunde · B104 tot 10:35\nHierna Engels · 10:40 · C203"
+    assert payload["message"] == "Nu 📐 Wiskunde · B104 tot 10:35\nHierna 🇬🇧 Engels · 10:40 · C203"
     data = payload["data"]
     assert data["critical_text"] == "C203"
     assert data["live_update"] is True
@@ -308,6 +313,7 @@ async def test_android_payload_contains_next_room_and_silent_persistent_channel(
     assert data["alert_once"] is True
     assert data["importance"] == "low"
     assert data["channel"] == "Somtoday timetable"
+    assert data["clickAction"] == "app://nl.topicus.somtoday.leerling"
     assert data["priority"] == "high" and data["ttl"] == 0
     assert not {"push", "background_color", "text_color", "chronometer", "progress"}.intersection(data)
     await switch._async_refresh()
@@ -356,5 +362,29 @@ def test_platform_is_resolved_by_registered_target_not_phone_name(monkeypatch):
 def test_android_missing_next_room_is_explicit_in_message():
     schedule = [SCHEDULE[0], lesson("10:40", "11:30", "Engels", "")]
     view = activity_view(schedule, at("10:12"), include_next_room=True)
-    assert view.message.endswith("Hierna Engels · 10:40 · Lokaal onbekend")
+    assert view.message.endswith("Hierna 🇬🇧 Engels · 10:40 · Lokaal onbekend")
     assert view.room == "—"
+
+
+@pytest.mark.parametrize("subject,expected", [
+    ("Nederlandse taal", "mdi:book-open-page-variant"),
+    ("Latijnse taal en letterkunde", "mdi:pillar"),
+    ("lichamelijke opvoeding", "mdi:run"),
+    ("digitale geletterdheid", "mdi:laptop"),
+    ("geschiedenis", "mdi:pillar"),
+    ("Onbekend vak", "mdi:book-open-page-variant"),
+])
+def test_subject_icons_cover_full_school_names(subject, expected):
+    assert subject_visual(subject)[1] == expected
+
+
+def test_main_icon_changes_with_phase_and_individual_appointments_are_not_lessons():
+    individual = lesson("10:12", "15:00", "proefwerk Nederlands", "Wrong room", afspraakType={"categorie": "Individueel"})
+    schedule = SCHEDULE + [individual]
+    assert activity_view(schedule, at("10:12")).icon == "mdi:calculator-variant"
+    assert activity_view(schedule, at("10:30")).icon == "mdi:translate"
+    assert activity_view(schedule, at("10:35")).icon == "mdi:coffee-outline"
+    assert activity_view(schedule, at("09:30")).icon == "mdi:bag-personal"
+    assert activity_view(schedule, at("11:30")).icon == "mdi:check-circle-outline"
+    assert 'Wrong room' not in activity_view(schedule, at("10:12")).message
+    assert activity_view([individual], at("10:12")).phase == "idle"

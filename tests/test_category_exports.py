@@ -7,6 +7,8 @@ import pytest
 from custom_components.somtoday.calendar import SomtodayCalendar
 from custom_components.somtoday.export import desired_events
 from test_options import make_flow
+from test_export import FakeCalendar, synchronizer
+from custom_components.somtoday.export import scope_marker
 
 START = datetime.fromisoformat("2026-10-12T00:00:00+02:00")
 END = START + timedelta(days=1)
@@ -35,7 +37,7 @@ def test_real_school_categories_route_independently_of_titles_and_colors():
     assert events[("calendar.family", "a:other:green")]["summary"] == "Seth · proefwerk Nederlands "
     assert events[("calendar.family", "a:schedule_test:blue")]["summary"] == "Seth · Nederlandse taal"
     assert events[("calendar.family", "a:lesson:lesson")]["summary"] == "Latijn"
-    assert events[("calendar.family", "a:other:green")]["description"] == "<p>Leren hoofdstuk 1</p>"
+    assert events[("calendar.family", "a:other:green")]["description"] == "Leren hoofdstuk 1"
     assert events[("calendar.family", "a:schedule_test:blue")]["location"] == "211"
     assert items == original
     coordinator = SimpleNamespace(data={"appointments_by_student": {"a": items}})
@@ -81,3 +83,25 @@ async def test_category_export_options_roundtrip_disable_and_preserve_sibling():
     assert disabled["data"]["exports"]["a"]["other_calendar"] == ""
     assert disabled["data"]["exports"]["a"]["schedule_test_calendar"] == ""
     assert disabled["data"]["exports"]["b"] == sibling
+
+
+@pytest.mark.asyncio
+async def test_legacy_category_and_html_events_migrate_without_duplicates(monkeypatch):
+    calendar = FakeCalendar()
+    sync = synchronizer(calendar, monkeypatch)
+    item = appointment("green", "Individueel", "proefwerk Nederlands")
+    target = "calendar.family"
+    legacy = {(target, "a:lesson:green"): {
+        "dtstart": datetime.fromisoformat(item["beginDatumTijd"]),
+        "dtend": datetime.fromisoformat(item["eindDatumTijd"]),
+        "summary": item["titel"], "location": "211", "description": item["omschrijving"]}}
+    scopes = {target: {scope_marker("test", "a:lesson"), scope_marker("test", "a:other")}}
+    await sync.run(legacy, scopes, START, END, False)
+    await sync.run(legacy, scopes, START, END, False)
+    desired = desired_events([item], {"lesson_calendar": target, "other_calendar": target, "other_prefix": ""}, "a", START, END)
+    for _ in range(3):
+        await sync.run(desired, scopes, START, END, False)
+    assert len(calendar.events) == 1
+    assert calendar.events[0].summary == 'proefwerk Nederlands'
+    assert calendar.events[0].description.endswith('\n\nLeren hoofdstuk 1')
+    assert '<p>' not in calendar.events[0].description

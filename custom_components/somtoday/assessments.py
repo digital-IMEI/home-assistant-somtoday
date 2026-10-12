@@ -7,6 +7,7 @@ from typing import Any
 
 from .export import item_id
 from .models import parse_datetime
+from .text import plain_text
 
 ASSESSMENT_TYPES = {"TOETS", "GROTE_TOETS"}
 ASSESSMENT_TYPE_LABELS = {
@@ -85,7 +86,7 @@ def normalize_assessments(
                 due = None
         subject = _subject(assignment)
         topic = str(study_item.get("onderwerp") or "").strip()
-        description = str(study_item.get("omschrijving") or "").strip()
+        description = plain_text(study_item.get("omschrijving"))
         value = {
             "id": identifier,
             "type": kind,

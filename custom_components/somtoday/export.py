@@ -11,6 +11,7 @@ from .const import (
     HOLIDAY_MODES,
 )
 from .models import appointment_category, automatic_day_titles, is_active_school_appointment, parse_datetime, school_day_bounds, school_day_appointments
+from .text import plain_text
 
 
 def item_id(item):
@@ -87,7 +88,7 @@ def desired_events(appointments, options, student, start, end):
                 "dtend": parse_datetime(item["eindDatumTijd"]),
                 "summary": prefix + str(title or "Somtoday"),
                 "location": str(item.get("locatie") or ""),
-                "description": str(item.get("omschrijving") or "") if scope != "lesson" or options.get("lesson_homework") else "",
+                "description": plain_text(item.get("omschrijving")) if scope != "lesson" or options.get("lesson_homework") else "",
             }
     return result
 

@@ -126,7 +126,7 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
         os_name = str(registration.data.get("os_name", "")).casefold() if registration else ""
         return "android" if os_name == "android" else "ios" if os_name in ("ios", "ipados") else "unknown"
 
-    def _payload(self, message, room, platform="ios"):
+    def _payload(self, message, room, platform="ios", icon="mdi:school"):
         payload = {
             "title": f"{self.name_in_title} · {'Timetable' if self.language == 'en' else 'Rooster'}",
             "message": message,
@@ -134,10 +134,10 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                 "tag": self.tag,
                 "live_update": True,
                 "critical_text": room,
-                "notification_icon": "mdi:school",
+                "notification_icon": icon,
                 "notification_icon_color": "#03A9F4",
-                "background_color": "#000000",
-                "text_color": "#FFFFFF",
+                "background_color": "transparent",
+                "url": "somtoday://",
                 "alert_once": True,
                 # Keep transition pushes high priority; no sound on updates.
                 "push": {"sound": None},
@@ -145,7 +145,7 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
         }
         if platform == "android":
             data = payload["data"]
-            for key in ("push", "background_color", "text_color"):
+            for key in ("push", "background_color"):
                 data.pop(key)
             data.update({
                 "channel": "Somtoday timetable",
@@ -156,6 +156,7 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                 "priority": "high",
                 "ttl": 0,
                 "color": "#03A9F4",
+                "clickAction": "app://nl.topicus.somtoday.leerling",
             })
         return payload
 
@@ -196,7 +197,7 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                 # Do not display a stale room, or start a new unavailable card.
                 message = "Timetable temporarily unavailable" if self.language == "en" else "Rooster tijdelijk niet beschikbaar"
                 if view.message is not None:
-                    payload = self._payload(message, "—")
+                    payload = self._payload(message, "—", icon="mdi:cloud-alert")
                 # Still stop after school, even if the source has gone offline.
                 next_change = min(view.next_change, now + timedelta(minutes=1))
             else:
@@ -204,7 +205,7 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                 self._phase = view.phase
                 next_change = view.next_change
                 if view.message is not None:
-                    payload = self._payload(view.message, view.room)
+                    payload = self._payload(view.message, view.room, icon=view.icon)
 
             failures = 0
             for target in self.targets:
@@ -216,9 +217,9 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                             self.coordinator.data.get("appointments_by_student", {}).get(self.student, []),
                             now, self.language, include_next_room=True,
                         )
-                        target_payload = self._payload(android_view.message, android_view.room, "android")
+                        target_payload = self._payload(android_view.message, android_view.room, "android", android_view.icon)
                     else:
-                        target_payload = self._payload(payload["message"], "—", "android")
+                        target_payload = self._payload(payload["message"], "—", "android", "mdi:cloud-alert")
                 if self._phase == "unavailable" and not self._last_sent.get(target):
                     target_payload = None
                 # iOS expires a card after 8 h. Renew once near that boundary

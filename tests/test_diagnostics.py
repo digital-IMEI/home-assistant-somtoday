@@ -33,5 +33,5 @@ async def test_diagnostics_contains_support_context_without_private_fields():
     assert result["assignment_source_results"][1]["count"] == 0
     assert result["assignment_source_errors"][0]["http_status"] == 403
     assert result["home_assistant_version"]
-    assert result["version"] == "0.11.1-beta.2"
+    assert result["version"] == "0.11.1-beta.3"
     assert result["live_activity_enabled_count"] == 1
