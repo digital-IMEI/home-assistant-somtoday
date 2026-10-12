@@ -749,3 +749,9 @@ Live Activity body text uses compact room/time fields, for example
 `Nu: Latijn · 224 · tot 10:35` and `Hierna: Gym · 10:40`. Known full subject names
 are shortened only in the Live Activity; source calendars and exports keep the
 original subject names. Unrecognized subject names are preserved without guessing.
+
+Timetable activity payloads explicitly request silent updates. iOS uses the Live
+Activity silent flag, no notification sound and passive interruption level. Android
+uses the same activity tag, alert-once, low channel importance and a zero-duration
+vibration pattern. Device channel settings can override Android defaults, and iOS
+may batch silent pushes.

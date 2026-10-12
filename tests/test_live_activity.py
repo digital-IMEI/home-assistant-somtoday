@@ -125,13 +125,14 @@ async def test_switch_off_clears_and_no_duplicate_pushes(monkeypatch):
     assert payload["message"].startswith("Nu: Wiskunde")
     assert payload["data"]["critical_text"] == "C203"
     assert payload["data"]["live_update"] is True
+    assert payload["data"]["silent"] is True
+    assert payload["data"]["push"] == {"sound": None, "interruption-level": "passive"}
     assert payload["data"]["url"] == "somtoday://"
     assert payload["data"]["background_color"] == "transparent"
     assert "text_color" not in payload["data"]
     assert payload["data"]["notification_icon"] == "mdi:calculator-variant"
     assert "progress" not in payload["data"]
     assert "chronometer" not in payload["data"]
-    assert "silent" not in payload["data"]
     assert switch._schedule.call_args.args[0] == 18 * 60
     await switch._async_refresh()
     assert notify.await_count == 1
@@ -313,6 +314,8 @@ async def test_android_payload_contains_next_room_and_silent_persistent_channel(
     assert data["persistent"] is True
     assert data["sticky"] is True
     assert data["alert_once"] is True
+    assert data["silent"] is True
+    assert data["vibrationPattern"] == "0"
     assert data["importance"] == "low"
     assert data["channel"] == "Somtoday timetable"
     assert data["clickAction"] == "app://nl.topicus.somtoday.leerling"
@@ -335,6 +338,7 @@ async def test_mixed_android_ios_targets_receive_their_own_payloads(monkeypatch)
     assert android["message"].endswith(" · C203")
     assert ios["message"].endswith(" · 10:40")
     assert "push" in ios["data"] and "channel" not in ios["data"]
+    assert android["data"]["silent"] is ios["data"]["silent"] is True
     assert android["data"]["tag"] == ios["data"]["tag"]
     await switch._async_refresh()
     assert switch.hass.services.async_call.await_count == 2
