@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.somtoday.live_activity import activity_view, subject_icon, subject_display_name
+from custom_components.somtoday.live_activity import activity_view, subject_icon, subject_display_name, limit_first_line
 from custom_components.somtoday.switch import SomtodayLiveActivitySwitch, async_setup_entry
 
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -122,7 +122,7 @@ async def test_switch_off_clears_and_no_duplicate_pushes(monkeypatch):
     assert notify.await_count == 1
     payload = notify.call_args.args[2]
     assert payload["title"] == "Seth · Volgend lokaal"
-    assert payload["message"].startswith("Nu: Wiskunde")
+    assert payload["message"].split("\n")[0] == "Nu: Wisk… · B104 · tot 10:35"
     assert payload["data"]["critical_text"] == "C203"
     assert payload["data"]["live_update"] is True
     assert payload["data"]["silent"] is True
@@ -307,7 +307,7 @@ async def test_android_payload_contains_next_room_and_silent_persistent_channel(
     register_phone(switch, "mobile_app_seth", "Android")
     await switch.async_turn_on()
     payload = switch.hass.services.async_call.call_args.args[2]
-    assert payload["message"] == "Nu: Wiskunde · B104 · tot 10:35\nHierna: Engels · 10:40 · C203"
+    assert payload["message"] == "Nu: Wisk… · B104 · tot 10:35\nHierna: Engels · 10:40 · C203"
     data = payload["data"]
     assert data["critical_text"] == "C203"
     assert data["live_update"] is True
@@ -473,3 +473,35 @@ def test_adjacent_lessons_omit_duplicate_start_time_but_keep_next_classroom(lang
     android_view = activity_view(schedule, at("10:55"), language, include_next_room=True)
     assert android_view.message.splitlines()[1] == f"{label}: Nederlands · 410"
     assert activity_view(schedule, at("11:15"), language).message.startswith("Nu: Nederlands" if language == "nl" else "Now: Nederlands")
+
+
+@pytest.mark.parametrize("limit", [24, 28, 60])
+@pytest.mark.parametrize("prefix,end", [("Nu", "tot"), ("Now", "until")])
+@pytest.mark.parametrize("room", ["410", "B104", "Room unknown", "Lokaal onbekend", "An exceptionally long room label"])
+def test_first_line_limit_preserves_time_and_next_line(limit, prefix, end, room):
+    message = f"{prefix}: Nederlandse taal en letterkunde · {room} · {end} 12:05\nNext: Engels · 12:15"
+    first, next_line = limit_first_line(message, limit).split("\n")
+    assert len(first) <= limit
+    assert first.endswith("12:05")
+    assert next_line == "Next: Engels · 12:15"
+    if room in {"410", "B104"}:
+        assert f" · {room} · " in first
+
+
+def test_first_line_limit_keeps_short_text_and_truncates_other_phases():
+    assert limit_first_line("Pauze tot 12:05\nHierna: Engels", 28) == "Pauze tot 12:05\nHierna: Engels"
+    message = "First lesson: Nederlandse taal en letterkunde\nNext: Engels"
+    first, second = limit_first_line(message, 28).split("\n")
+    assert len(first) == 28
+    assert first.endswith("…")
+    assert second == "Next: Engels"
+
+
+def test_payload_uses_saved_first_line_limit(monkeypatch):
+    switch = make_switch(monkeypatch)
+    assert switch.first_line_limit == 28
+    entry = SimpleNamespace(entry_id="entry", options={"exports": {"a": {"live_activity_first_line_limit": 40}}})
+    configured = SomtodayLiveActivitySwitch(switch.coordinator, entry, {"links": [{"id": "a"}], "roepnaam": "Seth"})
+    assert configured.first_line_limit == 40
+    payload = configured._payload("Nu: Wiskunde · B104 · tot 10:35\nHierna: Engels", "C203", icon="mdi:calculator")
+    assert payload["message"].startswith("Nu: Wiskunde · B104 · tot 10:35")

@@ -43,7 +43,7 @@ async def async_get_config_entry_diagnostics(hass, entry):
         ],
         "homework_sync_mode": data.get("homework_sync_status", {}).get("mode"),
         "export_ready": bool(getattr(coordinator, "export_ready", False)),
-        "version": "0.11.3",
+        "version": "0.11.4",
         "live_activity_enabled_count": sum(
             bool(route.get("live_activity_targets"))
             for route in routes.values()
