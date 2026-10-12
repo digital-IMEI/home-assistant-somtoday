@@ -6,14 +6,17 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 
 ## Features
 
-### Version 0.9.0 — production release
+### Version 0.11.3 — production release
 
-Promotes the 0.9 beta features: homework to-do synchronization, readable homework
-in lesson descriptions, per-child homework type selection and school-day text
-filters. Includes corrected school-day break handling and privacy-safe source
-diagnostics. Parallel requests now share one token refresh; expired optional-source
-authentication triggers reauthentication, while an endpoint permission denial
-remains a source error. Existing options and managed event identities are retained.
+Timetable Live Activities on iPhone and Live Updates on Android show the current
+lesson, upcoming subject and next classroom. Compact text, subject icons and silent
+updates keep the information easy to read without repeated alerts. Consecutive
+lessons omit a duplicate start time; breaks retain the upcoming lesson time.
+
+Per-child devices, improved token renewal, separate exports for Rooster, Toets and
+other appointments, and readable HTML descriptions are included. See the
+[release history](https://github.com/digital-IMEI/home-assistant-somtoday/releases)
+for all changes since 0.10.
 
 Update in HACS and restart Home Assistant. No account removal is needed.
 Completion write-back remains **experimental and disabled by default**; support
@@ -611,7 +614,8 @@ Supported placeholders: `{student}`, `{subject}`, `{topic}`.
   turn off write-back to resume source-to-list synchronization; verify permissions before
   enabling it again.
 
-This is a test release, not a claim of live verification against every school or provider.
+Compatibility depends on school/account permissions and task-provider capabilities;
+completion write-back remains experimental.
 
 References: [HA to-do actions](https://www.home-assistant.io/integrations/todo/) and
 [community Somtoday API documentation](https://github.com/elisaado/somtoday-api-docs/blob/master/Homework.md).
@@ -755,3 +759,6 @@ Activity silent flag, no notification sound and passive interruption level. Andr
 uses the same activity tag, alert-once, low channel importance and a zero-duration
 vibration pattern. Device channel settings can override Android defaults, and iOS
 may batch silent pushes.
+
+When lessons are consecutive, the upcoming line omits the repeated start time
+(e.g. `Hierna: Nederlands`). If there is a gap, its start time remains visible.

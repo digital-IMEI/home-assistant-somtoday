@@ -459,3 +459,17 @@ def test_compact_current_upcoming_and_break_text_preserves_source_subjects():
     assert activity_view(schedule, at("10:35")).message == "Pauze tot 10:40\nHierna: Gym · 10:40"
     assert activity_view(schedule, at("09:30")).message == "School begint om 09:45\nEerste les: Latijn"
     assert schedule == original
+
+
+@pytest.mark.parametrize("language,label", [("nl", "Hierna"), ("en", "Next")])
+def test_adjacent_lessons_omit_duplicate_start_time_but_keep_next_classroom(language, label):
+    schedule = [lesson("10:25", "11:15", "wiskunde", "209"),
+                lesson("11:15", "12:05", "Nederlandse taal", "410")]
+    view = activity_view(schedule, at("10:55"), language)
+    assert view.message.splitlines()[1] == f"{label}: Nederlands"
+    assert view.room == "410"
+    assert "Wiskunde" in view.message.splitlines()[0]
+    assert "11:15" in view.message.splitlines()[0]
+    android_view = activity_view(schedule, at("10:55"), language, include_next_room=True)
+    assert android_view.message.splitlines()[1] == f"{label}: Nederlands · 410"
+    assert activity_view(schedule, at("11:15"), language).message.startswith("Nu: Nederlands" if language == "nl" else "Now: Nederlands")

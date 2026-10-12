@@ -13,6 +13,18 @@ def subject_display_name(subject: str) -> str:
     label = " ".join(subject.split())
     name = label.casefold()
     aliases = {
+        "wiskunde": "Wiskunde",
+        "nederlands": "Nederlands",
+        "engels": "Engels",
+        "duits": "Duits",
+        "frans": "Frans",
+        "latijn": "Latijn",
+        "grieks": "Grieks",
+        "geschiedenis": "Geschiedenis",
+        "aardrijkskunde": "Aardrijkskunde",
+        "biologie": "Biologie",
+        "scheikunde": "Scheikunde",
+        "natuurkunde": "Natuurkunde",
         "nederlandse taal": "Nederlands",
         "nederlandse taal en literatuur": "Nederlands",
         "nederlandse taal en letterkunde": "Nederlands",
@@ -143,7 +155,9 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
             f"{'until' if en else 'tot'} {current.end:%H:%M}"
         )
         if following:
-            next_line = f"{'Next' if en else 'Hierna'}: {subject_display_name(following.subject)} · {following.start:%H:%M}"
+            next_line = f"{'Next' if en else 'Hierna'}: {subject_display_name(following.subject)}"
+            if following.start != current.end:
+                next_line += f" · {following.start:%H:%M}"
             leaving = now >= current.end - timedelta(minutes=5)
             if include_next_room or not following.room:
                 next_line += f" · {following.room or unknown}"
