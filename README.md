@@ -22,13 +22,13 @@ depends on school/account permissions and has not been confirmed for all account
 ### Available features
 
 - School dropdown and browser login (password stays on the school's login page).
-- Two source calendars per child: **Name · Rooster** with individual lessons and
+- Two source calendars per child: **Name · Rooster** with only category Rooster appointments and
   **Name · Schooldag** with one event from the first lesson start through the last lesson end.
 - Export one event per school day, from the first lesson to the end of the last lesson.
 - Independently export individual active lessons to another calendar, or the same calendar.
 - Export published Somtoday holidays using one of three all-day event layouts.
 - View explicit Somtoday tests per child, automate reminders and optionally export them.
-- Choose all four destination calendars separately **for each child in the account**.
+- Choose the destination calendars separately **for each child in the account**.
 - The account-level **Calendar sync** diagnostic
   sensor reports results, pending writes and errors. A diagnostic **Retry calendar sync**
   button can explicitly clear an uncertain write after the destination has been repaired.
@@ -49,6 +49,29 @@ After updates restart HA and reload the browser if setup text is cached.
 
 ## Timetable Live Activity
 
+### Android support
+
+The Android support uses the same per-child switch and school-day timing.
+The Companion phone's registered operating system is detected automatically,
+including when both Android and iPhone destinations are selected.
+
+- On Android 16+ with a compatible Companion app, `live_update` requests the native
+  Live Update on the Lock Screen/notification shade, with the next room as the
+  short status-bar value. Chip visibility depends on the phone and app settings.
+- On older Android versions, the persistent/sticky notification fields provide
+  an ongoing timetable notification, without the Android 16 Live Update chip.
+- The next classroom is also included in the notification body, so it remains
+  readable when the compact chip is not displayed. The current/next line order stays consistent, including in the final five minutes.
+- A dedicated **Somtoday timetable** channel starts at low importance (silent),
+  while high-priority transport requests prompt delivery. The phone's channel
+  settings can override its notification behavior. Updates use the same tag.
+- Turning off the switch clears the Android notification. Android cards are not
+  cleared/restarted at the iOS eight-hour activity limit.
+
+Android support is included from 0.11.1.
+
+### Phone setup
+
 1. Open **Settings → Devices & services → Somtoday → Configure** and select the child.
 2. Enable **Timetable Live Activity**. In the following **Live Activity** section,
    select the child's Home Assistant Companion phone and choose Dutch or English.
@@ -61,7 +84,7 @@ activity immediately. Disabling the feature in Configure removes its phone selec
 Existing calendar exports and other children's settings are preserved.
 
 The card uses the **fixed Home Assistant Companion layout**. The title stays
-`Seth · Rooster`, the body shows the current lesson with its room and end time,
+`Seth · Volgend lokaal`, the body shows the current lesson with its room and end time,
 followed by the next subject and start time. The short value at the top right,
 and in the compact Dynamic Island, is always the **next classroom**. No progress
 bar or chronometer is sent, since those replace the room/body in the native layout.
@@ -70,7 +93,7 @@ bar or chronometer is sent, since those replace the room/body in the native layo
 | --- | --- |
 | 15 minutes before the first lesson | First subject, start time and classroom. |
 | During a lesson | Current subject, room and end time; next subject and start time. Next room on the right. |
-| Final 5 minutes, when another lesson follows | Next lesson moves to the first line with its start time and room; current lesson below. |
+| Final 5 minutes, when another lesson follows | Current/next line order stays unchanged; the left icon changes to the upcoming subject. |
 | Between lessons and during breaks | Next subject, start time and classroom. |
 | Last lesson | Current lesson and “Last lesson today”; no next classroom. |
 | After the last lesson | “Done for today”, then removed after 10 minutes. |
@@ -432,6 +455,29 @@ those two endpoints is missing exactly the rows a parent checks most often. That
 returns oldest first and reported a `Content-Range` total of 200 for 1045 rows, so a paginated
 read of it cannot be proven complete either.
 
+## Appointment categories and separate exports
+
+The native timetable calendar and regular lesson export include only appointments
+whose Somtoday category is **Rooster**. Per child, two additional exports are
+available and disabled by default:
+
+- **Timetable tests** exports category **Toets**. Some schools use this instead of
+  the study guide; others schedule recurring test periods that may actually be
+  reading periods. Enabling this exports the source category without interpreting
+  the title or colour.
+- **Non-regular lessons and appointments** exports all other categories, such as
+  individual appointments, activities or meetings. Schools may use or repurpose
+  these for different events, including exams.
+
+Each export has its own destination and optional title prefix. They may share a
+calendar. Original times, descriptions and locations are preserved for the two
+additional exports. Study-guide tests remain an independent export.
+
+After updating, existing timetable exports are restricted to **Rooster**.
+Enable the additional exports if you want the other categories included again.
+School-day bounds continue to use all active non-break appointments, including
+exam periods and other school activities.
+
 ## Tests and reminders
 
 Each child receives three assessment-focused entities in addition to the timetable and
@@ -480,6 +526,27 @@ when validating a reminder.
   Newly added children require an integration reload to create their entities.
 - Existing first-child entity IDs are retained where possible. Additional entities use stable
   child IDs internally; first-name changes do not change event ownership.
+
+### Account and child devices
+
+Somtoday entities are grouped under one logical device per child. Each child's
+calendars, assessment/registration/holiday sensors, assessment change event and
+Live Activity switch belong to that child's device. Calendar sync, Homework sync
+and the retry button belong to a separate Somtoday account device.
+
+Existing entity IDs and unique IDs (including legacy first-child calendars) are
+retained when updating. Dashboard references, automations, per-child export options,
+and user-assigned entity names remain in place. Default friendly names use the child
+device name as their prefix. Devices are identified by the account entry and fixed
+student ID, so identical names, renaming or a different student order do not merge
+siblings. This grouping does not require signing in again or adding each child
+separately. Do not remove and re-add the integration to enable it.
+
+Token renewal also retains the current refresh token and school API URL if Somtoday
+omits replacements. Read requests receiving HTTP 401 attempt one coordinated token
+renewal and one retry before asking for reauthentication. Rotated tokens are recorded
+in the config entry immediately; malformed successful token responses are treated as
+temporary service failures. A rejected refresh credential still requires signing in.
 
 ## Privacy and support
 
@@ -655,3 +722,30 @@ Counts are assignment counts before filtering for homework or tests. A successfu
 source may return zero items. Share this file along with your account type and
 whether assignments are visible in Somtoday using that account. No task titles,
 student names, destination IDs, passwords, tokens or response bodies are included.
+
+### Readable calendar notes and timetable appearance
+
+Somtoday HTML descriptions are converted to readable plain text in native calendar
+entries, exported appointment notes and homework. Ordered lists retain numbering.
+Existing managed exports are reconciled with the new descriptions.
+
+Timetable Live Activities use a changing subject icon on the left, a coffee icon during
+breaks, a backpack before school and a check mark after the final lesson. Individual
+appointments are not classroom destinations: only Rooster and Toets categories are
+used. iOS requests a transparent background and adaptive text colour. Android
+retains its system notification background. Taps target the Somtoday app via
+`somtoday://` on iOS and the installed Somtoday package on Android.
+
+The app links and lock-screen appearance still require verification on a phone.
+
+The Live Activity title is **Name · Next room** (or **Naam · Volgend lokaal**).
+The top-right room always belongs to the next lesson. Body text contains no emoji:
+**Now:** names the current subject, its room and end time; **Next:** names the next
+subject and start time. The line order remains consistent in the final five minutes.
+During breaks, the first line says when the break ends and the second names the next
+subject. Older activity titles are migrated by ending and restarting the card once.
+
+Live Activity body text uses compact room/time fields, for example
+`Nu: Latijn · 224 · tot 10:35` and `Hierna: Gym · 10:40`. Known full subject names
+are shortened only in the Live Activity; source calendars and exports keep the
+original subject names. Unrecognized subject names are preserved without guessing.

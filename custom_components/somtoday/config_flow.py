@@ -340,6 +340,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(
                     "enable_lessons", default=bool(old.get("lesson_calendar"))
                 ): bool,
+                vol.Required("enable_schedule_tests", default=bool(old.get("schedule_test_calendar"))): bool,
+                vol.Required("enable_other", default=bool(old.get("other_calendar"))): bool,
                 vol.Required(
                     "enable_holidays", default=bool(old.get("holiday_calendar"))
                 ): bool,
@@ -356,7 +358,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             }
         )
         groups = {
-            "exports": ("enable_day", "enable_lessons", "enable_holidays", "enable_assessments", "enable_homework", "enable_absences", "enable_live_activity"),
+            "exports": ("enable_day", "enable_lessons", "enable_schedule_tests", "enable_other", "enable_holidays", "enable_assessments", "enable_homework", "enable_absences", "enable_live_activity"),
         }
         schema = vol.Schema({
             vol.Required(name, default={key.schema: key.default() for key in schema.schema if key.schema in fields}): section(
@@ -382,6 +384,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             self._enable_absences = user_input.get("enable_absences", False)
             self._enable_day = user_input["enable_day"]
             self._enable_lessons = user_input["enable_lessons"]
+            self._enable_schedule_tests = user_input.get("enable_schedule_tests", False)
+            self._enable_other = user_input.get("enable_other", False)
             self._enable_holidays = user_input["enable_holidays"]
             self._enable_assessments = user_input.get("enable_assessments", False)
             self._automatic_day_title = old.get("automatic_day_title", False)
@@ -418,12 +422,16 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             enabled_fields.append("holiday_calendar")
         if self._enable_assessments:
             enabled_fields.append("assessment_calendar")
+        if self._enable_schedule_tests:
+            enabled_fields.append("schedule_test_calendar")
+        if self._enable_other:
+            enabled_fields.append("other_calendar")
 
         if user_input is not None:
             # Sections are presentation-only. Accept both the sectioned form used by
             # current HA and the flat form used by older clients/tests.
             user_input = dict(user_input)
-            for name in ("calendar_destinations", "event_titles", "school_days", "lessons", "holidays", "holiday_layout", "tests", "homework", "absences", "live_activity"):
+            for name in ("calendar_destinations", "event_titles", "school_days", "lessons", "schedule_tests", "other_appointments", "holidays", "holiday_layout", "tests", "homework", "absences", "live_activity"):
                 nested = user_input.pop(name, None)
                 if isinstance(nested, dict):
                     user_input.update(nested)
@@ -464,6 +472,10 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                         "day_exclusion_match": user_input.get("day_exclusion_match", old.get("day_exclusion_match", "exact")),
                         "lesson_homework": user_input.get("lesson_homework", old.get("lesson_homework", False)),
                         "lesson_calendar": user_input.get("lesson_calendar", ""),
+                        "schedule_test_calendar": user_input.get("schedule_test_calendar", "") if self._enable_schedule_tests else "",
+                        "other_calendar": user_input.get("other_calendar", "") if self._enable_other else "",
+                        "schedule_test_prefix": user_input.get("schedule_test_prefix", "" if self._enable_schedule_tests else old.get("schedule_test_prefix", "{student} · ")),
+                        "other_prefix": user_input.get("other_prefix", "" if self._enable_other else old.get("other_prefix", "{student} · ")),
                         "holiday_calendar": user_input.get("holiday_calendar", ""),
                         "assessment_calendar": user_input.get(
                             "assessment_calendar", ""
@@ -493,6 +505,10 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 )
 
         calendar_schema = {}
+        for enabled, field in ((self._enable_schedule_tests, "schedule_test_calendar"), (self._enable_other, "other_calendar")):
+            if enabled:
+                key = vol.Required(field, default=old[field]) if old.get(field) in choices else vol.Required(field)
+                calendar_schema[key] = vol.In(choices)
         if self._enable_day:
             day_default = old.get("day_calendar")
             day_key = vol.Required("day_calendar")
@@ -561,6 +577,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                 "assessment_title",
                 default=old.get("assessment_title", "{student} · {subject} · {type}"),
             )] = vol.All(str, vol.Length(min=1, max=100))
+        for enabled, field in ((self._enable_schedule_tests, "schedule_test_prefix"), (self._enable_other, "other_prefix")):
+            if enabled:
+                title_schema[vol.Optional(field, description={"suggested_value": old.get(field, "{student} · ")})] = str
 
         if getattr(self, "_enable_homework", False):
             for kind in ("appointment", "day", "week"):
@@ -581,6 +600,8 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
         groups = {
             "school_days": ("day_calendar", "day_title", "automatic_day_title", "day_excluded_names", "day_exclusion_match"),
             "lessons": ("lesson_calendar", "lesson_prefix", "lesson_homework"),
+            "schedule_tests": ("schedule_test_calendar", "schedule_test_prefix"),
+            "other_appointments": ("other_calendar", "other_prefix"),
             "holidays": ("holiday_calendar", "holiday_title", "holiday_mode"),
             "tests": ("assessment_calendar", "assessment_title"),
             "homework": ("homework_list", "homework_title", "homework_bidirectional", "homework_include_appointment", "homework_include_day", "homework_include_week"),

@@ -4,9 +4,7 @@ from __future__ import annotations
 import asyncio
 from datetime import date, datetime
 import hashlib
-from html.parser import HTMLParser
 import logging
-import re
 
 from homeassistant.components.todo import TodoListEntityFeature as Feature
 from homeassistant.helpers.storage import Store
@@ -14,50 +12,11 @@ from homeassistant.helpers.storage import Store
 from .assessments import _subject
 from .export import item_id
 from .models import parse_datetime
+from .text import plain_text as homework_text
 
 STATUSES = ("needs_action", "completed")
 _LOGGER = logging.getLogger(__name__)
 
-
-class _HomeworkText(HTMLParser):
-    """Render rich homework text without markup or executable content."""
-
-    def __init__(self):
-        super().__init__(convert_charrefs=True)
-        self.parts = []
-        self.hidden = 0
-
-    def handle_starttag(self, tag, attrs):
-        if tag in {"script", "style"}:
-            self.hidden += 1
-        if self.hidden:
-            return
-        if tag in {"p", "div", "br", "li", "ul", "ol", "tr"}:
-            self.parts.append("\n")
-        if tag == "li":
-            self.parts.append("• ")
-        if tag in {"td", "th"}:
-            self.parts.append(" ")
-
-    def handle_endtag(self, tag):
-        if tag in {"script", "style"}:
-            self.hidden = max(0, self.hidden - 1)
-        if not self.hidden and tag in {"p", "div", "li", "ul", "ol", "tr"}:
-            self.parts.append("\n")
-
-    def handle_data(self, data):
-        if not self.hidden:
-            self.parts.append(data)
-
-
-def homework_text(value):
-    """Decode HTML once and keep readable, non-empty lines."""
-    parser = _HomeworkText()
-    parser.feed(str(value or ""))
-    parser.close()
-    lines = [re.sub(r"[^\S\n]+", " ", line).strip()
-             for line in "".join(parser.parts).splitlines()]
-    return "\n".join(line for line in lines if line)
 
 
 def lesson_homework(appointments, assignments, student, first, last):
@@ -91,7 +50,7 @@ def lesson_homework(appointments, assignments, student, first, last):
             text += " — " + ("Voltooid" if value["made"] else "Openstaand")
         additions.setdefault(matches[0], []).append("• " + text)
     for index, lines in additions.items():
-        original = str(result[index].get("omschrijving") or "").strip()
+        original = homework_text(result[index].get("omschrijving"))
         result[index]["omschrijving"] = "\n\n".join(
             part for part in (original, "Huiswerk\n" + "\n".join(lines)) if part
         )

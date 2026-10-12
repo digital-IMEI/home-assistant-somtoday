@@ -37,6 +37,8 @@ def test_configured_calendar_targets_are_unique_and_ignore_disabled_exports():
                     "day_calendar": "calendar.family",
                     "lesson_calendar": "calendar.family",
                     "holiday_calendar": "",
+                    "schedule_test_calendar": "calendar.tests",
+                    "other_calendar": "calendar.other",
                 },
                 "b": {"holiday_calendar": "calendar.holidays"},
             }
@@ -46,6 +48,8 @@ def test_configured_calendar_targets_are_unique_and_ignore_disabled_exports():
     assert _configured_calendar_targets(entry) == {
         "calendar.family",
         "calendar.holidays",
+        "calendar.tests",
+        "calendar.other",
     }
 
 
@@ -135,3 +139,24 @@ async def test_optional_source_failure_exposes_safe_details_and_recovers(monkeyp
     result = await coordinator._async_update_data()
     assert result["homework_sync_status"]["source_errors"] == []
     assert coordinator._assessment_assignments == {"private-child": []}
+
+
+@pytest.mark.asyncio
+async def test_rotated_token_is_recorded_before_followup_api_failure():
+    from custom_components.somtoday.api import SomtodayClient, SomtodayApiError
+    coordinator = object.__new__(SomtodayCoordinator)
+    entry = SimpleNamespace(data={"token": {"refresh_token": "old"}, "school": "school"})
+    update = Mock(side_effect=lambda _, data: setattr(entry, "data", data))
+    coordinator.entry = entry
+    coordinator.hass = SimpleNamespace(config_entries=SimpleNamespace(async_update_entry=update))
+    client = SomtodayClient(None, {"refresh_token": "old", "expires_at": 0})
+    client.token_updated = coordinator._persist_token
+    client._token_request = AsyncMock(return_value={
+        "access_token": "new", "refresh_token": "rotated", "expires_at": 9999999999,
+    })
+    client._get_once = AsyncMock(side_effect=SomtodayApiError("offline"))
+    with pytest.raises(SomtodayApiError):
+        await client._get("/students")
+    assert entry.data["token"]["refresh_token"] == "rotated"
+    assert entry.data["school"] == "school"
+    update.assert_called_once()

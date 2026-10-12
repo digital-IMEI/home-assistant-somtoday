@@ -11,11 +11,13 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
+from .device import student_device_info
 from .const import DOMAIN
 from .coordinator import SomtodayCoordinator
 from .assessments import assessment_description, assessment_summary
-from .models import automatic_day_titles, parse_datetime, school_day_appointments
+from .models import appointment_category, automatic_day_titles, parse_datetime, school_day_appointments
 from .export import item_id
+from .text import plain_text
 
 
 async def async_setup_entry(
@@ -45,7 +47,8 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
     def __init__(self, coordinator: SomtodayCoordinator, entry: ConfigEntry, student, legacy=False) -> None:
         super().__init__(coordinator)
         self.student = item_id(student)
-        self._attr_name = f"{student.get('roepnaam') or self.student} · Rooster"
+        self._attr_device_info = student_device_info(entry, student)
+        self._attr_name = "Rooster"
         self._attr_unique_id = f"{entry.entry_id}_schedule" if legacy else f"{entry.entry_id}_{self.student}_schedule"
 
     @property
@@ -65,6 +68,8 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
     def _events(self, start: datetime, end: datetime | None) -> list[CalendarEvent]:
         events: list[CalendarEvent] = []
         for item in self.coordinator.data.get("appointments_by_student", {}).get(self.student, []):
+            if appointment_category(item) != "rooster":
+                continue
             if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF":
                 continue
             try:
@@ -83,7 +88,7 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
                     end=event_end,
                     summary=str(summary),
                     location=item.get("locatie"),
-                    description=item.get("omschrijving"),
+                    description=plain_text(item.get("omschrijving")) or None,
                     uid=str((item.get("links") or [{}])[0].get("id", "")) or None,
                 )
             )
@@ -108,7 +113,8 @@ class SomtodaySchoolDayCalendar(
     ) -> None:
         super().__init__(coordinator)
         self.student = item_id(student)
-        self._attr_name = f"{student.get('roepnaam') or self.student} · Schooldag"
+        self._attr_device_info = student_device_info(entry, student)
+        self._attr_name = "Schooldag"
         self._automatic_day_title = entry.options.get("exports", {}).get(self.student, {}).get("automatic_day_title", False)
         self._day_options = entry.options.get("exports", {}).get(self.student, {})
         self._day_title = entry.options.get("exports", {}).get(self.student, {}).get("day_title", "Schooldag").replace("{student}", student.get("roepnaam") or self.student)
@@ -166,8 +172,8 @@ class SomtodayAssessmentCalendar(
     def __init__(self, coordinator, entry, student) -> None:
         super().__init__(coordinator)
         self.student = item_id(student)
-        name = student.get("roepnaam") or self.student
-        self._attr_name = f"{name} · Toetsen"
+        self._attr_device_info = student_device_info(entry, student)
+        self._attr_name = "Toetsen"
         self._attr_unique_id = f"{entry.entry_id}_{self.student}_assessments"
 
     @property

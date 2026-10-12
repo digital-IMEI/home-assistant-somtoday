@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
+from .device import account_device_info, student_device_info
 from .const import DOMAIN
 from .export import item_id
 from .coordinator import SomtodayCoordinator
@@ -47,6 +48,7 @@ class SomtodaySyncSensor(CoordinatorEntity[SomtodayCoordinator], SensorEntity):
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator)
+        self._attr_device_info = account_device_info(entry)
         self._attr_unique_id = f"{entry.entry_id}_calendar_sync"
 
     @property
@@ -70,8 +72,8 @@ class SomtodayNextAssessmentSensor(
     def __init__(self, coordinator, entry, student):
         super().__init__(coordinator)
         self.student = item_id(student)
-        name = student.get("roepnaam") or self.student
-        self._attr_name = f"{name} · Volgende toets"
+        self._attr_device_info = student_device_info(entry, student)
+        self._attr_name = "Volgende toets"
         self._attr_unique_id = f"{entry.entry_id}_{self.student}_next_assessment"
 
     @property
@@ -148,10 +150,8 @@ class _SomtodayRegistrationSensor(
         super().__init__(coordinator)
         self.entry = entry
         self.student = item_id(student)
-        # The name comes from the translations (NL and EN) with the child filled in.
-        self._attr_translation_placeholders = {
-            "student": str(student.get("roepnaam") or self.student)
-        }
+        self._attr_device_info = student_device_info(entry, student)
+        # Home Assistant prefixes translated entity names with the pupil device.
 
     def _raw(self):
         return self.coordinator.data.get(self._key, {}).get(self.student)

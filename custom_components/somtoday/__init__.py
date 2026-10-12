@@ -34,6 +34,8 @@ def _configured_calendar_targets(entry: ConfigEntry) -> set[str]:
         for field in (
             "day_calendar",
             "lesson_calendar",
+            "schedule_test_calendar",
+            "other_calendar",
             "holiday_calendar",
             "assessment_calendar",
         )

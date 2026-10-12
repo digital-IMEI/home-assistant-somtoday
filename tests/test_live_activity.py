@@ -1,12 +1,13 @@
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
+from copy import deepcopy
 from zoneinfo import ZoneInfo
 
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.somtoday.live_activity import activity_view
+from custom_components.somtoday.live_activity import activity_view, subject_icon, subject_display_name
 from custom_components.somtoday.switch import SomtodayLiveActivitySwitch, async_setup_entry
 
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -21,6 +22,7 @@ def lesson(start, end, subject="Wiskunde", room="B104", **extra):
         "beginDatumTijd": at(start).isoformat(),
         "eindDatumTijd": at(end).isoformat(),
         "additionalObjects": {"vak": {"naam": subject}},
+        "afspraakType": {"categorie": "Rooster"},
         "locatie": room,
         **extra,
     }
@@ -37,7 +39,7 @@ SCHEDULE = [lesson("09:45", "10:35"), lesson("10:40", "11:30", "Engels", "C203")
     ("10:30", "leaving", "10:35", "C203"),
     ("10:35", "break", "10:40", "C203"),
     ("10:40", "lesson", "11:25", "—"),
-    ("11:30", "finished", "11:40", "✓"),
+    ("11:30", "finished", "11:40", "—"),
     ("11:40", "idle", "00:00", ""),
 ])
 def test_exact_school_day_boundaries(clock, phase, next_time, room):
@@ -50,13 +52,13 @@ def test_exact_school_day_boundaries(clock, phase, next_time, room):
 
 def test_option_one_content_and_five_minute_emphasis():
     assert activity_view(SCHEDULE, at("10:12")).message == (
-        "Nu Wiskunde · B104 tot 10:35\nHierna Engels · 10:40"
+        "Nu: Wiskunde · B104 · tot 10:35\nHierna: Engels · 10:40"
     )
     assert activity_view(SCHEDULE, at("10:30")).message == (
-        "Hierna Engels · 10:40 · C203\nNu Wiskunde · B104 tot 10:35"
+        "Nu: Wiskunde · B104 · tot 10:35\nHierna: Engels · 10:40"
     )
     assert activity_view(SCHEDULE, at("10:35")).message == (
-        "Pauze · hierna Engels · 10:40\nLokaal C203"
+        "Pauze tot 10:40\nHierna: Engels · 10:40"
     )
 
 
@@ -80,7 +82,7 @@ def test_cancelled_break_invalid_and_other_day_entries_are_not_destinations():
 
 def test_utc_dates_are_compared_in_local_timezone():
     # UTC Sunday is already Monday in the student's local timezone.
-    schedule = [{"beginDatumTijd": "2026-10-11T22:10:00Z", "eindDatumTijd": "2026-10-11T23:00:00Z", "titel": "Late lesson", "locatie": "A1"}]
+    schedule = [{"beginDatumTijd": "2026-10-11T22:10:00Z", "eindDatumTijd": "2026-10-11T23:00:00Z", "titel": "Late lesson", "locatie": "A1", "afspraakType": {"categorie": "Rooster"}}]
     view = activity_view(schedule, at("00:05"))
     assert view.phase == "before_school"
     assert view.room == "A1"
@@ -96,7 +98,7 @@ def test_empty_weekend_and_room_unknown():
 
 def test_english_card():
     view = activity_view(SCHEDULE, at("10:12"), "en")
-    assert view.message == "Now Wiskunde · B104 until 10:35\nNext Engels · 10:40"
+    assert view.message == "Now: Wiskunde · B104 · until 10:35\nNext: Engels · 10:40"
 
 
 def make_switch(monkeypatch, now="10:12", targets=None):
@@ -105,7 +107,7 @@ def make_switch(monkeypatch, now="10:12", targets=None):
         "live_activity_targets": targets or ["notify.mobile_app_seth"],
     }}})
     switch = SomtodayLiveActivitySwitch(coordinator, entry, {"links": [{"id": "a"}], "roepnaam": "Seth"})
-    switch.hass = SimpleNamespace(services=SimpleNamespace(async_call=AsyncMock()))
+    switch.hass = SimpleNamespace(data={}, services=SimpleNamespace(async_call=AsyncMock()))
     switch.async_write_ha_state = Mock()
     switch._schedule = Mock()
     monkeypatch.setattr("custom_components.somtoday.switch.dt_util.now", lambda: at(now))
@@ -119,10 +121,14 @@ async def test_switch_off_clears_and_no_duplicate_pushes(monkeypatch):
     notify = switch.hass.services.async_call
     assert notify.await_count == 1
     payload = notify.call_args.args[2]
-    assert payload["title"] == "Seth · Rooster"
-    assert payload["message"].startswith("Nu Wiskunde")
+    assert payload["title"] == "Seth · Volgend lokaal"
+    assert payload["message"].startswith("Nu: Wiskunde")
     assert payload["data"]["critical_text"] == "C203"
     assert payload["data"]["live_update"] is True
+    assert payload["data"]["url"] == "somtoday://"
+    assert payload["data"]["background_color"] == "transparent"
+    assert "text_color" not in payload["data"]
+    assert payload["data"]["notification_icon"] == "mdi:calculator-variant"
     assert "progress" not in payload["data"]
     assert "chronometer" not in payload["data"]
     assert "silent" not in payload["data"]
@@ -264,6 +270,7 @@ async def test_switch_restores_state_and_registers_lifecycle_hooks(monkeypatch, 
     switch.coordinator.async_add_listener = Mock(return_value=unsubscribe)
     await switch.async_added_to_hass()
     assert switch.is_on is on
+    assert switch._restart_targets == (set(switch.targets) if on else set())
     switch.coordinator.async_add_listener.assert_called_once_with(switch._source_updated)
     assert switch.async_on_remove.call_args_list[0].args == (unsubscribe,)
     switch._schedule.assert_called_once_with(1)
@@ -285,3 +292,166 @@ async def test_unload_cancels_timer_and_clears_without_changing_restored_switch_
     count = switch.hass.services.async_call.await_count
     await switch._async_refresh()
     assert switch.hass.services.async_call.await_count == count
+
+
+def register_phone(switch, service, os_name, webhook="phone"):
+    mobile_app = switch.hass.data.setdefault("mobile_app", {})
+    mobile_app.setdefault("notify", SimpleNamespace(registered_targets={})).registered_targets[service] = webhook
+    mobile_app.setdefault("config_entries", {})[webhook] = SimpleNamespace(data={"os_name": os_name})
+
+
+@pytest.mark.asyncio
+async def test_android_payload_contains_next_room_and_silent_persistent_channel(monkeypatch):
+    switch = make_switch(monkeypatch)
+    register_phone(switch, "mobile_app_seth", "Android")
+    await switch.async_turn_on()
+    payload = switch.hass.services.async_call.call_args.args[2]
+    assert payload["message"] == "Nu: Wiskunde · B104 · tot 10:35\nHierna: Engels · 10:40 · C203"
+    data = payload["data"]
+    assert data["critical_text"] == "C203"
+    assert data["live_update"] is True
+    assert data["persistent"] is True
+    assert data["sticky"] is True
+    assert data["alert_once"] is True
+    assert data["importance"] == "low"
+    assert data["channel"] == "Somtoday timetable"
+    assert data["clickAction"] == "app://nl.topicus.somtoday.leerling"
+    assert data["priority"] == "high" and data["ttl"] == 0
+    assert not {"push", "background_color", "text_color", "chronometer", "progress"}.intersection(data)
+    await switch._async_refresh()
+    assert switch.hass.services.async_call.await_count == 1
+    await switch.async_turn_off()
+    clear = switch.hass.services.async_call.call_args.args[2]
+    assert clear == {"message": "clear_notification", "data": {"tag": switch.tag, "priority": "high", "ttl": 0}}
+
+
+@pytest.mark.asyncio
+async def test_mixed_android_ios_targets_receive_their_own_payloads(monkeypatch):
+    switch = make_switch(monkeypatch, targets=["notify.mobile_app_seth", "notify.mobile_app_ivo"])
+    register_phone(switch, "mobile_app_seth", "Android", "android-phone")
+    register_phone(switch, "mobile_app_ivo", "iOS", "ios-phone")
+    await switch.async_turn_on()
+    android, ios = [call.args[2] for call in switch.hass.services.async_call.call_args_list]
+    assert android["message"].endswith(" · C203")
+    assert ios["message"].endswith(" · 10:40")
+    assert "push" in ios["data"] and "channel" not in ios["data"]
+    assert android["data"]["tag"] == ios["data"]["tag"]
+    await switch._async_refresh()
+    assert switch.hass.services.async_call.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_android_long_day_does_not_restart_at_ios_expiry(monkeypatch):
+    switch = make_switch(monkeypatch, now="08:00")
+    register_phone(switch, "mobile_app_seth", "Android")
+    switch.coordinator.data["appointments_by_student"]["a"] = [lesson("08:00", "18:00")]
+    await switch.async_turn_on()
+    assert switch._schedule.call_args.args[0] == (9 * 60 + 55) * 60
+    monkeypatch.setattr("custom_components.somtoday.switch.dt_util.now", lambda: at("15:55"))
+    await switch._async_refresh()
+    assert switch.hass.services.async_call.await_count == 1
+
+
+def test_platform_is_resolved_by_registered_target_not_phone_name(monkeypatch):
+    switch = make_switch(monkeypatch)
+    register_phone(switch, "mobile_app_iphone_named_android", "iOS", "1")
+    register_phone(switch, "mobile_app_iphone", "Android", "2")
+    assert switch._platform("notify.mobile_app_iphone_named_android") == "ios"
+    assert switch._platform("notify.mobile_app_iphone") == "android"
+    assert switch._platform("notify.mobile_app_missing") == "unknown"
+
+
+def test_android_missing_next_room_is_explicit_in_message():
+    schedule = [SCHEDULE[0], lesson("10:40", "11:30", "Engels", "")]
+    view = activity_view(schedule, at("10:12"), include_next_room=True)
+    assert view.message.endswith("Hierna: Engels · 10:40 · Lokaal onbekend")
+    assert view.room == "—"
+
+
+@pytest.mark.parametrize("subject,expected", [
+    ("Nederlandse taal", "mdi:book-open-page-variant"),
+    ("Latijnse taal en letterkunde", "mdi:pillar"),
+    ("lichamelijke opvoeding", "mdi:run"),
+    ("digitale geletterdheid", "mdi:laptop"),
+    ("geschiedenis", "mdi:pillar"),
+    ("Onbekend vak", "mdi:book-open-page-variant"),
+])
+def test_subject_icons_cover_full_school_names(subject, expected):
+    assert subject_icon(subject) == expected
+
+
+def test_main_icon_changes_with_phase_and_individual_appointments_are_not_lessons():
+    individual = lesson("10:12", "15:00", "proefwerk Nederlands", "Wrong room", afspraakType={"categorie": "Individueel"})
+    schedule = SCHEDULE + [individual]
+    assert activity_view(schedule, at("10:12")).icon == "mdi:calculator-variant"
+    assert activity_view(schedule, at("10:30")).icon == "mdi:translate"
+    assert activity_view(schedule, at("10:35")).icon == "mdi:coffee-outline"
+    assert activity_view(schedule, at("09:30")).icon == "mdi:bag-personal"
+    assert activity_view(schedule, at("11:30")).icon == "mdi:check-circle-outline"
+    assert 'Wrong room' not in activity_view(schedule, at("10:12")).message
+    assert activity_view([individual], at("10:12")).phase == "idle"
+
+
+@pytest.mark.asyncio
+async def test_old_static_title_is_restarted_once_without_repeated_pushes(monkeypatch):
+    switch = make_switch(monkeypatch)
+    switch._attr_is_on = True
+    switch._restart_targets = set(switch.targets)
+    assert switch.extra_state_attributes["layout"] == "pending"
+    await switch._async_refresh()
+    calls = switch.hass.services.async_call.call_args_list
+    assert len(calls) == 2
+    assert calls[0].args[2]["message"] == "clear_notification"
+    assert calls[1].args[2]["title"] == "Seth · Volgend lokaal"
+    assert switch.extra_state_attributes["layout"] == "next_room_v1"
+    await switch._async_refresh()
+    assert switch.hass.services.async_call.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_failed_title_migration_retries_before_creating_new_card(monkeypatch):
+    switch = make_switch(monkeypatch)
+    switch._attr_is_on = True
+    switch._restart_targets = set(switch.targets)
+    notify = switch.hass.services.async_call
+    notify.side_effect = [HomeAssistantError("offline"), None, None]
+    await switch._async_refresh()
+    assert switch.extra_state_attributes["layout"] == "pending"
+    assert notify.await_count == 1
+    await switch._async_refresh()
+    assert notify.await_count == 3
+    assert switch.extra_state_attributes["layout"] == "next_room_v1"
+
+
+def test_text_has_consistent_current_and_next_lines_without_decorative_icons():
+    view = activity_view(SCHEDULE, at("10:30"))
+    assert view.message.splitlines() == [
+        "Nu: Wiskunde · B104 · tot 10:35", "Hierna: Engels · 10:40"]
+    assert view.room == "C203"
+    assert activity_view(SCHEDULE, at("10:35")).message == "Pauze tot 10:40\nHierna: Engels · 10:40"
+    assert activity_view(SCHEDULE, at("11:30")).message == "Klaar voor vandaag"
+
+
+@pytest.mark.parametrize("source,short", [
+    ("Latijnse taal en letterkunde", "Latijn"),
+    ("Nederlandse taal", "Nederlands"),
+    ("Engelse taal en literatuur", "Engels"),
+    ("Lichamelijke opvoeding", "Gym"),
+    ("Griekse taal en letterkunde", "Grieks"),
+    ("Digitale geletterdheid", "Digitaal"),
+    ("Speciale les met een eigen naam", "Speciale les met een eigen naam"),
+])
+def test_known_subject_names_are_shortened_without_guessing_unknown_names(source, short):
+    assert subject_display_name(source) == short
+
+
+def test_compact_current_upcoming_and_break_text_preserves_source_subjects():
+    schedule = [lesson("09:45", "10:35", "Latijnse taal en letterkunde", "224"),
+                lesson("10:40", "11:30", "Lichamelijke opvoeding", "mfr2")]
+    original = deepcopy(schedule)
+    view = activity_view(schedule, at("10:12"))
+    assert view.message == "Nu: Latijn · 224 · tot 10:35\nHierna: Gym · 10:40"
+    assert view.room == "mfr2"
+    assert activity_view(schedule, at("10:35")).message == "Pauze tot 10:40\nHierna: Gym · 10:40"
+    assert activity_view(schedule, at("09:30")).message == "School begint om 09:45\nEerste les: Latijn"
+    assert schedule == original

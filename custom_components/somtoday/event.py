@@ -6,6 +6,7 @@ from homeassistant.components.event import EventEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
+from .device import student_device_info
 from .const import DOMAIN
 from .export import item_id
 
@@ -62,8 +63,8 @@ class SomtodayAssessmentChangeEvent(CoordinatorEntity, EventEntity):
     def __init__(self, coordinator, entry, student):
         super().__init__(coordinator)
         self.student = item_id(student)
-        name = student.get("roepnaam") or self.student
-        self._attr_name = f"{name} · Toetswijziging"
+        self._attr_device_info = student_device_info(entry, student)
+        self._attr_name = "Toetswijziging"
         self._attr_unique_id = f"{entry.entry_id}_{self.student}_assessment_change"
         self._known = self._current()
 

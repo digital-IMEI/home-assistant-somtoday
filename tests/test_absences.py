@@ -285,14 +285,15 @@ def test_unreadable_measure_endpoint_does_not_claim_nothing_is_outstanding():
     assert sensor.extra_state_attributes["subjects"] == {"Duits": 1}
 
 
-def test_entity_names_are_translated_with_the_child_filled_in():
+def test_entity_names_are_translated_and_child_comes_from_device():
     absences, lessons = _sensors([], {"lessons": [], "outstanding": 0}, reasons=False)
     assert absences.translation_key == "absences"
     assert lessons.translation_key == "lesson_registrations"
-    assert absences.translation_placeholders == {"student": "Seth"}
+    assert absences.device_info["name"] == "Seth"
+    assert absences.translation_placeholders == {}
     for language, expected in (
-        ("en", ("{student} · Absences", "{student} · Lesson registrations")),
-        ("nl", ("{student} · Absenties", "{student} · Lesregistraties")),
+        ("en", ("Absences", "Lesson registrations")),
+        ("nl", ("Absenties", "Lesregistraties")),
     ):
         names = json.loads(
             (ROOT / "translations" / f"{language}.json").read_text(encoding="utf-8")

@@ -10,7 +10,8 @@ from .const import (
     HOLIDAY_MODE_SCHOOL_DAYS,
     HOLIDAY_MODES,
 )
-from .models import automatic_day_titles, is_active_school_appointment, parse_datetime, school_day_bounds, school_day_appointments
+from .models import appointment_category, automatic_day_titles, is_active_school_appointment, parse_datetime, school_day_bounds, school_day_appointments
+from .text import plain_text
 
 
 def item_id(item):
@@ -43,7 +44,7 @@ def desired_events(appointments, options, student, start, end):
     result = {}
     active = []
     for item in appointments:
-        if not is_active_school_appointment(item):
+        if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF":
             continue
         begin = parse_datetime(item["beginDatumTijd"])
         finish = parse_datetime(item["eindDatumTijd"])
@@ -60,18 +61,34 @@ def desired_events(appointments, options, student, start, end):
                 "summary": titles.get(day, options.get("day_title", "School")),
                 "location": "",
             }
-    if target := options.get("lesson_calendar"):
+    for field, scope, category in (
+        ("lesson_calendar", "lesson", "rooster"),
+        ("schedule_test_calendar", "schedule_test", "toets"),
+        ("other_calendar", "other", None),
+    ):
+        target = options.get(field)
+        if not target:
+            continue
         for item in active:
+            source_category = appointment_category(item)
+            if (category is not None and source_category != category) or (
+                category is None and source_category in {"rooster", "toets"}
+            ):
+                continue
+            if scope == "lesson" and not is_active_school_appointment(item):
+                continue
             identifier = item_id(item)
             if not identifier:
                 raise ValueError("Appointment has no stable ID; synchronization paused")
             subject = ((item.get("additionalObjects") or {}).get("vak") or {}).get("naam")
-            result[(target, f"{student}:lesson:{identifier}")] = {
+            title = (item.get("titel") or subject) if scope == "other" else (subject or item.get("titel"))
+            prefix = options.get("lesson_prefix", "") if scope == "lesson" else options.get(f"{scope}_prefix", "{student} · ").replace("{student}", student)
+            result[(target, f"{student}:{scope}:{identifier}")] = {
                 "dtstart": parse_datetime(item["beginDatumTijd"]),
                 "dtend": parse_datetime(item["eindDatumTijd"]),
-                "summary": options.get("lesson_prefix", "") + str(subject or item.get("titel") or "Lesson"),
+                "summary": prefix + str(title or "Somtoday"),
                 "location": str(item.get("locatie") or ""),
-                "description": str(item.get("omschrijving") or "") if options.get("lesson_homework") else "",
+                "description": plain_text(item.get("omschrijving")) if scope != "lesson" or options.get("lesson_homework") else "",
             }
     return result
 

@@ -12,6 +12,7 @@ from test_options import make_flow
 
 def appointments():
     return [{"links": [{"id": str(i)}], "titel": title,
+             "afspraakType": {"categorie": "Rooster"},
              "additionalObjects": {"vak": {"naam": subject}},
              "beginDatumTijd": f"2026-09-22T{start}:00+02:00",
              "eindDatumTijd": f"2026-09-22T{end}:00+02:00"}

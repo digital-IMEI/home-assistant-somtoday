@@ -48,6 +48,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.entry = entry
         self.options_snapshot = dict(entry.options)
         self.client = client
+        self.client.token_updated = self._persist_token
         self.calendar_sync = CalendarSync(hass, entry)
         self.homework_sync = HomeworkSync(hass, entry, client)
         self._holidays = {}
@@ -59,6 +60,13 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._assessment_assignments = {}
         self._assignment_source_errors = []
         self.export_ready = False
+
+    def _persist_token(self, token):
+        """Save a rotated credential before subsequent API requests can fail."""
+        if token != self.entry.data.get(CONF_TOKEN):
+            self.hass.config_entries.async_update_entry(
+                self.entry, data={**self.entry.data, CONF_TOKEN: dict(token)}
+            )
 
     async def _registration_source(self, source, request, student_id, parse):
         """Read one optional absence source; any failure stays inside it.
@@ -228,6 +236,8 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for field, default in (
                     ("day_title", "School · {student}"),
                     ("lesson_prefix", "{student} · "),
+                    ("schedule_test_prefix", "{student} · "),
+                    ("other_prefix", "{student} · "),
                     ("holiday_title", "{student} · {holiday}"),
                     ("assessment_title", "{student} · {subject} · {type}"),
                 ):
@@ -235,6 +245,8 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for field, kind in (
                     ("day_calendar", "day"),
                     ("lesson_calendar", "lesson"),
+                    ("schedule_test_calendar", "schedule_test"),
+                    ("other_calendar", "other"),
                     ("holiday_calendar", "holiday"),
                     ("assessment_calendar", "assessment"),
                 ):

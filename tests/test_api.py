@@ -176,3 +176,90 @@ async def test_source_reports_include_successful_zero_counts():
         {"source": kind, "status": "ok", "count": 0}
         for kind in ("appointment", "day", "week")
     ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("replacement", [None, "rotated"])
+async def test_refresh_retains_optional_metadata_and_saves_rotation(replacement):
+    from unittest.mock import Mock
+    client = SomtodayClient(None, {
+        "access_token": "old", "refresh_token": "original",
+        "somtoday_api_url": "https://school.example", "expires_at": 0,
+    })
+    refreshed = {"access_token": "new", "expires_at": 9999999999}
+    if replacement is not None:
+        refreshed["refresh_token"] = replacement
+    client._token_request = AsyncMock(return_value=refreshed)
+    client.token_updated = Mock()
+
+    await client.refresh()
+
+    assert client.token["refresh_token"] == (replacement or "original")
+    assert client.token["somtoday_api_url"] == "https://school.example"
+    assert client.token["access_token"] == "new"
+    client.token_updated.assert_called_once_with(client.token)
+    assert client.token_updated.call_args.args[0] is not client.token
+
+
+@pytest.mark.asyncio
+async def test_early_unauthorized_refreshes_and_retries_once():
+    from custom_components.somtoday.api import SomtodayAuthenticationError
+    client = SomtodayClient(None, {"access_token": "old", "expires_at": 9999999999})
+    client._get_once = AsyncMock(side_effect=[SomtodayAuthenticationError("expired"), {"items": []}])
+    async def refresh():
+        client.token = {"access_token": "new", "expires_at": 9999999999}
+    client.refresh = AsyncMock(side_effect=refresh)
+
+    assert await client._get("/test") == {"items": []}
+    client.refresh.assert_awaited_once()
+    assert client._get_once.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_repeated_unauthorized_still_requests_reauth_without_loop():
+    from custom_components.somtoday.api import SomtodayAuthenticationError
+    client = SomtodayClient(None, {"access_token": "old", "expires_at": 9999999999})
+    client._get_once = AsyncMock(side_effect=SomtodayAuthenticationError("rejected"))
+    client.refresh = AsyncMock()
+    with pytest.raises(SomtodayAuthenticationError):
+        await client._get("/test")
+    client.refresh.assert_awaited_once()
+    assert client._get_once.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_concurrent_unauthorized_requests_share_one_rotation():
+    from custom_components.somtoday.api import SomtodayAuthenticationError
+    client = SomtodayClient(None, {"access_token": "old", "expires_at": 9999999999})
+    arrivals = 0
+    all_arrived = asyncio.Event()
+    async def request(*args):
+        nonlocal arrivals
+        if client.token["access_token"] == "old":
+            arrivals += 1
+            if arrivals == 6:
+                all_arrived.set()
+            await all_arrived.wait()
+            raise SomtodayAuthenticationError("expired")
+        return {"items": []}
+    async def refresh():
+        await asyncio.sleep(0)
+        client.token = {"access_token": "new", "expires_at": 9999999999}
+    client._get_once = request
+    client.refresh = AsyncMock(side_effect=refresh)
+    assert await asyncio.gather(*(client._get("/test") for _ in range(6))) == [{"items": []}] * 6
+    client.refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_invalid_token_payload_is_transient_and_retains_credential():
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from custom_components.somtoday.api import SomtodayAuthenticationError
+    response = SimpleNamespace(raise_for_status=Mock(), json=AsyncMock(return_value={}))
+    original = {"access_token": "old", "refresh_token": "original", "expires_at": 0}
+    client = SomtodayClient(SimpleNamespace(post=AsyncMock(return_value=response)), dict(original))
+    with pytest.raises(SomtodayApiError) as caught:
+        await client.refresh()
+    assert not isinstance(caught.value, SomtodayAuthenticationError)
+    assert client.token == original

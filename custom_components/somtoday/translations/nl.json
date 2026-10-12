@@ -64,24 +64,28 @@
         "description": "Kies de agenda- en takenexports voor {student}. Bestemmingen en titels stel je op de volgende pagina in.",
         "data": {
           "enable_day": "Schooldagen exporteren",
-          "enable_lessons": "Lessen exporteren",
+          "enable_lessons": "Rooster exporteren",
           "enable_holidays": "Vakanties exporteren",
-          "enable_assessments": "Toetsen exporteren",
+          "enable_assessments": "Studiewijzertoetsen exporteren",
           "days_ahead": "Dagen vooruit (1–60)",
           "scan_interval": "Bijwerkinterval in minuten (5–120)",
           "enable_homework": "Huiswerk exporteren",
           "enable_absences": "Absentieoverzicht",
-          "enable_live_activity": "Live Activity voor het rooster"
+          "enable_live_activity": "Live Activity / Live Update voor het rooster",
+          "enable_schedule_tests": "Roostertoetsen exporteren",
+          "enable_other": "Niet-reguliere lessen en afspraken exporteren"
         },
         "data_description": {
           "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
-          "enable_lessons": "Een aparte afspraak voor iedere les.",
+          "enable_lessons": "Alleen afspraken met categorie Rooster.",
           "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
-          "enable_assessments": "Toetsen met een gepubliceerde datum.",
+          "enable_assessments": "Toetsen uit de studiewijzer met een gepubliceerde datum.",
           "days_ahead": "Geldt voor ieder kind in dit account. Begin met 1 dag om de export te controleren.",
           "scan_interval": "Hoe vaak Somtoday wordt vernieuwd. Geldt voor ieder kind in dit account.",
           "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden.",
-          "enable_live_activity": "Voegt een schakelaar toe om de huidige les en het volgende lokaal op geselecteerde telefoons te tonen."
+          "enable_live_activity": "Voegt een schakelaar toe om de huidige les en het volgende lokaal op geselecteerde telefoons te tonen.",
+          "enable_schedule_tests": "Exporteert afspraken met categorie Toets. Sommige scholen gebruiken deze categorie in plaats van de studiewijzer. Het kan ook een gereserveerd toetsuur zijn zonder daadwerkelijke toets.",
+          "enable_other": "Exporteert alle categorieën behalve Rooster en Toets. Scholen kunnen deze gebruiken of anders inzetten voor wisselende afspraken, bijvoorbeeld individuele afspraken, activiteiten of proefwerken."
         },
         "sections": {
           "exports": {
@@ -89,21 +93,25 @@
             "description": "Kies welke Somtoday-informatie naar een doelagenda wordt gekopieerd.",
             "data": {
               "enable_day": "Schooldagen exporteren",
-              "enable_lessons": "Lessen exporteren",
+              "enable_lessons": "Rooster exporteren",
               "enable_holidays": "Vakanties exporteren",
-              "enable_assessments": "Toetsen exporteren",
+              "enable_assessments": "Studiewijzertoetsen exporteren",
               "enable_homework": "Huiswerk exporteren",
               "enable_absences": "Absentieoverzicht",
-              "enable_live_activity": "Live Activity voor het rooster"
+              "enable_live_activity": "Live Activity / Live Update voor het rooster",
+              "enable_schedule_tests": "Roostertoetsen exporteren",
+              "enable_other": "Niet-reguliere lessen en afspraken exporteren"
             },
             "data_description": {
               "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
-              "enable_lessons": "Een aparte afspraak voor iedere les.",
+              "enable_lessons": "Alleen afspraken met categorie Rooster.",
               "enable_holidays": "Gepubliceerde vakanties, volgens de gekozen afspraakindeling.",
-              "enable_assessments": "Toetsen met een gepubliceerde datum.",
+              "enable_assessments": "Toetsen uit de studiewijzer met een gepubliceerde datum.",
               "enable_homework": "Huiswerk naar een HA-takenlijst. Geen toetsen of ingeleverde bestanden.",
               "enable_absences": "Voegt voor dit kind twee sensoren toe: absenties van dit schooljaar (afwezig, te laat, verwijderd) en lesregistraties (huiswerk niet gemaakt, materiaal niet in orde) met vak en lesuur. Standaard uit, want dit zijn gevoelige schoolgegevens.",
-              "enable_live_activity": "Voegt een schakelaar toe om de huidige les en het volgende lokaal op geselecteerde telefoons te tonen."
+              "enable_live_activity": "Voegt een schakelaar toe om de huidige les en het volgende lokaal op geselecteerde telefoons te tonen.",
+              "enable_schedule_tests": "Exporteert afspraken met categorie Toets. Sommige scholen gebruiken deze categorie in plaats van de studiewijzer. Het kan ook een gereserveerd toetsuur zijn zonder daadwerkelijke toets.",
+              "enable_other": "Exporteert alle categorieën behalve Rooster en Toets. Scholen kunnen deze gebruiken of anders inzetten voor wisselende afspraken, bijvoorbeeld individuele afspraken, activiteiten of proefwerken."
             }
           }
         },
@@ -118,14 +126,18 @@
           "day_calendar": "Schooldagen · doelagenda",
           "lesson_calendar": "Lessen · doelagenda",
           "holiday_calendar": "Vakanties · doelagenda",
-          "assessment_calendar": "Toetsen · doelagenda",
+          "assessment_calendar": "Studiewijzertoetsen · doelagenda",
           "automatic_day_title": "Automatische naam voor schooldag",
           "day_title": "Schooldagen · afspraaknaam",
           "lesson_prefix": "Lessen · voorvoegsel",
           "holiday_title": "Vakanties · afspraaknaam",
           "holiday_mode": "Vakanties · afspraakindeling",
-          "assessment_title": "Toetsen · afspraaknaam",
-          "absence_remarks": "Tekst van school meenemen"
+          "assessment_title": "Studiewijzertoetsen · afspraaknaam",
+          "absence_remarks": "Tekst van school meenemen",
+          "schedule_test_calendar": "Roostertoetsen · doelagenda",
+          "schedule_test_prefix": "Roostertoetsen · voorvoegsel",
+          "other_calendar": "Niet-reguliere lessen en afspraken · doelagenda",
+          "other_prefix": "Niet-reguliere lessen en afspraken · voorvoegsel"
         },
         "data_description": {
           "day_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
@@ -136,7 +148,11 @@
           "day_title": "Placeholder: {student_placeholder}. Basisnaam voor de HA-schooldagagenda en export. De automatische naam heeft voorrang wanneer een gezamenlijke titel beschikbaar is.",
           "lesson_prefix": "Placeholder: {student_placeholder}. Wordt vóór iedere lestitel gezet.",
           "holiday_title": "Placeholders: {student_placeholder}, {holiday_placeholder}.",
-          "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}."
+          "assessment_title": "Placeholders: {student_placeholder}, {subject_placeholder}, {type_placeholder}, {topic_placeholder}.",
+          "schedule_test_calendar": "Exporteert afspraken met categorie Toets. Sommige scholen gebruiken deze categorie in plaats van de studiewijzer. Het kan ook een gereserveerd toetsuur zijn zonder daadwerkelijke toets.",
+          "schedule_test_prefix": "Placeholder: {student_placeholder}. Wordt vóór de afspraaktitel gezet.",
+          "other_calendar": "Exporteert alle categorieën behalve Rooster en Toets. Scholen kunnen deze gebruiken of anders inzetten voor wisselende afspraken, bijvoorbeeld individuele afspraken, activiteiten of proefwerken.",
+          "other_prefix": "Placeholder: {student_placeholder}. Wordt vóór de afspraaktitel gezet."
         },
         "sections": {
           "school_days": {
@@ -185,11 +201,11 @@
             }
           },
           "tests": {
-            "name": "Toetsen",
+            "name": "Studiewijzertoetsen",
             "description": "",
             "data": {
-              "assessment_calendar": "Toetsen · doelagenda",
-              "assessment_title": "Toetsen · afspraaknaam"
+              "assessment_calendar": "Studiewijzertoetsen · doelagenda",
+              "assessment_title": "Studiewijzertoetsen · afspraaknaam"
             },
             "data_description": {
               "assessment_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
@@ -227,14 +243,38 @@
             }
           },
           "live_activity": {
-            "name": "Live Activity",
-            "description": "Schakel de Live Activity in via de nieuwe schakelaar van dit kind. Start 15 minuten voor de eerste les; stopt 10 minuten na de laatste les. Het volgende lokaal staat rechts en in de Dynamic Island. De huidige les en volgende les staan in de berichttekst. Vereist Home Assistant Companion met Live Activities en bereikbaarheid van Home Assistant op school.",
+            "name": "Live Activity / Live Update",
+            "description": "Schakel de roosterkaart in via de schakelaar van dit kind. Start 15 minuten voor de eerste les; stopt 10 minuten na de laatste les. iPhone: Live Activity met het volgende lokaal rechts en in de Dynamic Island. Android: Live Update met het volgende lokaal in de melding en, vanaf Android 16, de statusbalk. Oudere Android-versies tonen een vaste roostermelding. Home Assistant moet op school bereikbaar zijn.",
             "data": {
               "live_activity_targets": "Telefoons",
               "live_activity_language": "Taal op de kaart"
             },
             "data_description": {
               "live_activity_targets": "Kies de Home Assistant Companion-telefoon van het kind. Meerdere telefoons zijn mogelijk."
+            }
+          },
+          "schedule_tests": {
+            "name": "Roostertoetsen",
+            "description": "Exporteert afspraken met categorie Toets. Sommige scholen gebruiken deze categorie in plaats van de studiewijzer. Het kan ook een gereserveerd toetsuur zijn zonder daadwerkelijke toets.",
+            "data": {
+              "schedule_test_calendar": "Roostertoetsen · doelagenda",
+              "schedule_test_prefix": "Roostertoetsen · voorvoegsel"
+            },
+            "data_description": {
+              "schedule_test_calendar": "Exporteert afspraken met categorie Toets. Sommige scholen gebruiken deze categorie in plaats van de studiewijzer. Het kan ook een gereserveerd toetsuur zijn zonder daadwerkelijke toets.",
+              "schedule_test_prefix": "Placeholder: {student_placeholder}. Wordt vóór de afspraaktitel gezet."
+            }
+          },
+          "other_appointments": {
+            "name": "Niet-reguliere lessen en afspraken",
+            "description": "Exporteert alle categorieën behalve Rooster en Toets. Scholen kunnen deze gebruiken of anders inzetten voor wisselende afspraken, bijvoorbeeld individuele afspraken, activiteiten of proefwerken.",
+            "data": {
+              "other_calendar": "Niet-reguliere lessen en afspraken · doelagenda",
+              "other_prefix": "Niet-reguliere lessen en afspraken · voorvoegsel"
+            },
+            "data_description": {
+              "other_calendar": "Exporteert alle categorieën behalve Rooster en Toets. Scholen kunnen deze gebruiken of anders inzetten voor wisselende afspraken, bijvoorbeeld individuele afspraken, activiteiten of proefwerken.",
+              "other_prefix": "Placeholder: {student_placeholder}. Wordt vóór de afspraaktitel gezet."
             }
           }
         },
@@ -252,10 +292,10 @@
   "entity": {
     "sensor": {
       "absences": {
-        "name": "{student} · Absenties"
+        "name": "Absenties"
       },
       "lesson_registrations": {
-        "name": "{student} · Lesregistraties"
+        "name": "Lesregistraties"
       }
     }
   },
