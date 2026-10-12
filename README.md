@@ -6,7 +6,7 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 
 ## Features
 
-### Version 0.11.3 — production release
+### Version 0.11.4 — production release
 
 Timetable Live Activities on iPhone and Live Updates on Android show the current
 lesson, upcoming subject and next classroom. Compact text, subject icons and silent
@@ -78,6 +78,8 @@ Android support is included from 0.11.1.
 1. Open **Settings → Devices & services → Somtoday → Configure** and select the child.
 2. Enable **Timetable Live Activity**. In the following **Live Activity** section,
    select the child's Home Assistant Companion phone and choose Dutch or English.
+   Set **Maximum characters on first body line** (24–60; default 28) to suit
+   the phone's text size.
    You can select several phones. Calendar export is not required.
 3. Save, then turn on **Name · Live Activity** (for Seth, normally
    `switch.seth_live_activity`). Add this switch to your dashboard if desired.
@@ -752,7 +754,11 @@ subject. Older activity titles are migrated by ending and restarting the card on
 Live Activity body text uses compact room/time fields, for example
 `Nu: Latijn · 224 · tot 10:35` and `Hierna: Gym · 10:40`. Known full subject names
 are shortened only in the Live Activity; source calendars and exports keep the
-original subject names. Unrecognized subject names are preserved without guessing.
+original subject names. A configurable first-line limit shortens the subject with an ellipsis while
+retaining the current room and end time. At very small limits, time labels and
+exceptionally long room labels may also be shortened. The next line is unchanged.
+Character count cannot guarantee a single visual line with every font size; lower
+the limit if needed. Calendar exports retain the full original text.
 
 Timetable activity payloads explicitly request silent updates. iOS uses the Live
 Activity silent flag, no notification sound and passive interruption level. Android

@@ -66,16 +66,20 @@ async def test_live_activity_phone_selection_roundtrip_and_disable_preserves_sib
     submitted = dest["data_schema"]({"live_activity": {
         "live_activity_targets": ["notify.mobile_app_seth", "notify.mobile_app_ivo"],
         "live_activity_language": "nl",
+        "live_activity_first_line_limit": 32,
     }})
     result = await flow.async_step_destinations(submitted)
     assert result["type"] == "create_entry"
     assert result["data"]["exports"]["a"]["live_activity_targets"] == ["notify.mobile_app_seth", "notify.mobile_app_ivo"]
+    assert result["data"]["exports"]["a"]["live_activity_first_line_limit"] == 32
     assert result["data"]["exports"]["b"] == sibling
     reopened, _ = make_flow(result["data"])
     reopened.hass.services = flow.hass.services
     settings = await reopened.async_step_init({"student_id": "a"})
     values = settings["data_schema"]({})
     assert values["exports"]["enable_live_activity"] is True
+    dest = await reopened.async_step_settings(values)
+    assert dest["data_schema"]({})["live_activity"]["live_activity_first_line_limit"] == 32
     values["exports"]["enable_live_activity"] = False
     dest = await reopened.async_step_settings(values)
     saved = await reopened.async_step_destinations(dest["data_schema"]({}))

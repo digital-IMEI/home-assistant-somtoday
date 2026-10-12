@@ -8,6 +8,31 @@ from datetime import datetime, time, timedelta
 from .models import appointment_category, is_active_school_appointment, parse_datetime
 
 
+def limit_first_line(message: str, limit: int) -> str:
+    """Keep the first body line bounded, preserving current room and end time."""
+    def shorten(value, budget):
+        return value if len(value) <= budget else value[:max(0, budget - 1)].rstrip() + "…"
+
+    first, separator, remaining = message.partition("\n")
+    if len(first) <= limit:
+        return message
+    parts = first.rsplit(" · ", 2)
+    if len(parts) == 3 and first.startswith(("Nu: ", "Now: ")):
+        prefix, subject = parts[0].split(": ", 1)
+        prefix += ": "
+        room = "?" if parts[1] in {"Lokaal onbekend", "Room unknown"} else parts[1]
+        suffix = " · " + parts[2]
+        if len(prefix) + 1 + 3 + len(room) + len(suffix) > limit:
+            # On narrow English cards, keep the time and room before the label.
+            suffix = " · " + parts[2].rsplit(" ", 1)[-1]
+        room = shorten(room, max(1, limit - len(prefix) - len(suffix) - 4))
+        suffix = " · " + room + suffix
+        first = prefix + shorten(subject, max(1, limit - len(prefix) - len(suffix))) + suffix
+    else:
+        first = shorten(first, limit)
+    return first + separator + remaining
+
+
 def subject_display_name(subject: str) -> str:
     """Shorten known full subject names only in the Live Activity text."""
     label = " ".join(subject.split())

@@ -137,7 +137,8 @@
           "schedule_test_calendar": "Roostertoetsen · doelagenda",
           "schedule_test_prefix": "Roostertoetsen · voorvoegsel",
           "other_calendar": "Niet-reguliere lessen en afspraken · doelagenda",
-          "other_prefix": "Niet-reguliere lessen en afspraken · voorvoegsel"
+          "other_prefix": "Niet-reguliere lessen en afspraken · voorvoegsel",
+          "live_activity_first_line_limit": "Maximum tekens eerste tekstregel"
         },
         "data_description": {
           "day_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
@@ -152,7 +153,8 @@
           "schedule_test_calendar": "Exporteert afspraken met categorie Toets. Sommige scholen gebruiken deze categorie in plaats van de studiewijzer. Het kan ook een gereserveerd toetsuur zijn zonder daadwerkelijke toets.",
           "schedule_test_prefix": "Placeholder: {student_placeholder}. Wordt vóór de afspraaktitel gezet.",
           "other_calendar": "Exporteert alle categorieën behalve Rooster en Toets. Scholen kunnen deze gebruiken of anders inzetten voor wisselende afspraken, bijvoorbeeld individuele afspraken, activiteiten of proefwerken.",
-          "other_prefix": "Placeholder: {student_placeholder}. Wordt vóór de afspraaktitel gezet."
+          "other_prefix": "Placeholder: {student_placeholder}. Wordt vóór de afspraaktitel gezet.",
+          "live_activity_first_line_limit": "24–60 tekens; standaard 28. Verkort eerst de vaknaam zodat lokaal en eindtijd blijven staan. Alleen de eerste tekstregel, niet de titel. Pas aan op de tekstgrootte van de telefoon."
         },
         "sections": {
           "school_days": {
@@ -247,10 +249,12 @@
             "description": "Schakel de roosterkaart in via de schakelaar van dit kind. Start 15 minuten voor de eerste les; stopt 10 minuten na de laatste les. iPhone: Live Activity met het volgende lokaal rechts en in de Dynamic Island. Android: Live Update met het volgende lokaal in de melding en, vanaf Android 16, de statusbalk. Oudere Android-versies tonen een vaste roostermelding. Home Assistant moet op school bereikbaar zijn.",
             "data": {
               "live_activity_targets": "Telefoons",
-              "live_activity_language": "Taal op de kaart"
+              "live_activity_language": "Taal op de kaart",
+              "live_activity_first_line_limit": "Maximum tekens eerste tekstregel"
             },
             "data_description": {
-              "live_activity_targets": "Kies de Home Assistant Companion-telefoon van het kind. Meerdere telefoons zijn mogelijk."
+              "live_activity_targets": "Kies de Home Assistant Companion-telefoon van het kind. Meerdere telefoons zijn mogelijk.",
+              "live_activity_first_line_limit": "24–60 tekens; standaard 28. Verkort eerst de vaknaam zodat lokaal en eindtijd blijven staan. Alleen de eerste tekstregel, niet de titel. Pas aan op de tekstgrootte van de telefoon."
             }
           },
           "schedule_tests": {
