@@ -52,10 +52,10 @@ def test_exact_school_day_boundaries(clock, phase, next_time, room):
 
 def test_option_one_content_and_five_minute_emphasis():
     assert activity_view(SCHEDULE, at("10:12")).message == (
-        "Nu: Wiskunde · B104 · tot 10:35\nHierna: Engels · 10:40"
+        "Nu: Wiskunde · B104 tot 10:35\nHierna: Engels · 10:40"
     )
     assert activity_view(SCHEDULE, at("10:30")).message == (
-        "Nu: Wiskunde · B104 · tot 10:35\nHierna: Engels · 10:40"
+        "Nu: Wiskunde · B104 tot 10:35\nHierna: Engels · 10:40"
     )
     assert activity_view(SCHEDULE, at("10:35")).message == (
         "Pauze tot 10:40\nHierna: Engels · 10:40"
@@ -98,7 +98,7 @@ def test_empty_weekend_and_room_unknown():
 
 def test_english_card():
     view = activity_view(SCHEDULE, at("10:12"), "en")
-    assert view.message == "Now: Wiskunde · B104 · until 10:35\nNext: Engels · 10:40"
+    assert view.message == "Now: Wiskunde · B104 until 10:35\nNext: Engels · 10:40"
 
 
 def make_switch(monkeypatch, now="10:12", targets=None):
@@ -122,7 +122,7 @@ async def test_switch_off_clears_and_no_duplicate_pushes(monkeypatch):
     assert notify.await_count == 1
     payload = notify.call_args.args[2]
     assert payload["title"] == "Seth · Volgend lokaal"
-    assert payload["message"].split("\n")[0] == "Nu: Wisk… · B104 · tot 10:35"
+    assert payload["message"].split("\n")[0] == "Nu: Wiskun… · B104 tot 10:35"
     assert payload["data"]["critical_text"] == "C203"
     assert payload["data"]["live_update"] is True
     assert payload["data"]["silent"] is True
@@ -307,7 +307,7 @@ async def test_android_payload_contains_next_room_and_silent_persistent_channel(
     register_phone(switch, "mobile_app_seth", "Android")
     await switch.async_turn_on()
     payload = switch.hass.services.async_call.call_args.args[2]
-    assert payload["message"] == "Nu: Wisk… · B104 · tot 10:35\nHierna: Engels · 10:40 · C203"
+    assert payload["message"] == "Nu: Wiskun… · B104 tot 10:35\nHierna: Engels · 10:40 · C203"
     data = payload["data"]
     assert data["critical_text"] == "C203"
     assert data["live_update"] is True
@@ -430,7 +430,7 @@ async def test_failed_title_migration_retries_before_creating_new_card(monkeypat
 def test_text_has_consistent_current_and_next_lines_without_decorative_icons():
     view = activity_view(SCHEDULE, at("10:30"))
     assert view.message.splitlines() == [
-        "Nu: Wiskunde · B104 · tot 10:35", "Hierna: Engels · 10:40"]
+        "Nu: Wiskunde · B104 tot 10:35", "Hierna: Engels · 10:40"]
     assert view.room == "C203"
     assert activity_view(SCHEDULE, at("10:35")).message == "Pauze tot 10:40\nHierna: Engels · 10:40"
     assert activity_view(SCHEDULE, at("11:30")).message == "Klaar voor vandaag"
@@ -454,7 +454,7 @@ def test_compact_current_upcoming_and_break_text_preserves_source_subjects():
                 lesson("10:40", "11:30", "Lichamelijke opvoeding", "mfr2")]
     original = deepcopy(schedule)
     view = activity_view(schedule, at("10:12"))
-    assert view.message == "Nu: Latijn · 224 · tot 10:35\nHierna: Gym · 10:40"
+    assert view.message == "Nu: Latijn · 224 tot 10:35\nHierna: Gym · 10:40"
     assert view.room == "mfr2"
     assert activity_view(schedule, at("10:35")).message == "Pauze tot 10:40\nHierna: Gym · 10:40"
     assert activity_view(schedule, at("09:30")).message == "School begint om 09:45\nEerste les: Latijn"
@@ -479,13 +479,13 @@ def test_adjacent_lessons_omit_duplicate_start_time_but_keep_next_classroom(lang
 @pytest.mark.parametrize("prefix,end", [("Nu", "tot"), ("Now", "until")])
 @pytest.mark.parametrize("room", ["410", "B104", "Room unknown", "Lokaal onbekend", "An exceptionally long room label"])
 def test_first_line_limit_preserves_time_and_next_line(limit, prefix, end, room):
-    message = f"{prefix}: Nederlandse taal en letterkunde · {room} · {end} 12:05\nNext: Engels · 12:15"
+    message = f"{prefix}: Nederlandse taal en letterkunde · {room} {end} 12:05\nNext: Engels · 12:15"
     first, next_line = limit_first_line(message, limit).split("\n")
     assert len(first) <= limit
     assert first.endswith("12:05")
     assert next_line == "Next: Engels · 12:15"
     if room in {"410", "B104"}:
-        assert f" · {room} · " in first
+        assert f" · {room} " in first
 
 
 def test_first_line_limit_keeps_short_text_and_truncates_other_phases():
@@ -503,5 +503,5 @@ def test_payload_uses_saved_first_line_limit(monkeypatch):
     entry = SimpleNamespace(entry_id="entry", options={"exports": {"a": {"live_activity_first_line_limit": 40}}})
     configured = SomtodayLiveActivitySwitch(switch.coordinator, entry, {"links": [{"id": "a"}], "roepnaam": "Seth"})
     assert configured.first_line_limit == 40
-    payload = configured._payload("Nu: Wiskunde · B104 · tot 10:35\nHierna: Engels", "C203", icon="mdi:calculator")
-    assert payload["message"].startswith("Nu: Wiskunde · B104 · tot 10:35")
+    payload = configured._payload("Nu: Wiskunde · B104 tot 10:35\nHierna: Engels", "C203", icon="mdi:calculator")
+    assert payload["message"].startswith("Nu: Wiskunde · B104 tot 10:35")

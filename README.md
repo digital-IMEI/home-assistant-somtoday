@@ -6,7 +6,7 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 
 ## Features
 
-### Version 0.11.4 — production release
+### Version 0.11.5 — production release
 
 Timetable Live Activities on iPhone and Live Updates on Android show the current
 lesson, upcoming subject and next classroom. Compact text, subject icons and silent
@@ -752,7 +752,7 @@ During breaks, the first line says when the break ends and the second names the 
 subject. Older activity titles are migrated by ending and restarting the card once.
 
 Live Activity body text uses compact room/time fields, for example
-`Nu: Latijn · 224 · tot 10:35` and `Hierna: Gym · 10:40`. Known full subject names
+`Nu: Latijn · 224 tot 10:35` and `Hierna: Gym · 10:40`. Known full subject names
 are shortened only in the Live Activity; source calendars and exports keep the
 original subject names. A configurable first-line limit shortens the subject with an ellipsis while
 retaining the current room and end time. At very small limits, time labels and
