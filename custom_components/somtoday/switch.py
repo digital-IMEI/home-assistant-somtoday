@@ -14,6 +14,7 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
+from .device import student_device_info
 from .const import DOMAIN
 from .export import item_id
 from .live_activity import activity_view
@@ -45,8 +46,9 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
     def __init__(self, coordinator, entry, student):
         self.coordinator = coordinator
         self.student = item_id(student)
+        self._attr_device_info = student_device_info(entry, student)
         self.name_in_title = str(student.get("roepnaam") or self.student)
-        self._attr_name = f"{self.name_in_title} · Live Activity"
+        self._attr_name = "Live Activity"
         self._attr_unique_id = f"{entry.entry_id}_{self.student}_live_activity"
         route = entry.options.get("exports", {}).get(self.student, {})
         self.targets = tuple(dict.fromkeys(route.get("live_activity_targets", [])))
@@ -113,8 +115,19 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                 await self._send(target, None)
         await super().async_will_remove_from_hass()
 
-    def _payload(self, message, room):
-        return {
+    def _platform(self, target):
+        """Resolve the exact notify service's registration, not its display name."""
+        # Read loaded registration metadata without importing mobile_app, which
+        # also imports optional cloud, camera and stream integrations.
+        mobile_app = self.hass.data.get("mobile_app", {})
+        notifier = mobile_app.get("notify")
+        webhook = getattr(notifier, "registered_targets", {}).get(target.partition(".")[2])
+        registration = mobile_app.get("config_entries", {}).get(webhook)
+        os_name = str(registration.data.get("os_name", "")).casefold() if registration else ""
+        return "android" if os_name == "android" else "ios" if os_name in ("ios", "ipados") else "unknown"
+
+    def _payload(self, message, room, platform="ios"):
+        payload = {
             "title": f"{self.name_in_title} · {'Timetable' if self.language == 'en' else 'Rooster'}",
             "message": message,
             "data": {
@@ -130,6 +143,21 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                 "push": {"sound": None},
             },
         }
+        if platform == "android":
+            data = payload["data"]
+            for key in ("push", "background_color", "text_color"):
+                data.pop(key)
+            data.update({
+                "channel": "Somtoday timetable",
+                # LOW remains eligible for promoted Live Updates while silent.
+                "importance": "low",
+                "persistent": True,
+                "sticky": True,
+                "priority": "high",
+                "ttl": 0,
+                "color": "#03A9F4",
+            })
+        return payload
 
     async def _send(self, target, payload):
         if target in self._last_sent and self._last_sent[target] == payload:
@@ -139,6 +167,8 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
             return False
         service = target.partition(".")[2]
         data = payload if payload is not None else {"message": "clear_notification", "data": {"tag": self.tag}}
+        if payload is None and self._platform(target) == "android":
+            data["data"].update(priority="high", ttl=0)
         try:
             await self.hass.services.async_call("notify", service, data, blocking=True)
         except HomeAssistantError:
@@ -178,13 +208,23 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
 
             failures = 0
             for target in self.targets:
+                platform = self._platform(target)
                 target_payload = payload
+                if platform == "android" and payload is not None:
+                    if self.coordinator.last_update_success:
+                        android_view = activity_view(
+                            self.coordinator.data.get("appointments_by_student", {}).get(self.student, []),
+                            now, self.language, include_next_room=True,
+                        )
+                        target_payload = self._payload(android_view.message, android_view.room, "android")
+                    else:
+                        target_payload = self._payload(payload["message"], "—", "android")
                 if self._phase == "unavailable" and not self._last_sent.get(target):
                     target_payload = None
                 # iOS expires a card after 8 h. Renew once near that boundary
                 # for unusually long school days, not on every lesson change.
                 started = self._started_at.get(target)
-                if started and target_payload is not None:
+                if platform != "android" and started and target_payload is not None:
                     renewal = started + timedelta(hours=7, minutes=55)
                     if now >= renewal:
                         if not await self._send(target, None):
@@ -196,7 +236,7 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                         next_change = min(next_change, renewal)
                 if not await self._send(target, target_payload):
                     failures += 1
-                if target_payload is not None and (started := self._started_at.get(target)):
+                if platform != "android" and target_payload is not None and (started := self._started_at.get(target)):
                     renewal = started + timedelta(hours=7, minutes=55)
                     if renewal > now and next_change is not None:
                         next_change = min(next_change, renewal)

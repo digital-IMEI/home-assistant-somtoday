@@ -105,7 +105,7 @@ def make_switch(monkeypatch, now="10:12", targets=None):
         "live_activity_targets": targets or ["notify.mobile_app_seth"],
     }}})
     switch = SomtodayLiveActivitySwitch(coordinator, entry, {"links": [{"id": "a"}], "roepnaam": "Seth"})
-    switch.hass = SimpleNamespace(services=SimpleNamespace(async_call=AsyncMock()))
+    switch.hass = SimpleNamespace(data={}, services=SimpleNamespace(async_call=AsyncMock()))
     switch.async_write_ha_state = Mock()
     switch._schedule = Mock()
     monkeypatch.setattr("custom_components.somtoday.switch.dt_util.now", lambda: at(now))
@@ -285,3 +285,76 @@ async def test_unload_cancels_timer_and_clears_without_changing_restored_switch_
     count = switch.hass.services.async_call.await_count
     await switch._async_refresh()
     assert switch.hass.services.async_call.await_count == count
+
+
+def register_phone(switch, service, os_name, webhook="phone"):
+    mobile_app = switch.hass.data.setdefault("mobile_app", {})
+    mobile_app.setdefault("notify", SimpleNamespace(registered_targets={})).registered_targets[service] = webhook
+    mobile_app.setdefault("config_entries", {})[webhook] = SimpleNamespace(data={"os_name": os_name})
+
+
+@pytest.mark.asyncio
+async def test_android_payload_contains_next_room_and_silent_persistent_channel(monkeypatch):
+    switch = make_switch(monkeypatch)
+    register_phone(switch, "mobile_app_seth", "Android")
+    await switch.async_turn_on()
+    payload = switch.hass.services.async_call.call_args.args[2]
+    assert payload["message"] == "Nu Wiskunde · B104 tot 10:35\nHierna Engels · 10:40 · C203"
+    data = payload["data"]
+    assert data["critical_text"] == "C203"
+    assert data["live_update"] is True
+    assert data["persistent"] is True
+    assert data["sticky"] is True
+    assert data["alert_once"] is True
+    assert data["importance"] == "low"
+    assert data["channel"] == "Somtoday timetable"
+    assert data["priority"] == "high" and data["ttl"] == 0
+    assert not {"push", "background_color", "text_color", "chronometer", "progress"}.intersection(data)
+    await switch._async_refresh()
+    assert switch.hass.services.async_call.await_count == 1
+    await switch.async_turn_off()
+    clear = switch.hass.services.async_call.call_args.args[2]
+    assert clear == {"message": "clear_notification", "data": {"tag": switch.tag, "priority": "high", "ttl": 0}}
+
+
+@pytest.mark.asyncio
+async def test_mixed_android_ios_targets_receive_their_own_payloads(monkeypatch):
+    switch = make_switch(monkeypatch, targets=["notify.mobile_app_seth", "notify.mobile_app_ivo"])
+    register_phone(switch, "mobile_app_seth", "Android", "android-phone")
+    register_phone(switch, "mobile_app_ivo", "iOS", "ios-phone")
+    await switch.async_turn_on()
+    android, ios = [call.args[2] for call in switch.hass.services.async_call.call_args_list]
+    assert android["message"].endswith(" · C203")
+    assert ios["message"].endswith(" · 10:40")
+    assert "push" in ios["data"] and "channel" not in ios["data"]
+    assert android["data"]["tag"] == ios["data"]["tag"]
+    await switch._async_refresh()
+    assert switch.hass.services.async_call.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_android_long_day_does_not_restart_at_ios_expiry(monkeypatch):
+    switch = make_switch(monkeypatch, now="08:00")
+    register_phone(switch, "mobile_app_seth", "Android")
+    switch.coordinator.data["appointments_by_student"]["a"] = [lesson("08:00", "18:00")]
+    await switch.async_turn_on()
+    assert switch._schedule.call_args.args[0] == (9 * 60 + 55) * 60
+    monkeypatch.setattr("custom_components.somtoday.switch.dt_util.now", lambda: at("15:55"))
+    await switch._async_refresh()
+    assert switch.hass.services.async_call.await_count == 1
+
+
+def test_platform_is_resolved_by_registered_target_not_phone_name(monkeypatch):
+    switch = make_switch(monkeypatch)
+    register_phone(switch, "mobile_app_iphone_named_android", "iOS", "1")
+    register_phone(switch, "mobile_app_iphone", "Android", "2")
+    assert switch._platform("notify.mobile_app_iphone_named_android") == "ios"
+    assert switch._platform("notify.mobile_app_iphone") == "android"
+    assert switch._platform("notify.mobile_app_missing") == "unknown"
+
+
+def test_android_missing_next_room_is_explicit_in_message():
+    schedule = [SCHEDULE[0], lesson("10:40", "11:30", "Engels", "")]
+    view = activity_view(schedule, at("10:12"), include_next_room=True)
+    assert view.message.endswith("Hierna Engels · 10:40 · Lokaal onbekend")
+    assert view.room == "—"

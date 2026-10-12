@@ -8,7 +8,7 @@ from datetime import date
 import hashlib
 import secrets
 import time
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlencode
 
 from aiohttp import ClientError, ClientResponseError, ClientSession
@@ -93,6 +93,7 @@ class SomtodayClient:
         self.token = token or {}
         self.assignment_reports = {}
         self._refresh_lock = asyncio.Lock()
+        self.token_updated: Callable[[dict[str, Any]], None] | None = None
 
     async def organizations(self) -> list[dict[str, Any]]:
         """Fetch all Somtoday organizations."""
@@ -126,7 +127,7 @@ class SomtodayClient:
         refresh_token = self.token.get("refresh_token")
         if not refresh_token:
             raise SomtodayAuthenticationError("No refresh token available")
-        self.token = await self._token_request(
+        refreshed = await self._token_request(
             {
                 "grant_type": "refresh_token",
                 "refresh_token": refresh_token,
@@ -134,6 +135,12 @@ class SomtodayClient:
                 "client_id": CLIENT_ID,
             }
         )
+        # OAuth permits omission of a replacement refresh token. Retain only
+        # session metadata, never the old access token or its expiry.
+        retained = {key: self.token[key] for key in ("refresh_token", "somtoday_api_url") if key in self.token}
+        self.token = {**retained, **refreshed}
+        if self.token_updated is not None:
+            self.token_updated(dict(self.token))
         return self.token
 
     async def _token_request(self, data: dict[str, str]) -> dict[str, Any]:
@@ -148,7 +155,7 @@ class SomtodayClient:
         except (ClientError, TimeoutError, ValueError) as err:
             raise SomtodayApiError("Somtoday token service unavailable") from err
         if not isinstance(token, dict) or not token.get("access_token"):
-            raise SomtodayAuthenticationError("Somtoday returned no access token")
+            raise SomtodayApiError("Somtoday returned an invalid token response")
         token["expires_at"] = int(time.time()) + int(token.get("expires_in", 3600))
         return token
 
@@ -309,6 +316,20 @@ class SomtodayClient:
         self, path: str, params: list[tuple[str, str]] | None = None, offset: int = 0
     ) -> dict[str, Any]:
         await self.ensure_token()
+        rejected_token = self.token.get("access_token")
+        try:
+            return await self._get_once(path, params, offset)
+        except SomtodayAuthenticationError:
+            # A server may invalidate an access token before expires_at. Share
+            # one rotation across parallel 401s, then retry the read only once.
+            async with self._refresh_lock:
+                if self.token.get("access_token") == rejected_token:
+                    await self.refresh()
+            return await self._get_once(path, params, offset)
+
+    async def _get_once(
+        self, path: str, params: list[tuple[str, str]] | None = None, offset: int = 0
+    ) -> dict[str, Any]:
         api_url = str(self.token.get("somtoday_api_url", "https://api.somtoday.nl"))
         headers = {
             "Authorization": f"Bearer {self.token['access_token']}",

@@ -71,7 +71,7 @@
           "scan_interval": "Update interval in minutes (5–120)",
           "enable_homework": "Export homework",
           "enable_absences": "Absence overview",
-          "enable_live_activity": "Timetable Live Activity"
+          "enable_live_activity": "Timetable Live Activity / Live Update"
         },
         "data_description": {
           "enable_day": "One event from the first lesson to the last.",
@@ -94,7 +94,7 @@
               "enable_assessments": "Export tests",
               "enable_homework": "Export homework",
               "enable_absences": "Absence overview",
-              "enable_live_activity": "Timetable Live Activity"
+              "enable_live_activity": "Timetable Live Activity / Live Update"
             },
             "data_description": {
               "enable_day": "One event from the first lesson to the last.",
@@ -227,8 +227,8 @@
             }
           },
           "live_activity": {
-            "name": "Live Activity",
-            "description": "Enable the Live Activity using this child’s new switch. Starts 15 minutes before the first lesson; ends 10 minutes after the last. The next classroom appears on the right and in the Dynamic Island. Current and next lessons appear in the body. Requires Home Assistant Companion with Live Activities and access to Home Assistant at school.",
+            "name": "Live Activity / Live Update",
+            "description": "Enable the timetable card using this child’s switch. Starts 15 minutes before the first lesson; ends 10 minutes after the last. iPhone: Live Activity with the next classroom on the right and in the Dynamic Island. Android: Live Update with the next classroom in the notification and, on Android 16+, the status bar. Older Android versions show an ongoing timetable notification. Home Assistant must be reachable at school.",
             "data": {
               "live_activity_targets": "Phones",
               "live_activity_language": "Card language"
@@ -252,10 +252,10 @@
   "entity": {
     "sensor": {
       "absences": {
-        "name": "{student} · Absences"
+        "name": "Absences"
       },
       "lesson_registrations": {
-        "name": "{student} · Lesson registrations"
+        "name": "Lesson registrations"
       }
     }
   },

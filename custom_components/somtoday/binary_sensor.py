@@ -3,6 +3,7 @@
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .device import student_device_info
 from .const import DOMAIN
 from .export import item_id
 
@@ -22,8 +23,9 @@ class SomtodayHolidaySensor(CoordinatorEntity, BinarySensorEntity):
     def __init__(self, coordinator, entry, student):
         super().__init__(coordinator)
         self.student = item_id(student)
+        self._attr_device_info = student_device_info(entry, student)
         self._attr_unique_id = f"{entry.entry_id}_{self.student}_holiday"
-        self._attr_name = f"{student.get('roepnaam') or self.student} · Published holiday"
+        self._attr_name = "Published holiday"
 
     @property
     def is_on(self):

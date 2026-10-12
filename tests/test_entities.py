@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
+
 from homeassistant.const import EntityCategory
 
 from custom_components.somtoday.calendar import (
@@ -49,11 +51,11 @@ def test_each_child_has_lesson_and_school_day_calendar_entities():
     )
 
     assert schedule._attr_unique_id == "entry_schedule"
-    assert schedule._attr_name == "Seth · Rooster"
+    assert schedule._attr_name == "Rooster"
     assert len(schedule_events) == 1
     assert schedule_events[0].summary == "Math"
     assert school_day._attr_unique_id == "entry_school_day"
-    assert school_day._attr_name == "Seth · Schooldag"
+    assert school_day._attr_name == "Schooldag"
     assert school_day._attr_icon == "mdi:school"
     assert len(school_day_events) == 1
     assert school_day_events[0].summary == "Schooldag"
@@ -108,7 +110,7 @@ def test_each_child_has_assessment_calendar_and_next_sensor(monkeypatch):
     events = calendar._events(
         START - timedelta(days=1), START + timedelta(days=1)
     )
-    assert calendar._attr_name == "Seth · Toetsen"
+    assert calendar._attr_name == "Toetsen"
     assert calendar._attr_icon == "mdi:clipboard-text-clock-outline"
     assert events[0].summary == "Wiskunde · Toets · Hoofdstuk 3"
     assert events[0].description.endswith("Afgerond: nee")
@@ -218,3 +220,58 @@ def test_old_school_day_timestamp_sensors_are_removed(monkeypatch):
     )
 
     assert set(removed) == {"sensor.seth_schooldag", "sensor.other_schooldag"}
+
+
+def test_all_child_entities_group_by_stable_student_identity():
+    from custom_components.somtoday.binary_sensor import SomtodayHolidaySensor
+    from custom_components.somtoday.sensor import SomtodayAbsenceSensor, SomtodayLessonRegistrationSensor
+    from custom_components.somtoday.switch import SomtodayLiveActivitySwitch
+    from custom_components.somtoday.device import student_device_info, account_device_info
+    entry = SimpleNamespace(entry_id="entry", options={})
+    coordinator = SimpleNamespace(data={})
+    child = {"links": [{"id": "a"}], "roepnaam": "Seth"}
+    factories = [SomtodayCalendar, SomtodaySchoolDayCalendar, SomtodayAssessmentCalendar,
+                 SomtodayNextAssessmentSensor, SomtodayAbsenceSensor,
+                 SomtodayLessonRegistrationSensor, SomtodayHolidaySensor,
+                 SomtodayAssessmentChangeEvent, SomtodayLiveActivitySwitch]
+    for factory in factories:
+        entity = factory(coordinator, entry, child)
+        assert entity.device_info == student_device_info(entry, child)
+    renamed = {**child, "roepnaam": "Sam"}
+    sibling = {"links": [{"id": "b"}], "roepnaam": "Seth"}
+    assert student_device_info(entry, renamed)["identifiers"] == student_device_info(entry, child)["identifiers"]
+    assert student_device_info(entry, sibling)["identifiers"] != student_device_info(entry, child)["identifiers"]
+    other_entry = SimpleNamespace(entry_id="other", options={})
+    assert student_device_info(other_entry, child)["identifiers"] != student_device_info(entry, child)["identifiers"]
+    for factory in (SomtodaySyncSensor, SomtodayRetryCalendarSyncButton):
+        assert factory(coordinator, entry).device_info == account_device_info(entry)
+    assert SomtodayCalendar(coordinator, entry, child, legacy=True).unique_id == "entry_schedule"
+    assert SomtodaySchoolDayCalendar(coordinator, entry, child, legacy=True).unique_id == "entry_school_day"
+
+
+@pytest.mark.asyncio
+async def test_device_attachment_preserves_registered_ids_and_user_names(tmp_path, monkeypatch):
+    from unittest.mock import AsyncMock, Mock
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers import entity_registry as er
+    hass = HomeAssistant(str(tmp_path))
+    registry = er.EntityRegistry(hass)
+    # The entity registry resolves device IDs through the device registry.
+    devices = SimpleNamespace(devices={"child-a": Mock(), "child-b": Mock()},
+                              async_is_composite_device_id=lambda _: False,
+                              async_wait_loaded=AsyncMock())
+    monkeypatch.setattr(er.dr, "async_get", lambda _: devices)
+    await registry.async_load()
+    for uid, device in (("entry_schedule", "child-a"), ("entry_b_schedule", "child-b")):
+        original = registry.async_get_or_create("calendar", "somtoday", uid,
+                                               suggested_object_id=uid)
+        registry.async_update_entity(original.entity_id, name="Mijn agenda")
+        updated = registry.async_get_or_create("calendar", "somtoday", uid,
+                                              device_id=device, original_name="Rooster",
+                                              has_entity_name=True)
+        assert updated.entity_id == original.entity_id
+        assert updated.id == original.id
+        assert updated.name == "Mijn agenda"
+        assert updated.device_id == device
+    assert len(registry.entities) == 2
+    await hass.async_stop()

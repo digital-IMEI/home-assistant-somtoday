@@ -49,6 +49,30 @@ After updates restart HA and reload the browser if setup text is cached.
 
 ## Timetable Live Activity
 
+### Android support — unreleased development change
+
+The local Android extension uses the same per-child switch and school-day timing.
+The Companion phone's registered operating system is detected automatically,
+including when both Android and iPhone destinations are selected.
+
+- On Android 16+ with a compatible Companion app, `live_update` requests the native
+  Live Update on the Lock Screen/notification shade, with the next room as the
+  short status-bar value. Chip visibility depends on the phone and app settings.
+- On older Android versions, the persistent/sticky notification fields provide
+  an ongoing timetable notification, without the Android 16 Live Update chip.
+- The next classroom is also included in the notification body, so it remains
+  readable when the compact chip is not displayed. The same option-1 ordering
+  and five-minute emphasis are retained.
+- A dedicated **Somtoday timetable** channel starts at low importance (silent),
+  while high-priority transport requests prompt delivery. The phone's channel
+  settings can override its notification behavior. Updates use the same tag.
+- Turning off the switch clears the Android notification. Android cards are not
+  cleared/restarted at the iOS eight-hour activity limit.
+
+This extension is prepared locally and is **not included in the published 0.11.0 release**.
+
+### iPhone setup (published 0.11.0)
+
 1. Open **Settings → Devices & services → Somtoday → Configure** and select the child.
 2. Enable **Timetable Live Activity**. In the following **Live Activity** section,
    select the child's Home Assistant Companion phone and choose Dutch or English.
@@ -480,6 +504,27 @@ when validating a reminder.
   Newly added children require an integration reload to create their entities.
 - Existing first-child entity IDs are retained where possible. Additional entities use stable
   child IDs internally; first-name changes do not change event ownership.
+
+### Account and child devices — unreleased development change
+
+Somtoday entities are grouped under one logical device per child. Each child's
+calendars, assessment/registration/holiday sensors, assessment change event and
+Live Activity switch belong to that child's device. Calendar sync, Homework sync
+and the retry button belong to a separate Somtoday account device.
+
+Existing entity IDs and unique IDs (including legacy first-child calendars) are
+retained when updating. Dashboard references, automations, per-child export options,
+and user-assigned entity names remain in place. Default friendly names use the child
+device name as their prefix. Devices are identified by the account entry and fixed
+student ID, so identical names, renaming or a different student order do not merge
+siblings. This grouping does not require signing in again or adding each child
+separately. Do not remove and re-add the integration to enable it.
+
+Token renewal also retains the current refresh token and school API URL if Somtoday
+omits replacements. Read requests receiving HTTP 401 attempt one coordinated token
+renewal and one retry before asking for reauthentication. Rotated tokens are recorded
+in the config entry immediately; malformed successful token responses are treated as
+temporary service failures. A rejected refresh credential still requires signing in.
 
 ## Privacy and support
 

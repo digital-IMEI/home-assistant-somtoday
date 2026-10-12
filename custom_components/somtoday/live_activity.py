@@ -24,7 +24,7 @@ class ActivityView:
     next_change: datetime
 
 
-def activity_view(appointments: list[dict], now: datetime, language="nl") -> ActivityView:
+def activity_view(appointments: list[dict], now: datetime, language="nl", *, include_next_room=False) -> ActivityView:
     """Render today's active lessons and the next exact display boundary.
 
     Breaks/cancellations do not become a destination. Use the same appointment
@@ -81,7 +81,7 @@ def activity_view(appointments: list[dict], now: datetime, language="nl") -> Act
         if following:
             next_line = f"{'Next' if en else 'Hierna'} {following.subject} · {following.start:%H:%M}"
             leaving = now >= current.end - timedelta(minutes=5)
-            if leaving:
+            if leaving or include_next_room:
                 next_line += f" · {following.room or unknown}"
             message = f"{next_line}\n{current_line}" if leaving else f"{current_line}\n{next_line}"
             return ActivityView("leaving" if leaving else "lesson", message, critical, next_change)

@@ -71,7 +71,7 @@
           "scan_interval": "Bijwerkinterval in minuten (5–120)",
           "enable_homework": "Huiswerk exporteren",
           "enable_absences": "Absentieoverzicht",
-          "enable_live_activity": "Live Activity voor het rooster"
+          "enable_live_activity": "Live Activity / Live Update voor het rooster"
         },
         "data_description": {
           "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
@@ -94,7 +94,7 @@
               "enable_assessments": "Toetsen exporteren",
               "enable_homework": "Huiswerk exporteren",
               "enable_absences": "Absentieoverzicht",
-              "enable_live_activity": "Live Activity voor het rooster"
+              "enable_live_activity": "Live Activity / Live Update voor het rooster"
             },
             "data_description": {
               "enable_day": "Eén afspraak van het eerste tot en met het laatste lesuur.",
@@ -227,8 +227,8 @@
             }
           },
           "live_activity": {
-            "name": "Live Activity",
-            "description": "Schakel de Live Activity in via de nieuwe schakelaar van dit kind. Start 15 minuten voor de eerste les; stopt 10 minuten na de laatste les. Het volgende lokaal staat rechts en in de Dynamic Island. De huidige les en volgende les staan in de berichttekst. Vereist Home Assistant Companion met Live Activities en bereikbaarheid van Home Assistant op school.",
+            "name": "Live Activity / Live Update",
+            "description": "Schakel de roosterkaart in via de schakelaar van dit kind. Start 15 minuten voor de eerste les; stopt 10 minuten na de laatste les. iPhone: Live Activity met het volgende lokaal rechts en in de Dynamic Island. Android: Live Update met het volgende lokaal in de melding en, vanaf Android 16, de statusbalk. Oudere Android-versies tonen een vaste roostermelding. Home Assistant moet op school bereikbaar zijn.",
             "data": {
               "live_activity_targets": "Telefoons",
               "live_activity_language": "Taal op de kaart"
@@ -252,10 +252,10 @@
   "entity": {
     "sensor": {
       "absences": {
-        "name": "{student} · Absenties"
+        "name": "Absenties"
       },
       "lesson_registrations": {
-        "name": "{student} · Lesregistraties"
+        "name": "Lesregistraties"
       }
     }
   },
