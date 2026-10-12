@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.somtoday.live_activity import activity_view, subject_visual
+from custom_components.somtoday.live_activity import activity_view, subject_icon
 from custom_components.somtoday.switch import SomtodayLiveActivitySwitch, async_setup_entry
 
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -38,7 +38,7 @@ SCHEDULE = [lesson("09:45", "10:35"), lesson("10:40", "11:30", "Engels", "C203")
     ("10:30", "leaving", "10:35", "C203"),
     ("10:35", "break", "10:40", "C203"),
     ("10:40", "lesson", "11:25", "—"),
-    ("11:30", "finished", "11:40", "✓"),
+    ("11:30", "finished", "11:40", "—"),
     ("11:40", "idle", "00:00", ""),
 ])
 def test_exact_school_day_boundaries(clock, phase, next_time, room):
@@ -51,13 +51,13 @@ def test_exact_school_day_boundaries(clock, phase, next_time, room):
 
 def test_option_one_content_and_five_minute_emphasis():
     assert activity_view(SCHEDULE, at("10:12")).message == (
-        "Nu 📐 Wiskunde · B104 tot 10:35\nHierna 🇬🇧 Engels · 10:40"
+        "Nu: Wiskunde · lokaal B104 · tot 10:35\nHierna: Engels · om 10:40"
     )
     assert activity_view(SCHEDULE, at("10:30")).message == (
-        "Hierna 🇬🇧 Engels · 10:40 · C203\nNu 📐 Wiskunde · B104 tot 10:35"
+        "Nu: Wiskunde · lokaal B104 · tot 10:35\nHierna: Engels · om 10:40"
     )
     assert activity_view(SCHEDULE, at("10:35")).message == (
-        "☕ Pauze · hierna 🇬🇧 Engels · 10:40\nLokaal C203"
+        "Pauze tot 10:40\nHierna: Engels · om 10:40"
     )
 
 
@@ -97,7 +97,7 @@ def test_empty_weekend_and_room_unknown():
 
 def test_english_card():
     view = activity_view(SCHEDULE, at("10:12"), "en")
-    assert view.message == "Now 📐 Wiskunde · B104 until 10:35\nNext 🇬🇧 Engels · 10:40"
+    assert view.message == "Now: Wiskunde · room B104 · until 10:35\nNext: Engels · at 10:40"
 
 
 def make_switch(monkeypatch, now="10:12", targets=None):
@@ -120,8 +120,8 @@ async def test_switch_off_clears_and_no_duplicate_pushes(monkeypatch):
     notify = switch.hass.services.async_call
     assert notify.await_count == 1
     payload = notify.call_args.args[2]
-    assert payload["title"] == "Seth · Rooster"
-    assert payload["message"].startswith("Nu 📐 Wiskunde")
+    assert payload["title"] == "Seth · Volgend lokaal"
+    assert payload["message"].startswith("Nu: Wiskunde")
     assert payload["data"]["critical_text"] == "C203"
     assert payload["data"]["live_update"] is True
     assert payload["data"]["url"] == "somtoday://"
@@ -148,7 +148,7 @@ async def test_clock_transition_does_not_wait_for_api_and_room_changes_push(monk
     await switch.async_turn_on()
     monkeypatch.setattr("custom_components.somtoday.switch.dt_util.now", lambda: at("10:35"))
     await switch._timer_fired(None)
-    assert switch.hass.services.async_call.call_args.args[2]["message"].startswith("☕ Pauze")
+    assert switch.hass.services.async_call.call_args.args[2]["message"].startswith("Pauze")
     switch.coordinator.data["appointments_by_student"]["a"][1] = lesson("10:40", "11:30", "Engels", "C204")
     await switch._async_refresh()
     assert switch.hass.services.async_call.call_args.args[2]["data"]["critical_text"] == "C204"
@@ -269,6 +269,7 @@ async def test_switch_restores_state_and_registers_lifecycle_hooks(monkeypatch, 
     switch.coordinator.async_add_listener = Mock(return_value=unsubscribe)
     await switch.async_added_to_hass()
     assert switch.is_on is on
+    assert switch._restart_targets == (set(switch.targets) if on else set())
     switch.coordinator.async_add_listener.assert_called_once_with(switch._source_updated)
     assert switch.async_on_remove.call_args_list[0].args == (unsubscribe,)
     switch._schedule.assert_called_once_with(1)
@@ -304,7 +305,7 @@ async def test_android_payload_contains_next_room_and_silent_persistent_channel(
     register_phone(switch, "mobile_app_seth", "Android")
     await switch.async_turn_on()
     payload = switch.hass.services.async_call.call_args.args[2]
-    assert payload["message"] == "Nu 📐 Wiskunde · B104 tot 10:35\nHierna 🇬🇧 Engels · 10:40 · C203"
+    assert payload["message"] == "Nu: Wiskunde · lokaal B104 · tot 10:35\nHierna: Engels · om 10:40 · lokaal C203"
     data = payload["data"]
     assert data["critical_text"] == "C203"
     assert data["live_update"] is True
@@ -330,8 +331,8 @@ async def test_mixed_android_ios_targets_receive_their_own_payloads(monkeypatch)
     register_phone(switch, "mobile_app_ivo", "iOS", "ios-phone")
     await switch.async_turn_on()
     android, ios = [call.args[2] for call in switch.hass.services.async_call.call_args_list]
-    assert android["message"].endswith(" · C203")
-    assert ios["message"].endswith(" · 10:40")
+    assert android["message"].endswith(" · lokaal C203")
+    assert ios["message"].endswith(" · om 10:40")
     assert "push" in ios["data"] and "channel" not in ios["data"]
     assert android["data"]["tag"] == ios["data"]["tag"]
     await switch._async_refresh()
@@ -362,7 +363,7 @@ def test_platform_is_resolved_by_registered_target_not_phone_name(monkeypatch):
 def test_android_missing_next_room_is_explicit_in_message():
     schedule = [SCHEDULE[0], lesson("10:40", "11:30", "Engels", "")]
     view = activity_view(schedule, at("10:12"), include_next_room=True)
-    assert view.message.endswith("Hierna 🇬🇧 Engels · 10:40 · Lokaal onbekend")
+    assert view.message.endswith("Hierna: Engels · om 10:40 · Lokaal onbekend")
     assert view.room == "—"
 
 
@@ -375,7 +376,7 @@ def test_android_missing_next_room_is_explicit_in_message():
     ("Onbekend vak", "mdi:book-open-page-variant"),
 ])
 def test_subject_icons_cover_full_school_names(subject, expected):
-    assert subject_visual(subject)[1] == expected
+    assert subject_icon(subject) == expected
 
 
 def test_main_icon_changes_with_phase_and_individual_appointments_are_not_lessons():
@@ -388,3 +389,43 @@ def test_main_icon_changes_with_phase_and_individual_appointments_are_not_lesson
     assert activity_view(schedule, at("11:30")).icon == "mdi:check-circle-outline"
     assert 'Wrong room' not in activity_view(schedule, at("10:12")).message
     assert activity_view([individual], at("10:12")).phase == "idle"
+
+
+@pytest.mark.asyncio
+async def test_old_static_title_is_restarted_once_without_repeated_pushes(monkeypatch):
+    switch = make_switch(monkeypatch)
+    switch._attr_is_on = True
+    switch._restart_targets = set(switch.targets)
+    assert switch.extra_state_attributes["layout"] == "pending"
+    await switch._async_refresh()
+    calls = switch.hass.services.async_call.call_args_list
+    assert len(calls) == 2
+    assert calls[0].args[2]["message"] == "clear_notification"
+    assert calls[1].args[2]["title"] == "Seth · Volgend lokaal"
+    assert switch.extra_state_attributes["layout"] == "next_room_v1"
+    await switch._async_refresh()
+    assert switch.hass.services.async_call.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_failed_title_migration_retries_before_creating_new_card(monkeypatch):
+    switch = make_switch(monkeypatch)
+    switch._attr_is_on = True
+    switch._restart_targets = set(switch.targets)
+    notify = switch.hass.services.async_call
+    notify.side_effect = [HomeAssistantError("offline"), None, None]
+    await switch._async_refresh()
+    assert switch.extra_state_attributes["layout"] == "pending"
+    assert notify.await_count == 1
+    await switch._async_refresh()
+    assert notify.await_count == 3
+    assert switch.extra_state_attributes["layout"] == "next_room_v1"
+
+
+def test_text_has_consistent_current_and_next_lines_without_decorative_icons():
+    view = activity_view(SCHEDULE, at("10:30"))
+    assert view.message.splitlines() == [
+        "Nu: Wiskunde · lokaal B104 · tot 10:35", "Hierna: Engels · om 10:40"]
+    assert view.room == "C203"
+    assert activity_view(SCHEDULE, at("10:35")).message == "Pauze tot 10:40\nHierna: Engels · om 10:40"
+    assert activity_view(SCHEDULE, at("11:30")).message == "Klaar voor vandaag"

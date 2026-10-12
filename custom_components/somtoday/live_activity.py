@@ -8,36 +8,32 @@ from datetime import datetime, time, timedelta
 from .models import appointment_category, is_active_school_appointment, parse_datetime
 
 
-def subject_visual(subject: str) -> tuple[str, str]:
+def subject_icon(subject: str) -> str:
     """Use readable subject icons, with a book fallback for unknown subjects."""
     name = subject.strip().casefold()
-    for words, emoji, icon in (
-        (("wiskunde", "mathematics", "math"), "📐", "calculator-variant"),
-        (("nederlands", "dutch"), "📖", "book-open-page-variant"),
-        (("engels", "english"), "🇬🇧", "translate"),
-        (("duits", "german"), "🇩🇪", "translate"),
-        (("frans", "french"), "🇫🇷", "translate"),
-        (("latijn", "latin"), "🏛️", "pillar"),
-        (("grieks", "greek"), "🏛️", "pillar"),
-        (("geschiedenis", "history"), "🏺", "pillar"),
-        (("aardrijkskunde", "geography"), "🌍", "earth"),
-        (("biologie", "biology"), "🌱", "leaf"),
-        (("scheikunde", "chemistry"), "🧪", "flask-outline"),
-        (("natuurkunde", "physics"), "⚛️", "atom"),
-        (("lichamelijke", "gym", "physical education", "sport"), "🏃", "run"),
-        (("digitale", "informatica", "computing", "computer"), "💻", "laptop"),
-        (("muziek", "music"), "🎵", "music-note"),
-        (("tekenen", "beeldend", "kunst", "art"), "🎨", "palette"),
-        (("mentor",), "💬", "account-group"),
-        (("toets", "proefwerk", "exam"), "📝", "clipboard-text-outline"),
+    for words, icon in (
+        (("wiskunde", "mathematics", "math"), "calculator-variant"),
+        (("nederlands", "dutch"), "book-open-page-variant"),
+        (("engels", "english"), "translate"),
+        (("duits", "german"), "translate"),
+        (("frans", "french"), "translate"),
+        (("latijn", "latin"), "pillar"),
+        (("grieks", "greek"), "pillar"),
+        (("geschiedenis", "history"), "pillar"),
+        (("aardrijkskunde", "geography"), "earth"),
+        (("biologie", "biology"), "leaf"),
+        (("scheikunde", "chemistry"), "flask-outline"),
+        (("natuurkunde", "physics"), "atom"),
+        (("lichamelijke", "gym", "physical education", "sport"), "run"),
+        (("digitale", "informatica", "computing", "computer"), "laptop"),
+        (("muziek", "music"), "music-note"),
+        (("tekenen", "beeldend", "kunst", "art"), "palette"),
+        (("mentor",), "account-group"),
+        (("toets", "proefwerk", "exam"), "clipboard-text-outline"),
     ):
         if any(name == word or name.startswith(word) for word in words):
-            return emoji, f"mdi:{icon}"
-    return "📚", "mdi:book-open-page-variant"
-
-
-def _subject_label(subject):
-    return f"{subject_visual(subject)[0]} {subject}"
+            return f"mdi:{icon}"
+    return "mdi:book-open-page-variant"
 
 
 @dataclass(frozen=True)
@@ -102,7 +98,7 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
     if now < lead or now >= dismissal:
         return ActivityView("idle", None, "", next_change)
     if now >= last:
-        return ActivityView("finished", "✅ Done for today" if en else "✅ Klaar voor vandaag", "✓", next_change, "mdi:check-circle-outline")
+        return ActivityView("finished", "Done for today" if en else "Klaar voor vandaag", "—", next_change, "mdi:check-circle-outline")
 
     current = next((lesson for lesson in reversed(lessons) if lesson.start <= now < lesson.end), None)
     following = next((lesson for lesson in lessons if lesson.start > now), None)
@@ -110,19 +106,26 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
     critical = following.room if following and following.room else "—"
     if current:
         current_line = (
-            f"{'Now' if en else 'Nu'} {_subject_label(current.subject)} · {current.room or unknown} "
+            f"{'Now' if en else 'Nu'}: {current.subject} · "
+            f"{('room ' if en else 'lokaal ') + current.room if current.room else unknown} · "
             f"{'until' if en else 'tot'} {current.end:%H:%M}"
         )
         if following:
-            next_line = f"{'Next' if en else 'Hierna'} {_subject_label(following.subject)} · {following.start:%H:%M}"
+            next_line = f"{'Next' if en else 'Hierna'}: {following.subject} · {'at' if en else 'om'} {following.start:%H:%M}"
             leaving = now >= current.end - timedelta(minutes=5)
-            if leaving or include_next_room:
-                next_line += f" · {following.room or unknown}"
-            message = f"{next_line}\n{current_line}" if leaving else f"{current_line}\n{next_line}"
-            return ActivityView("leaving" if leaving else "lesson", message, critical, next_change, subject_visual(following.subject if leaving else current.subject)[1])
-        return ActivityView("lesson", f"{current_line}\n{'Last lesson today' if en else 'Laatste les vandaag'}", "—", next_change, subject_visual(current.subject)[1])
+            if include_next_room or not following.room:
+                next_line += f" · {('room ' if en else 'lokaal ') + following.room if following.room else unknown}"
+            message = f"{current_line}\n{next_line}"
+            return ActivityView("leaving" if leaving else "lesson", message, critical, next_change, subject_icon(following.subject if leaving else current.subject))
+        return ActivityView("lesson", f"{current_line}\n{'Last lesson today' if en else 'Laatste les vandaag'}", "—", next_change, subject_icon(current.subject))
 
     # Before school and during breaks, the first future lesson is the destination.
-    label = ("🎒 First lesson" if en else "🎒 Eerste les") if now < first else ("☕ Break · next" if en else "☕ Pauze · hierna")
-    message = f"{label} {_subject_label(following.subject)} · {following.start:%H:%M}\n{'Room' if en else 'Lokaal'} {following.room or unknown}"
-    return ActivityView("before_school" if now < first else "break", message, critical, next_change, "mdi:bag-personal" if now < first else "mdi:coffee-outline")
+    if now < first:
+        first_line = f"{'School starts at' if en else 'School begint om'} {following.start:%H:%M}"
+        next_line = f"{'First lesson' if en else 'Eerste les'}: {following.subject}"
+    else:
+        first_line = f"{'Break until' if en else 'Pauze tot'} {following.start:%H:%M}"
+        next_line = f"{'Next' if en else 'Hierna'}: {following.subject} · {'at' if en else 'om'} {following.start:%H:%M}"
+    if include_next_room or not following.room:
+        next_line += f" · {('room ' if en else 'lokaal ') + following.room if following.room else unknown}"
+    return ActivityView("before_school" if now < first else "break", f"{first_line}\n{next_line}", critical, next_change, "mdi:bag-personal" if now < first else "mdi:coffee-outline")

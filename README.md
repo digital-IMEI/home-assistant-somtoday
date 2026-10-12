@@ -730,7 +730,7 @@ Somtoday HTML descriptions are converted to readable plain text in native calend
 entries, exported appointment notes and homework. Ordered lists retain numbering.
 Existing managed exports are reconciled with the new descriptions.
 
-Timetable Live Activities use subject icons and emoji labels, a coffee icon during
+Timetable Live Activities use a changing subject icon on the left, a coffee icon during
 breaks, a backpack before school and a check mark after the final lesson. Individual
 appointments are not classroom destinations: only Rooster and Toets categories are
 used. iOS requests a transparent background and adaptive text colour. Android
@@ -738,3 +738,10 @@ retains its system notification background. Taps target the Somtoday app via
 `somtoday://` on iOS and the installed Somtoday package on Android.
 
 The app links and lock-screen appearance still require verification on a phone.
+
+The Live Activity title is **Name · Next room** (or **Naam · Volgend lokaal**).
+The top-right room always belongs to the next lesson. Body text contains no emoji:
+**Now:** names the current subject, its room and end time; **Next:** names the next
+subject and start time. The line order remains consistent in the final five minutes.
+During breaks, the first line says when the break ends and the second names the next
+subject. Older activity titles are migrated by ending and restarting the card once.

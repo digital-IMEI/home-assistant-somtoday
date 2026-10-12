@@ -20,6 +20,7 @@ from .export import item_id
 from .live_activity import activity_view
 
 _LOGGER = logging.getLogger(__name__)
+ACTIVITY_LAYOUT = "next_room_v1"
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -62,15 +63,21 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
         self._stopping = False
         self._phase = "off"
         self._failed_targets = 0
+        self._restart_targets = set()
 
     @property
     def extra_state_attributes(self):
-        return {"phase": self._phase, "failed_targets": self._failed_targets}
+        return {"phase": self._phase, "failed_targets": self._failed_targets,
+                "layout": ACTIVITY_LAYOUT if not self._restart_targets else "pending"}
 
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
         if previous := await self.async_get_last_state():
             self._attr_is_on = previous.state == "on"
+            if self._attr_is_on and getattr(previous, "attributes", {}).get("layout") != ACTIVITY_LAYOUT:
+                # The Companion title is fixed at creation. End the previous
+                # layout once so updates cannot keep its ambiguous old title.
+                self._restart_targets = set(self.targets)
         self.async_on_remove(self.coordinator.async_add_listener(self._source_updated))
         self.async_on_remove(self._cancel_scheduled)
         # Defer I/O until state registration and mobile-app service startup.
@@ -128,7 +135,7 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
 
     def _payload(self, message, room, platform="ios", icon="mdi:school"):
         payload = {
-            "title": f"{self.name_in_title} · {'Timetable' if self.language == 'en' else 'Rooster'}",
+            "title": f"{self.name_in_title} · {'Next room' if self.language == 'en' else 'Volgend lokaal'}",
             "message": message,
             "data": {
                 "tag": self.tag,
@@ -210,6 +217,11 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
             failures = 0
             for target in self.targets:
                 platform = self._platform(target)
+                if target in self._restart_targets:
+                    if not await self._send(target, None):
+                        failures += 1
+                        continue
+                    self._restart_targets.discard(target)
                 target_payload = payload
                 if platform == "android" and payload is not None:
                     if self.coordinator.last_update_success:
