@@ -16,15 +16,17 @@ def limit_first_line(message: str, limit: int) -> str:
     first, separator, remaining = message.partition("\n")
     if len(first) <= limit:
         return message
-    parts = first.rsplit(" · ", 2)
-    if len(parts) == 3 and first.startswith(("Nu: ", "Now: ")):
+    parts = first.rsplit(" · ", 1)
+    time_label = " until " if first.startswith("Now: ") else " tot "
+    if len(parts) == 2 and time_label in parts[1] and first.startswith(("Nu: ", "Now: ")):
         prefix, subject = parts[0].split(": ", 1)
         prefix += ": "
-        room = "?" if parts[1] in {"Lokaal onbekend", "Room unknown"} else parts[1]
-        suffix = " · " + parts[2]
+        room, end_time = parts[1].rsplit(time_label, 1)
+        room = "?" if room in {"Lokaal onbekend", "Room unknown"} else room
+        suffix = time_label + end_time
         if len(prefix) + 1 + 3 + len(room) + len(suffix) > limit:
             # On narrow English cards, keep the time and room before the label.
-            suffix = " · " + parts[2].rsplit(" ", 1)[-1]
+            suffix = " " + end_time
         room = shorten(room, max(1, limit - len(prefix) - len(suffix) - 4))
         suffix = " · " + room + suffix
         first = prefix + shorten(subject, max(1, limit - len(prefix) - len(suffix))) + suffix
@@ -176,7 +178,7 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
     if current:
         current_line = (
             f"{'Now' if en else 'Nu'}: {subject_display_name(current.subject)} · "
-            f"{current.room or unknown} · "
+            f"{current.room or unknown} "
             f"{'until' if en else 'tot'} {current.end:%H:%M}"
         )
         if following:
