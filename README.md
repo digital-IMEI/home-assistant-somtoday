@@ -745,3 +745,8 @@ The top-right room always belongs to the next lesson. Body text contains no emoj
 subject and start time. The line order remains consistent in the final five minutes.
 During breaks, the first line says when the break ends and the second names the next
 subject. Older activity titles are migrated by ending and restarting the card once.
+
+Live Activity body text uses compact room/time fields, for example
+`Nu: Latijn · 224 · tot 10:35` and `Hierna: Gym · 10:40`. Known full subject names
+are shortened only in the Live Activity; source calendars and exports keep the
+original subject names. Unrecognized subject names are preserved without guessing.

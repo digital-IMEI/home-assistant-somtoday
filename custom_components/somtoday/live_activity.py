@@ -8,6 +8,38 @@ from datetime import datetime, time, timedelta
 from .models import appointment_category, is_active_school_appointment, parse_datetime
 
 
+def subject_display_name(subject: str) -> str:
+    """Shorten known full subject names only in the Live Activity text."""
+    label = " ".join(subject.split())
+    name = label.casefold()
+    aliases = {
+        "nederlandse taal": "Nederlands",
+        "nederlandse taal en literatuur": "Nederlands",
+        "nederlandse taal en letterkunde": "Nederlands",
+        "engelse taal": "Engels",
+        "engelse taal en literatuur": "Engels",
+        "engelse taal en letterkunde": "Engels",
+        "duitse taal": "Duits",
+        "duitse taal en literatuur": "Duits",
+        "duitse taal en letterkunde": "Duits",
+        "franse taal": "Frans",
+        "franse taal en literatuur": "Frans",
+        "franse taal en letterkunde": "Frans",
+        "latijnse taal": "Latijn",
+        "latijnse taal en letterkunde": "Latijn",
+        "griekse taal": "Grieks",
+        "griekse taal en letterkunde": "Grieks",
+        "lichamelijke opvoeding": "Gym",
+        "lichamelijke oefening": "Gym",
+        "bewegingsonderwijs": "Gym",
+        "digitale geletterdheid": "Digitaal",
+        "natuur- en scheikunde": "NaSk",
+        "english language and literature": "English",
+        "physical education": "PE",
+    }
+    return aliases.get(name, label)
+
+
 def subject_icon(subject: str) -> str:
     """Use readable subject icons, with a book fallback for unknown subjects."""
     name = subject.strip().casefold()
@@ -106,15 +138,15 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
     critical = following.room if following and following.room else "—"
     if current:
         current_line = (
-            f"{'Now' if en else 'Nu'}: {current.subject} · "
-            f"{('room ' if en else 'lokaal ') + current.room if current.room else unknown} · "
+            f"{'Now' if en else 'Nu'}: {subject_display_name(current.subject)} · "
+            f"{current.room or unknown} · "
             f"{'until' if en else 'tot'} {current.end:%H:%M}"
         )
         if following:
-            next_line = f"{'Next' if en else 'Hierna'}: {following.subject} · {'at' if en else 'om'} {following.start:%H:%M}"
+            next_line = f"{'Next' if en else 'Hierna'}: {subject_display_name(following.subject)} · {following.start:%H:%M}"
             leaving = now >= current.end - timedelta(minutes=5)
             if include_next_room or not following.room:
-                next_line += f" · {('room ' if en else 'lokaal ') + following.room if following.room else unknown}"
+                next_line += f" · {following.room or unknown}"
             message = f"{current_line}\n{next_line}"
             return ActivityView("leaving" if leaving else "lesson", message, critical, next_change, subject_icon(following.subject if leaving else current.subject))
         return ActivityView("lesson", f"{current_line}\n{'Last lesson today' if en else 'Laatste les vandaag'}", "—", next_change, subject_icon(current.subject))
@@ -122,10 +154,10 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
     # Before school and during breaks, the first future lesson is the destination.
     if now < first:
         first_line = f"{'School starts at' if en else 'School begint om'} {following.start:%H:%M}"
-        next_line = f"{'First lesson' if en else 'Eerste les'}: {following.subject}"
+        next_line = f"{'First lesson' if en else 'Eerste les'}: {subject_display_name(following.subject)}"
     else:
         first_line = f"{'Break until' if en else 'Pauze tot'} {following.start:%H:%M}"
-        next_line = f"{'Next' if en else 'Hierna'}: {following.subject} · {'at' if en else 'om'} {following.start:%H:%M}"
+        next_line = f"{'Next' if en else 'Hierna'}: {subject_display_name(following.subject)} · {following.start:%H:%M}"
     if include_next_room or not following.room:
-        next_line += f" · {('room ' if en else 'lokaal ') + following.room if following.room else unknown}"
+        next_line += f" · {following.room or unknown}"
     return ActivityView("before_school" if now < first else "break", f"{first_line}\n{next_line}", critical, next_change, "mdi:bag-personal" if now < first else "mdi:coffee-outline")
