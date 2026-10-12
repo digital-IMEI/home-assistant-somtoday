@@ -17,7 +17,6 @@ from .coordinator import SomtodayCoordinator
 from .assessments import assessment_description, assessment_summary
 from .models import appointment_category, automatic_day_titles, parse_datetime, school_day_appointments
 from .export import item_id
-from .appointment_debug import appointment_debug_rows
 from .text import plain_text
 
 
@@ -51,15 +50,6 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
         self._attr_device_info = student_device_info(entry, student)
         self._attr_name = "Rooster"
         self._attr_unique_id = f"{entry.entry_id}_schedule" if legacy else f"{entry.entry_id}_{self.student}_schedule"
-
-    @property
-    def extra_state_attributes(self):
-        items = self.coordinator.data.get("appointments_by_student", {}).get(self.student, [])
-        return {
-            "appointment_debug": appointment_debug_rows(items),
-            "appointment_debug_total": len(items),
-            "appointment_debug_truncated": len(items) > 100,
-        }
 
     @property
     def event(self) -> CalendarEvent | None:

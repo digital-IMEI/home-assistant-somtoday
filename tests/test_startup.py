@@ -37,6 +37,8 @@ def test_configured_calendar_targets_are_unique_and_ignore_disabled_exports():
                     "day_calendar": "calendar.family",
                     "lesson_calendar": "calendar.family",
                     "holiday_calendar": "",
+                    "schedule_test_calendar": "calendar.tests",
+                    "other_calendar": "calendar.other",
                 },
                 "b": {"holiday_calendar": "calendar.holidays"},
             }
@@ -46,6 +48,8 @@ def test_configured_calendar_targets_are_unique_and_ignore_disabled_exports():
     assert _configured_calendar_targets(entry) == {
         "calendar.family",
         "calendar.holidays",
+        "calendar.tests",
+        "calendar.other",
     }
 
 

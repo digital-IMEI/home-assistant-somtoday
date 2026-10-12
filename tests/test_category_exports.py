@@ -43,7 +43,6 @@ def test_real_school_categories_route_independently_of_titles_and_colors():
     coordinator = SimpleNamespace(data={"appointments_by_student": {"a": items}})
     calendar = SomtodayCalendar(coordinator, SimpleNamespace(entry_id="e"), {"links": [{"id": "a"}]})
     assert [event.summary for event in calendar._events(START, END)] == ["Latijn"]
-    assert len(calendar.extra_state_attributes["appointment_debug"]) == 5
 
 
 def test_new_exports_are_opt_in_and_do_not_require_study_guide_data():
