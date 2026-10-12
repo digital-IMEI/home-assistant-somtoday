@@ -145,9 +145,12 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                 "notification_icon_color": "#03A9F4",
                 "background_color": "transparent",
                 "url": "somtoday://",
+                "silent": True,
                 "alert_once": True,
-                # Keep transition pushes high priority; no sound on updates.
-                "push": {"sound": None},
+                # ActivityKit alerts are controlled by silent, independently
+                # of the ordinary notification sound. Passive also quiets any
+                # standard-notification fallback on iOS.
+                "push": {"sound": None, "interruption-level": "passive"},
             },
         }
         if platform == "android":
@@ -158,6 +161,7 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
                 "channel": "Somtoday timetable",
                 # LOW remains eligible for promoted Live Updates while silent.
                 "importance": "low",
+                "vibrationPattern": "0",
                 "persistent": True,
                 "sticky": True,
                 "priority": "high",
