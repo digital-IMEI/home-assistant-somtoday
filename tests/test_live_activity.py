@@ -31,6 +31,68 @@ def lesson(start, end, subject="Wiskunde", room="B104", **extra):
 SCHEDULE = [lesson("09:45", "10:35"), lesson("10:40", "11:30", "Engels", "C203")]
 
 
+@pytest.mark.parametrize("clock", ["10:12", "10:30", "10:35", "11:00"])
+def test_same_subject_block_uses_final_end_and_following_destination(clock):
+    schedule = [
+        lesson("09:45", "10:35"),
+        lesson("10:35", "11:25", " wiskunde "),
+        lesson("11:25", "12:15"),
+        lesson("12:15", "13:05", "Engels", "C203"),
+    ]
+    view = activity_view(list(reversed(schedule)), at(clock))
+    assert view.message == "Nu: Wiskunde · B104 tot 12:15\nHierna: Engels"
+    assert view.phase == "lesson"
+    assert view.room == "C203"
+    assert view.next_change == at("12:10")
+    assert activity_view(schedule, at("12:10")).phase == "leaving"
+    assert activity_view(schedule, at("12:15")).message.startswith("Nu: Engels")
+
+
+@pytest.mark.parametrize("language,label", [("nl", "Hierna: muziek verder"), ("en", "Next: muziek continues")])
+@pytest.mark.parametrize("clock", ["12:40", "12:55", "13:00"])
+def test_repeated_subject_across_break_keeps_real_restart_time(language, label, clock):
+    schedule = [lesson("12:05", "12:55", "muziek", "312"),
+                lesson("13:20", "14:10", "muziek", "312")]
+    view = activity_view(schedule, at(clock), language)
+    assert view.message.split("\n")[1] == f"{label} · 13:20"
+    assert view.room == "312"
+    if clock == "12:40":
+        assert "12:55" in view.message.split("\n")[0]
+        assert view.next_change == at("12:50")
+    else:
+        assert view.phase == "break"
+        assert "13:20" in view.message.split("\n")[0]
+        assert view.next_change == at("13:20")
+
+
+def test_same_subject_room_change_remains_a_destination():
+    schedule = [lesson("09:45", "10:35"), lesson("10:35", "11:25", room="C203")]
+    view = activity_view(schedule, at("10:12"), include_next_room=True)
+    assert view.message == "Nu: Wiskunde · B104 tot 10:35\nHierna: Wiskunde verder · C203"
+    assert view.room == "C203"
+    assert view.next_change == at("10:30")
+
+
+@pytest.mark.parametrize("room", ["", "B104"])
+def test_unknown_rooms_and_different_categories_do_not_merge(room):
+    second = lesson("10:35", "11:25", room=room)
+    if room:
+        second["afspraakType"] = {"categorie": "Toets"}
+    schedule = [lesson("09:45", "10:35", room=room), second]
+    view = activity_view(schedule, at("10:12"))
+    assert "tot 10:35" in view.message
+    assert view.next_change == at("10:30")
+
+
+def test_final_double_lesson_dismissal_uses_block_end():
+    schedule = [lesson("09:45", "10:35"), lesson("10:35", "11:25")]
+    view = activity_view(schedule, at("10:34"))
+    assert view.message == "Nu: Wiskunde · B104 tot 11:25\nLaatste les vandaag"
+    assert view.room == "—"
+    assert activity_view(schedule, at("11:25")).phase == "finished"
+    assert activity_view(schedule, at("11:35")).phase == "idle"
+
+
 @pytest.mark.parametrize("clock,phase,next_time,room", [
     ("09:29:59", "idle", "09:30", ""),
     ("09:30", "before_school", "09:45", "B104"),

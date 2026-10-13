@@ -6,12 +6,15 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 
 ## Features
 
-### Version 0.11.5 — production release
+### Version 0.11.6 — production release
 
 Timetable Live Activities on iPhone and Live Updates on Android show the current
 lesson, upcoming subject and next classroom. Compact text, subject icons and silent
 updates keep the information easy to read without repeated alerts. Consecutive
-lessons omit a duplicate start time; breaks retain the upcoming lesson time.
+lessons of the same subject in the same known classroom are shown as one block
+when they meet without a break, using the final lesson's end time. If a break or
+classroom change separates the lessons, the next line says the subject continues;
+breaks retain the upcoming lesson time and classroom changes remain visible.
 
 Per-child devices, improved token renewal, separate exports for Rooster, Toets and
 other appointments, and readable HTML descriptions are included. See the
@@ -750,6 +753,12 @@ The top-right room always belongs to the next lesson. Body text contains no emoj
 subject and start time. The line order remains consistent in the final five minutes.
 During breaks, the first line says when the break ends and the second names the next
 subject. Older activity titles are migrated by ending and restarting the card once.
+
+Back-to-back lessons of the same subject and appointment category in the same
+known classroom appear as one continuous block. The next classroom then points
+to the lesson after that block. A break is never merged into a lesson: repeated
+subjects say `Hierna: muziek verder · 13:20` (English: `Next: music continues · 13:20`),
+including during the break. A classroom change keeps the lessons separate.
 
 Live Activity body text uses compact room/time fields, for example
 `Nu: Latijn · 224 tot 10:35` and `Hierna: Gym · 10:40`. Known full subject names
