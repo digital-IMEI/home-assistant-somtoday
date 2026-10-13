@@ -113,6 +113,16 @@ class Lesson:
     end: datetime
     subject: str
     room: str
+    category: str = "rooster"
+
+
+def same_subject(first: Lesson, second: Lesson) -> bool:
+    """Compare full source names, not potentially ambiguous display aliases."""
+    return (
+        " ".join(first.subject.split()).casefold()
+        == " ".join(second.subject.split()).casefold()
+        and first.category == second.category
+    )
 
 
 @dataclass(frozen=True)
@@ -153,8 +163,26 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
         lessons.append(Lesson(
             start, end, str(subject or item.get("titel") or "Somtoday"),
             str(item.get("locatie") or "").strip(),
+            appointment_category(item),
         ))
     lessons.sort(key=lambda lesson: (lesson.start, lesson.end, lesson.subject))
+    blocks: list[Lesson] = []
+    for lesson in lessons:
+        previous = blocks[-1] if blocks else None
+        if (
+            previous is not None
+            and previous.end == lesson.start
+            and same_subject(previous, lesson)
+            and previous.room
+            and previous.room.casefold() == lesson.room.casefold()
+        ):
+            blocks[-1] = Lesson(
+                previous.start, lesson.end, previous.subject, previous.room,
+                previous.category,
+            )
+        else:
+            blocks.append(lesson)
+    lessons = blocks
     if not lessons:
         return ActivityView("idle", None, "", midnight)
 
@@ -183,6 +211,8 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
         )
         if following:
             next_line = f"{'Next' if en else 'Hierna'}: {subject_display_name(following.subject)}"
+            if same_subject(current, following):
+                next_line += " continues" if en else " verder"
             if following.start != current.end:
                 next_line += f" · {following.start:%H:%M}"
             leaving = now >= current.end - timedelta(minutes=5)
@@ -198,7 +228,11 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
         next_line = f"{'First lesson' if en else 'Eerste les'}: {subject_display_name(following.subject)}"
     else:
         first_line = f"{'Break until' if en else 'Pauze tot'} {following.start:%H:%M}"
-        next_line = f"{'Next' if en else 'Hierna'}: {subject_display_name(following.subject)} · {following.start:%H:%M}"
+        next_line = f"{'Next' if en else 'Hierna'}: {subject_display_name(following.subject)}"
+        previous = next((lesson for lesson in reversed(lessons) if lesson.end <= now), None)
+        if previous and same_subject(previous, following):
+            next_line += " continues" if en else " verder"
+        next_line += f" · {following.start:%H:%M}"
     if include_next_room or not following.room:
         next_line += f" · {following.room or unknown}"
     return ActivityView("before_school" if now < first else "break", f"{first_line}\n{next_line}", critical, next_change, "mdi:bag-personal" if now < first else "mdi:coffee-outline")
