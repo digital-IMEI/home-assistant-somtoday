@@ -85,6 +85,21 @@ def build_authorize_url(
     return f"{AUTHORIZE_URL}?{urlencode(params)}"
 
 
+def _assigned_to(item: dict[str, Any], student_id: str) -> bool:
+    """Whether an assignment belongs to the student.
+
+    On accounts with several students (e.g. a parent account) the assignment
+    endpoints ignore the student filter and return every child's items, so the
+    owners requested through ``additional=leerlingen`` are checked here. Items
+    that do not report any owner are kept.
+    """
+    owners = ((item.get("additionalObjects") or {}).get("leerlingen") or {}).get("items") or []
+    owner_ids = {
+        str((owner.get("links") or [{}])[0].get("id", "")) for owner in owners if isinstance(owner, dict)
+    }
+    return not owner_ids or str(student_id) in owner_ids
+
+
 class SomtodayClient:
     """Async Somtoday client using Home Assistant's shared HTTP session."""
 
@@ -221,6 +236,7 @@ class SomtodayClient:
             ("additional", "swigemaaktVinkjes"),
             ("additional", "huiswerkgemaakt"),
             ("additional", "lesgroep"),
+            ("additional", "leerlingen"),
         ]
         sources = (
             ("appointment", "/rest/v1/studiewijzeritemafspraaktoekenningen"),
@@ -253,6 +269,8 @@ class SomtodayClient:
         result = []
         for (kind, _), items in zip(sources, pages, strict=True):
             for item in items:
+                if not _assigned_to(item, student_id):
+                    continue
                 result.append({**item, "_somtoday_assignment_kind": kind})
         return result
 

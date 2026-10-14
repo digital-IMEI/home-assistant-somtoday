@@ -263,3 +263,29 @@ async def test_invalid_token_payload_is_transient_and_retains_credential():
         await client.refresh()
     assert not isinstance(caught.value, SomtodayAuthenticationError)
     assert client.token == original
+
+
+def _owned(identifier, *students):
+    return {
+        "links": [{"id": identifier}],
+        "additionalObjects": {
+            "leerlingen": {"items": [{"links": [{"id": student}]} for student in students]}
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_assessments_keep_only_the_selected_students_items():
+    client = SomtodayClient(None, {"access_token": "token", "expires_at": 9999999999})
+    client._get_all = AsyncMock(
+        side_effect=[
+            [_owned("a", 1), _owned("b", 2), _owned("c", 1, 2), {"links": [{"id": "no-owner"}]}],
+            [],
+            [],
+        ]
+    )
+
+    values = await client.assessments("2", date(2026, 9, 13))
+
+    assert [value["links"][0]["id"] for value in values] == ["b", "c", "no-owner"]
+    assert ("additional", "leerlingen") in client._get_all.await_args_list[0].kwargs["params"]
