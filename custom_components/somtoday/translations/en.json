@@ -138,7 +138,8 @@
           "schedule_test_prefix": "Timetable tests · prefix",
           "other_calendar": "Non-regular lessons and appointments · destination calendar",
           "other_prefix": "Non-regular lessons and appointments · prefix",
-          "live_activity_first_line_limit": "Maximum characters on first body line"
+          "live_activity_first_line_limit": "Maximum characters on first body line",
+          "live_activity_second_line_limit": "Maximum characters on second body line"
         },
         "data_description": {
           "day_calendar": "Listed calendars support creating and deleting events. Access permissions are only confirmed during synchronization. Start with 1 day.",
@@ -154,7 +155,8 @@
           "schedule_test_prefix": "Placeholder: {student_placeholder}. Added before the appointment title.",
           "other_calendar": "Exports all categories except Rooster and Toets. Schools may use or repurpose these for varying appointments, such as individual appointments, activities or exams.",
           "other_prefix": "Placeholder: {student_placeholder}. Added before the appointment title.",
-          "live_activity_first_line_limit": "24–60 characters; default 28. Shortens the subject first to retain room and end time. Applies to the first body line, not the title. Adjust for the phone font size."
+          "live_activity_first_line_limit": "24–60 characters; default 28. Shortens the subject first to retain room and end time. Applies to the first body line, not the title. Adjust for the phone font size.",
+          "live_activity_second_line_limit": "24–60 characters; default 28. Shortens the subject with … to retain any start time and room. Applies to the second body line."
         },
         "sections": {
           "school_days": {
@@ -250,11 +252,13 @@
             "data": {
               "live_activity_targets": "Phones",
               "live_activity_language": "Card language",
-              "live_activity_first_line_limit": "Maximum characters on first body line"
+              "live_activity_first_line_limit": "Maximum characters on first body line",
+              "live_activity_second_line_limit": "Maximum characters on second body line"
             },
             "data_description": {
               "live_activity_targets": "Select the child’s Home Assistant Companion phone. Multiple phones are supported.",
-              "live_activity_first_line_limit": "24–60 characters; default 28. Shortens the subject first to retain room and end time. Applies to the first body line, not the title. Adjust for the phone font size."
+              "live_activity_first_line_limit": "24–60 characters; default 28. Shortens the subject first to retain room and end time. Applies to the first body line, not the title. Adjust for the phone font size.",
+              "live_activity_second_line_limit": "24–60 characters; default 28. Shortens the subject with … to retain any start time and room. Applies to the second body line."
             }
           },
           "schedule_tests": {

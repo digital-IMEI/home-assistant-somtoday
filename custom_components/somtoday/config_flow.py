@@ -452,6 +452,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     "live_activity_targets": user_input.get("live_activity_targets", []),
                     "live_activity_language": user_input.get("live_activity_language", old.get("live_activity_language", "nl")),
                     "live_activity_first_line_limit": int(user_input.get("live_activity_first_line_limit", old.get("live_activity_first_line_limit", 28))),
+                    "live_activity_second_line_limit": int(user_input.get("live_activity_second_line_limit", old.get("live_activity_second_line_limit", 28))),
                 }
                 self._homework_route = {
                     "homework_list": user_input.get("homework_list", ""),
@@ -557,6 +558,9 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             title_schema[vol.Required("live_activity_first_line_limit", default=old.get("live_activity_first_line_limit", 28))] = NumberSelector(
                 NumberSelectorConfig(min=24, max=60, step=1, mode=NumberSelectorMode.BOX)
             )
+            title_schema[vol.Required("live_activity_second_line_limit", default=old.get("live_activity_second_line_limit", 28))] = NumberSelector(
+                NumberSelectorConfig(min=24, max=60, step=1, mode=NumberSelectorMode.BOX)
+            )
         # The native HA timetable always contains individual lessons, so this
         # option is useful even when external lesson export is disabled.
         title_schema[vol.Required(
@@ -610,7 +614,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
             "tests": ("assessment_calendar", "assessment_title"),
             "homework": ("homework_list", "homework_title", "homework_bidirectional", "homework_include_appointment", "homework_include_day", "homework_include_week"),
             "absences": ("absence_remarks",),
-            "live_activity": ("live_activity_targets", "live_activity_language", "live_activity_first_line_limit"),
+            "live_activity": ("live_activity_targets", "live_activity_language", "live_activity_first_line_limit", "live_activity_second_line_limit"),
         }
         for name, names in groups.items():
             group = {key: value for key, value in fields.items() if key.schema in names}

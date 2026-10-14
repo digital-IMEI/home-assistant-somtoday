@@ -138,7 +138,8 @@
           "schedule_test_prefix": "Roostertoetsen · voorvoegsel",
           "other_calendar": "Niet-reguliere lessen en afspraken · doelagenda",
           "other_prefix": "Niet-reguliere lessen en afspraken · voorvoegsel",
-          "live_activity_first_line_limit": "Maximum tekens eerste tekstregel"
+          "live_activity_first_line_limit": "Maximum tekens eerste tekstregel",
+          "live_activity_second_line_limit": "Maximum aantal tekens op tweede tekstregel"
         },
         "data_description": {
           "day_calendar": "Getoonde agenda’s ondersteunen het maken en verwijderen van afspraken. Toegangsrechten worden pas bij synchronisatie bevestigd. Begin met 1 dag.",
@@ -154,7 +155,8 @@
           "schedule_test_prefix": "Placeholder: {student_placeholder}. Wordt vóór de afspraaktitel gezet.",
           "other_calendar": "Exporteert alle categorieën behalve Rooster en Toets. Scholen kunnen deze gebruiken of anders inzetten voor wisselende afspraken, bijvoorbeeld individuele afspraken, activiteiten of proefwerken.",
           "other_prefix": "Placeholder: {student_placeholder}. Wordt vóór de afspraaktitel gezet.",
-          "live_activity_first_line_limit": "24–60 tekens; standaard 28. Verkort eerst de vaknaam zodat lokaal en eindtijd blijven staan. Alleen de eerste tekstregel, niet de titel. Pas aan op de tekstgrootte van de telefoon."
+          "live_activity_first_line_limit": "24–60 tekens; standaard 28. Verkort eerst de vaknaam zodat lokaal en eindtijd blijven staan. Alleen de eerste tekstregel, niet de titel. Pas aan op de tekstgrootte van de telefoon.",
+          "live_activity_second_line_limit": "24–60 tekens; standaard 28. Verkort de vaknaam met … zodat een eventuele starttijd en lokaal blijven staan. Alleen de tweede tekstregel."
         },
         "sections": {
           "school_days": {
@@ -250,11 +252,13 @@
             "data": {
               "live_activity_targets": "Telefoons",
               "live_activity_language": "Taal op de kaart",
-              "live_activity_first_line_limit": "Maximum tekens eerste tekstregel"
+              "live_activity_first_line_limit": "Maximum tekens eerste tekstregel",
+              "live_activity_second_line_limit": "Maximum aantal tekens op tweede tekstregel"
             },
             "data_description": {
               "live_activity_targets": "Kies de Home Assistant Companion-telefoon van het kind. Meerdere telefoons zijn mogelijk.",
-              "live_activity_first_line_limit": "24–60 tekens; standaard 28. Verkort eerst de vaknaam zodat lokaal en eindtijd blijven staan. Alleen de eerste tekstregel, niet de titel. Pas aan op de tekstgrootte van de telefoon."
+              "live_activity_first_line_limit": "24–60 tekens; standaard 28. Verkort eerst de vaknaam zodat lokaal en eindtijd blijven staan. Alleen de eerste tekstregel, niet de titel. Pas aan op de tekstgrootte van de telefoon.",
+              "live_activity_second_line_limit": "24–60 tekens; standaard 28. Verkort de vaknaam met … zodat een eventuele starttijd en lokaal blijven staan. Alleen de tweede tekstregel."
             }
           },
           "schedule_tests": {
