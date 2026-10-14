@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.somtoday.live_activity import activity_view, subject_icon, subject_display_name, limit_first_line
+from custom_components.somtoday.live_activity import activity_view, subject_icon, subject_display_name, limit_first_line, limit_second_line
 from custom_components.somtoday.switch import SomtodayLiveActivitySwitch, async_setup_entry
 
 TZ = ZoneInfo("Europe/Amsterdam")
@@ -369,7 +369,7 @@ async def test_android_payload_contains_next_room_and_silent_persistent_channel(
     register_phone(switch, "mobile_app_seth", "Android")
     await switch.async_turn_on()
     payload = switch.hass.services.async_call.call_args.args[2]
-    assert payload["message"] == "Nu: Wiskun… · B104 tot 10:35\nHierna: Engels · 10:40 · C203"
+    assert payload["message"] == "Nu: Wiskun… · B104 tot 10:35\nHierna: Enge… · 10:40 · C203"
     data = payload["data"]
     assert data["critical_text"] == "C203"
     assert data["live_update"] is True
@@ -516,10 +516,10 @@ def test_compact_current_upcoming_and_break_text_preserves_source_subjects():
                 lesson("10:40", "11:30", "Lichamelijke opvoeding", "mfr2")]
     original = deepcopy(schedule)
     view = activity_view(schedule, at("10:12"))
-    assert view.message == "Nu: Latijn · 224 tot 10:35\nHierna: Gym · 10:40"
+    assert view.message == "Nu: Latijn · 224 tot 10:35\nHierna: Lichamelijke opvoeding · 10:40"
     assert view.room == "mfr2"
-    assert activity_view(schedule, at("10:35")).message == "Pauze tot 10:40\nHierna: Gym · 10:40"
-    assert activity_view(schedule, at("09:30")).message == "School begint om 09:45\nEerste les: Latijn"
+    assert activity_view(schedule, at("10:35")).message == "Pauze tot 10:40\nHierna: Lichamelijke opvoeding · 10:40"
+    assert activity_view(schedule, at("09:30")).message == "School begint om 09:45\nEerste les: Latijnse taal en letterkunde"
     assert schedule == original
 
 
@@ -528,12 +528,12 @@ def test_adjacent_lessons_omit_duplicate_start_time_but_keep_next_classroom(lang
     schedule = [lesson("10:25", "11:15", "wiskunde", "209"),
                 lesson("11:15", "12:05", "Nederlandse taal", "410")]
     view = activity_view(schedule, at("10:55"), language)
-    assert view.message.splitlines()[1] == f"{label}: Nederlands"
+    assert view.message.splitlines()[1] == f"{label}: Nederlandse taal"
     assert view.room == "410"
     assert "Wiskunde" in view.message.splitlines()[0]
     assert "11:15" in view.message.splitlines()[0]
     android_view = activity_view(schedule, at("10:55"), language, include_next_room=True)
-    assert android_view.message.splitlines()[1] == f"{label}: Nederlands · 410"
+    assert android_view.message.splitlines()[1] == f"{label}: Nederlandse taal · 410"
     assert activity_view(schedule, at("11:15"), language).message.startswith("Nu: Nederlands" if language == "nl" else "Now: Nederlands")
 
 
@@ -567,3 +567,20 @@ def test_payload_uses_saved_first_line_limit(monkeypatch):
     assert configured.first_line_limit == 40
     payload = configured._payload("Nu: Wiskunde · B104 tot 10:35\nHierna: Engels", "C203", icon="mdi:calculator")
     assert payload["message"].startswith("Nu: Wiskunde · B104 tot 10:35")
+
+
+@pytest.mark.parametrize("limit", [24, 28, 60])
+def test_second_line_character_limit_retains_time_and_room(limit):
+    message = "Nu: Engels · 210 tot 10:35\nHierna: Speciale les met een eigen naam · 10:40 · 410"
+    result = limit_second_line(message, limit)
+    first, second = result.splitlines()
+    assert first == message.splitlines()[0]
+    assert len(second) <= limit
+    assert second.endswith(" · 10:40 · 410")
+    assert "…" in second if limit < len(message.splitlines()[1]) else result == message
+
+
+def test_second_line_allows_multiple_words_and_handles_single_line():
+    message = "Pauze tot 10:40\nHierna: Nederlandse taal"
+    assert limit_second_line(message, 28) == message
+    assert limit_second_line("Klaar voor vandaag", 28) == "Klaar voor vandaag"
