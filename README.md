@@ -81,7 +81,8 @@ Android support is included from 0.11.1.
 1. Open **Settings → Devices & services → Somtoday → Configure** and select the child.
 2. Enable **Timetable Live Activity**. In the following **Live Activity** section,
    select the child's Home Assistant Companion phone and choose Dutch or English.
-   Set **Maximum characters on first body line** (24–60; default 28) to suit
+   Set **Maximum characters on first body line** and **Maximum characters on second body line**
+   (each 24–60; default 28) to suit
    the phone's text size.
    You can select several phones. Calendar export is not required.
 3. Save, then turn on **Name · Live Activity** (for Seth, normally
@@ -762,10 +763,14 @@ including during the break. A classroom change keeps the lessons separate.
 
 Live Activity body text uses compact room/time fields, for example
 `Nu: Latijn · 224 tot 10:35` and `Hierna: Gym · 10:40`. Known full subject names
-are shortened only in the Live Activity; source calendars and exports keep the
+are shortened on the current-lesson line; the upcoming line uses the full name
+within its character limit; source calendars and exports keep the
 original subject names. A configurable first-line limit shortens the subject with an ellipsis while
 retaining the current room and end time. At very small limits, time labels and
-exceptionally long room labels may also be shortened. The next line is unchanged.
+exceptionally long room labels may also be shortened. A separate second-line limit
+shortens the upcoming subject by character count, including spaces, with an ellipsis.
+Any start time and classroom remain visible where space permits; multiword names
+are allowed within the limit.
 Character count cannot guarantee a single visual line with every font size; lower
 the limit if needed. Calendar exports retain the full original text.
 

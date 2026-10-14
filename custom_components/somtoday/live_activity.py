@@ -35,6 +35,28 @@ def limit_first_line(message: str, limit: int) -> str:
     return first + separator + remaining
 
 
+def limit_second_line(message: str, limit: int) -> str:
+    """Bound the next-lesson line by characters, retaining room/time fields."""
+    first, separator, remaining = message.partition("\n")
+    if not separator:
+        return message
+    second, trailing_separator, trailing = remaining.partition("\n")
+    if len(second) <= limit:
+        return message
+    label, delimiter, details = second.partition(": ")
+    subject, field_separator, fields = details.partition(" · ")
+    prefix = label + delimiter if delimiter else ""
+    suffix = field_separator + fields if delimiter else ""
+    if not delimiter:
+        subject = second
+    budget = limit - len(prefix) - len(suffix)
+    if budget < 1:
+        second = second[:limit - 1].rstrip() + "…"
+    else:
+        second = prefix + subject[:budget - 1].rstrip() + "…" + suffix
+    return first + separator + second + trailing_separator + trailing
+
+
 def subject_display_name(subject: str) -> str:
     """Shorten known full subject names only in the Live Activity text."""
     label = " ".join(subject.split())
@@ -210,7 +232,7 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
             f"{'until' if en else 'tot'} {current.end:%H:%M}"
         )
         if following:
-            next_line = f"{'Next' if en else 'Hierna'}: {subject_display_name(following.subject)}"
+            next_line = f"{'Next' if en else 'Hierna'}: {' '.join(following.subject.split())}"
             if same_subject(current, following):
                 next_line += " continues" if en else " verder"
             if following.start != current.end:
@@ -225,10 +247,10 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
     # Before school and during breaks, the first future lesson is the destination.
     if now < first:
         first_line = f"{'School starts at' if en else 'School begint om'} {following.start:%H:%M}"
-        next_line = f"{'First lesson' if en else 'Eerste les'}: {subject_display_name(following.subject)}"
+        next_line = f"{'First lesson' if en else 'Eerste les'}: {' '.join(following.subject.split())}"
     else:
         first_line = f"{'Break until' if en else 'Pauze tot'} {following.start:%H:%M}"
-        next_line = f"{'Next' if en else 'Hierna'}: {subject_display_name(following.subject)}"
+        next_line = f"{'Next' if en else 'Hierna'}: {' '.join(following.subject.split())}"
         previous = next((lesson for lesson in reversed(lessons) if lesson.end <= now), None)
         if previous and same_subject(previous, following):
             next_line += " continues" if en else " verder"

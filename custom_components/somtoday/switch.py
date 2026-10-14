@@ -17,7 +17,7 @@ from homeassistant.util import dt as dt_util
 from .device import student_device_info
 from .const import DOMAIN
 from .export import item_id
-from .live_activity import activity_view, limit_first_line
+from .live_activity import activity_view, limit_first_line, limit_second_line
 
 _LOGGER = logging.getLogger(__name__)
 ACTIVITY_LAYOUT = "next_room_v1"
@@ -55,6 +55,7 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
         self.targets = tuple(dict.fromkeys(route.get("live_activity_targets", [])))
         self.language = route.get("live_activity_language", "nl")
         self.first_line_limit = int(route.get("live_activity_first_line_limit", 28))
+        self.second_line_limit = int(route.get("live_activity_second_line_limit", 28))
         # Stable, private, valid Companion tag, including account and pupil.
         self.tag = "somtoday-" + hashlib.sha256(self._attr_unique_id.encode()).hexdigest()[:32]
         self._lock = asyncio.Lock()
@@ -137,7 +138,9 @@ class SomtodayLiveActivitySwitch(SwitchEntity, RestoreEntity):
     def _payload(self, message, room, platform="ios", icon="mdi:school"):
         payload = {
             "title": f"{self.name_in_title} · {'Next room' if self.language == 'en' else 'Volgend lokaal'}",
-            "message": limit_first_line(message, self.first_line_limit),
+            "message": limit_second_line(
+                limit_first_line(message, self.first_line_limit), self.second_line_limit
+            ),
             "data": {
                 "tag": self.tag,
                 "live_update": True,
