@@ -102,7 +102,7 @@ bar or chronometer is sent, since those replace the room/body in the native layo
 | --- | --- |
 | 15 minutes before the first lesson | First subject, start time and classroom. |
 | During a lesson | Current subject, room and end time; next subject and start time. Next room on the right. |
-| Final 5 minutes, when another lesson follows | Current/next line order stays unchanged; the left icon changes to the upcoming subject. |
+| Final 5 minutes, when another lesson follows | Current/next line order stays unchanged; the left icon stays with the current subject until the lesson ends. |
 | Between lessons and during breaks | Next subject, start time and classroom. |
 | Last lesson | Current lesson and “Last lesson today”; no next classroom. |
 | After the last lesson | “Done for today”, then removed after 10 minutes. |

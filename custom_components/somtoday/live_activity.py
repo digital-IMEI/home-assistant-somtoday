@@ -241,7 +241,7 @@ def activity_view(appointments: list[dict], now: datetime, language="nl", *, inc
             if include_next_room or not following.room:
                 next_line += f" · {following.room or unknown}"
             message = f"{current_line}\n{next_line}"
-            return ActivityView("leaving" if leaving else "lesson", message, critical, next_change, subject_icon(following.subject if leaving else current.subject))
+            return ActivityView("leaving" if leaving else "lesson", message, critical, next_change, subject_icon(current.subject))
         return ActivityView("lesson", f"{current_line}\n{'Last lesson today' if en else 'Laatste les vandaag'}", "—", next_change, subject_icon(current.subject))
 
     # Before school and during breaks, the first future lesson is the destination.

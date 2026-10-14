@@ -450,7 +450,9 @@ def test_main_icon_changes_with_phase_and_individual_appointments_are_not_lesson
     individual = lesson("10:12", "15:00", "proefwerk Nederlands", "Wrong room", afspraakType={"categorie": "Individueel"})
     schedule = SCHEDULE + [individual]
     assert activity_view(schedule, at("10:12")).icon == "mdi:calculator-variant"
-    assert activity_view(schedule, at("10:30")).icon == "mdi:translate"
+    assert activity_view(schedule, at("10:30")).icon == "mdi:calculator-variant"
+    assert activity_view(schedule, at("10:34")).icon == "mdi:calculator-variant"
+    assert activity_view(schedule, at("10:40")).icon == "mdi:translate"
     assert activity_view(schedule, at("10:35")).icon == "mdi:coffee-outline"
     assert activity_view(schedule, at("09:30")).icon == "mdi:bag-personal"
     assert activity_view(schedule, at("11:30")).icon == "mdi:check-circle-outline"
