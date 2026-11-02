@@ -39,6 +39,27 @@ def select_student(appointments, students, selected):
     return selected, result
 
 
+def _group_adjacent_schedule_tests(items):
+    """Combine consecutive test slots for the same subject into one event."""
+    groups = []
+    last_by_subject = {}
+    for item in sorted(items, key=lambda value: parse_datetime(value["beginDatumTijd"])):
+        begin = parse_datetime(item["beginDatumTijd"])
+        finish = parse_datetime(item["eindDatumTijd"])
+        subject = ((item.get("additionalObjects") or {}).get("vak") or {}).get("naam")
+        key = str(subject or "").strip().casefold()
+        previous = last_by_subject.get(key) if key else None
+        if previous is not None and previous["end"] == begin:
+            previous["end"] = finish
+            previous["members"].append(item)
+        else:
+            group = {"first": item, "end": finish, "members": [item]}
+            groups.append(group)
+            if key:
+                last_by_subject[key] = group
+    return [(group["first"], group["end"], group["members"]) for group in groups]
+
+
 def desired_events(appointments, options, student, start, end):
     """Build stable keys; source changes alter content rather than identity."""
     result = {}
@@ -69,14 +90,22 @@ def desired_events(appointments, options, student, start, end):
         target = options.get(field)
         if not target:
             continue
-        for item in active:
-            source_category = appointment_category(item)
-            if (category is not None and source_category != category) or (
-                category is None and source_category in {"rooster", "toets"}
-            ):
-                continue
-            if scope == "lesson" and not is_active_school_appointment(item):
-                continue
+        matching = [
+            item for item in active
+            if (category is not None and appointment_category(item) == category)
+            or (category is None and appointment_category(item) not in {"rooster", "toets"})
+        ]
+        if scope == "lesson":
+            matching = [item for item in matching if is_active_school_appointment(item)]
+        blocks = (
+            _group_adjacent_schedule_tests(matching)
+            if scope == "schedule_test"
+            else [
+                (item, parse_datetime(item["eindDatumTijd"]), [item])
+                for item in matching
+            ]
+        )
+        for item, finish, members in blocks:
             identifier = item_id(item)
             if not identifier:
                 raise ValueError("Appointment has no stable ID; synchronization paused")
@@ -85,10 +114,14 @@ def desired_events(appointments, options, student, start, end):
             prefix = options.get("lesson_prefix", "") if scope == "lesson" else options.get(f"{scope}_prefix", "{student} · ").replace("{student}", student)
             result[(target, f"{student}:{scope}:{identifier}")] = {
                 "dtstart": parse_datetime(item["beginDatumTijd"]),
-                "dtend": parse_datetime(item["eindDatumTijd"]),
+                "dtend": finish,
                 "summary": prefix + str(title or "Somtoday"),
-                "location": str(item.get("locatie") or ""),
-                "description": plain_text(item.get("omschrijving")) if scope != "lesson" or options.get("lesson_homework") else "",
+                "location": " / ".join(dict.fromkeys(
+                    str(part["locatie"]) for part in members if part.get("locatie")
+                )),
+                "description": "\n\n".join(dict.fromkeys(filter(None, (
+                    plain_text(part.get("omschrijving")) for part in members
+                )))) if scope != "lesson" or options.get("lesson_homework") else "",
             }
     return result
 
