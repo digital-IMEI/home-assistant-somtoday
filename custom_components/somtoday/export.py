@@ -42,17 +42,22 @@ def select_student(appointments, students, selected):
 def _group_adjacent_schedule_tests(items):
     """Combine consecutive test slots for the same subject into one event."""
     groups = []
+    last_by_subject = {}
     for item in sorted(items, key=lambda value: parse_datetime(value["beginDatumTijd"])):
         begin = parse_datetime(item["beginDatumTijd"])
         finish = parse_datetime(item["eindDatumTijd"])
         subject = ((item.get("additionalObjects") or {}).get("vak") or {}).get("naam")
         key = str(subject or "").strip().casefold()
-        if key and groups and groups[-1][3] == key and groups[-1][1] == begin:
-            first, _, members, _ = groups[-1]
-            groups[-1] = (first, finish, [*members, item], key)
+        previous = last_by_subject.get(key) if key else None
+        if previous is not None and previous["end"] == begin:
+            previous["end"] = finish
+            previous["members"].append(item)
         else:
-            groups.append((item, finish, [item], key))
-    return [(first, finish, members) for first, finish, members, _ in groups]
+            group = {"first": item, "end": finish, "members": [item]}
+            groups.append(group)
+            if key:
+                last_by_subject[key] = group
+    return [(group["first"], group["end"], group["members"]) for group in groups]
 
 
 def desired_events(appointments, options, student, start, end):
