@@ -58,6 +58,34 @@ def _matching_lesson(
     return None
 
 
+def _merge_adjacent_assessments(values: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Join timed periods of the same test without joining separate all-day tasks."""
+    merged = []
+    last_by_test = {}
+    for value in values:
+        if value["all_day"] or not isinstance(value["start"], datetime):
+            merged.append(value)
+            continue
+        key = (
+            value["subject"].strip().casefold(),
+            value["type"],
+            value["topic"].strip().casefold(),
+        )
+        previous = last_by_test.get(key)
+        if previous is not None and previous["end"] == value["start"]:
+            previous["end"] = value["end"]
+            if value["description"] and value["description"] not in previous["description"]:
+                previous["description"] = "\n\n".join(filter(None, (
+                    previous["description"], value["description"],
+                )))
+            if previous["made"] != value["made"]:
+                previous["made"] = None
+        else:
+            merged.append(value)
+            last_by_test[key] = value
+    return merged
+
+
 def normalize_assessments(
     assignments: list[dict[str, Any]],
     appointments: list[dict[str, Any]],
@@ -113,14 +141,14 @@ def normalize_assessments(
         else:
             value.update(start=day, end=day + timedelta(days=1))
         result.append(value)
-    return sorted(
+    return _merge_adjacent_assessments(sorted(
         result,
         key=lambda value: (
             value["start"] is None,
             value["start"].isoformat() if value["start"] is not None else "",
             value["subject"].casefold(),
         ),
-    )
+    ))
 
 
 def assessment_summary(value: dict[str, Any]) -> str:
