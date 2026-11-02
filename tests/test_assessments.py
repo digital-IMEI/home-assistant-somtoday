@@ -71,3 +71,61 @@ def test_appointment_without_exact_lesson_match_becomes_all_day():
     assert values[0]["start"] == START.date()
     assert values[0]["end"] == START.date() + timedelta(days=1)
     assert values[0]["all_day"] is True
+
+
+def test_consecutive_study_guide_test_periods_form_one_assessment():
+    first_start = START.replace(hour=10, minute=25)
+    second_start = START.replace(hour=11, minute=15)
+    final_end = START.replace(hour=12, minute=5)
+    lessons = [
+        {
+            "beginDatumTijd": begin.isoformat(),
+            "eindDatumTijd": finish.isoformat(),
+            "additionalObjects": {"vak": {"naam": "Wiskunde"}},
+        }
+        for begin, finish in (
+            (first_start, second_start),
+            (second_start, final_end),
+        )
+    ]
+    assignments = [
+        assignment("one", "appointment", due=first_start.isoformat()),
+        assignment("two", "appointment", due=second_start.isoformat()),
+    ]
+
+    values = normalize_assessments(
+        assignments, lessons, date(2026, 9, 14), date(2026, 9, 30)
+    )
+
+    assert len(values) == 1
+    assert values[0]["id"] == "one"
+    assert values[0]["start"] == first_start
+    assert values[0]["end"] == final_end
+    assert values[0]["all_day"] is False
+
+
+def test_different_topics_or_nonconsecutive_test_periods_stay_separate():
+    second_start = START + timedelta(minutes=50)
+    third_start = START + timedelta(hours=2)
+    assignments = [
+        assignment("first", "appointment", due=START.isoformat()),
+        assignment("different-topic", "appointment", due=second_start.isoformat()),
+        assignment("later", "appointment", due=third_start.isoformat()),
+    ]
+    assignments[1]["studiewijzerItem"]["onderwerp"] = "Hoofdstuk 4"
+    lessons = [
+        {
+            "beginDatumTijd": begin.isoformat(),
+            "eindDatumTijd": (begin + timedelta(minutes=50)).isoformat(),
+            "additionalObjects": {"vak": {"naam": "Wiskunde"}},
+        }
+        for begin in (START, second_start, third_start)
+    ]
+
+    values = normalize_assessments(
+        assignments, lessons, date(2026, 9, 14), date(2026, 9, 30)
+    )
+
+    assert [value["id"] for value in values] == [
+        "first", "different-topic", "later"
+    ]
