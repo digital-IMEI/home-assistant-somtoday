@@ -104,3 +104,38 @@ async def test_legacy_category_and_html_events_migrate_without_duplicates(monkey
     assert calendar.events[0].summary == 'proefwerk Nederlands'
     assert calendar.events[0].description.endswith('\n\nLeren hoofdstuk 1')
     assert '<p>' not in calendar.events[0].description
+
+
+def test_consecutive_music_test_periods_export_as_one_event():
+    first = appointment("music-1", "Toets", "Toets muziek A", "muziek")
+    second = appointment("music-2", "Toets", "Toets muziek B", "muziek")
+    later = appointment("music-3", "Toets", "Toets muziek C", "muziek")
+    different = appointment("math", "Toets", "Toets wiskunde", "wiskunde")
+    first["beginDatumTijd"] = START.replace(hour=10, minute=25).isoformat()
+    first["eindDatumTijd"] = START.replace(hour=11, minute=15).isoformat()
+    first["locatie"] = "312"
+    second["beginDatumTijd"] = START.replace(hour=11, minute=15).isoformat()
+    second["eindDatumTijd"] = START.replace(hour=12, minute=5).isoformat()
+    second["locatie"] = "224"
+    later["beginDatumTijd"] = START.replace(hour=13, minute=20).isoformat()
+    later["eindDatumTijd"] = START.replace(hour=14, minute=10).isoformat()
+    different["beginDatumTijd"] = second["beginDatumTijd"]
+    different["eindDatumTijd"] = second["eindDatumTijd"]
+    original = deepcopy([second, first, later, different])
+
+    events = desired_events(
+        [second, first, later, different],
+        {"schedule_test_calendar": "calendar.tests", "schedule_test_prefix": "Toets · "},
+        "seth",
+        START,
+        END,
+    )
+
+    assert len(events) == 3
+    merged = events[("calendar.tests", "seth:schedule_test:music-1")]
+    assert merged["summary"] == "Toets · muziek"
+    assert merged["dtstart"] == START.replace(hour=10, minute=25)
+    assert merged["dtend"] == START.replace(hour=12, minute=5)
+    assert merged["location"] == "312 / 224"
+    assert ("calendar.tests", "seth:schedule_test:music-2") not in events
+    assert [second, first, later, different] == original
