@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Somtoday login helper (optional)",
+  "version": "0.1.0",
+  "description": "Capture Somtoday sign-in callbacks locally for Home Assistant.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "https://inloggen.somtoday.nl/*",
+    "https://leerling.somtoday.nl/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Somtoday callback",
+    "default_popup": "popup.html"
+  }
+}

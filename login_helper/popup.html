@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Somtoday login helper</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; width: 310px; margin: 14px; }
+    h1 { font-size: 16px; margin: 0 0 10px; }
+    p { line-height: 1.45; }
+    button { padding: 9px 11px; margin: 3px; cursor: pointer; }
+    button:disabled { opacity: .45; cursor: default; }
+    #state { min-height: 35px; }
+  </style>
+</head>
+<body>
+  <h1>Somtoday naar Home Assistant</h1>
+  <p id="state" role="status" aria-live="polite">Callback controleren…</p>
+  <button id="fill" disabled>Invullen en indienen</button>
+  <button id="copy" disabled>Kopieer callback</button>
+  <button id="clear">Wis callback</button>
+  <p><small>Log eerst in via de Somtoday-link uit Home Assistant. Ga terug naar het Home Assistant-tabblad met het callback-veld en klik op Invullen en indienen. Codes verlopen na 5 minuten.</small></p>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
