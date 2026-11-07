@@ -7,6 +7,8 @@ outside Home Assistant should be required.
 | Priority | Candidate | Community value | Evidence / remaining work |
 | --- | --- | --- | --- |
 | 1 | Tomorrow's start/end, next lesson and school-day binary sensor | Alarms, departure reminders, dashboards | Derivable from the existing schedule; test timezone transitions and missing days |
+| Implemented 0.11.10 | Optional faster polling window | Check early timetable changes more often | Configurable account-wide local start/end hours and interval, default off |
+| Implemented 0.11.10 | Optional Chrome/Edge login helper | Sign in without Developer Tools | Source-only extension with local callbacks and manual fallback |
 | 1 | Timetable-change events | Notify only when a first/last lesson or classroom changes | Persist prior snapshots; establish baseline without notification spam; no real-time push is known |
 | Implemented 0.4.0 | Reauthentication, repairs and redacted diagnostics | Recover without removing/recreating an account | Native reauth updates credentials in place; destination Repairs warning; allowlisted diagnostics |
 | 1 | Calendar sync recovery UI and destination migration | Recover uncertain writes and retire an old destination safely | Needs explicit preview/confirmation and exact event ownership checks; current version deliberately retains old destinations |

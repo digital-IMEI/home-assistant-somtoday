@@ -16,7 +16,7 @@
       },
       "authorize": {
         "title": "Log in bij Somtoday",
-        "description": "1. [Open de Somtoday-inlogpagina]({authorize_url}) in een nieuw tabblad. Laat deze configuratie open.\n\n2. Druk vóór het inloggen op F12. Open Network, schakel Preserve log in en kies All.\n\n3. Log in. Zoek de laatste redirect: Headers → Response Headers → Location. Kopieer de hele waarde vanaf `somtoday://`, inclusief `code=` en `state=`. Deze kan ook als mislukte request of in Console staan. Kopieer niet de rooster-URL en exporteer geen HAR.\n\n4. Plak de volledige callback hieronder. Deel dit tijdelijke inloggegeven niet.",
+        "description": "Optioneel: gebruik de Chrome/Edge-inloghelper om zonder Developer Tools in te loggen. Zonder helper:\n\n1. [Open de Somtoday-inlogpagina]({authorize_url}) in een nieuw tabblad. Laat deze configuratie open.\n\n2. Druk vóór het inloggen op F12. Open Network, schakel Preserve log in en kies All.\n\n3. Log in. Zoek de laatste redirect: Headers → Response Headers → Location. Kopieer de hele waarde vanaf `somtoday://`, inclusief `code=` en `state=`. Deze kan ook als mislukte request of in Console staan. Kopieer niet de rooster-URL en exporteer geen HAR.\n\n4. Plak de volledige callback hieronder. Deel dit tijdelijke inloggegeven niet.\n\nEen waarschuwing dat somtoday:// geen handler heeft is normaal. Sommige browsers voegen :443 aan de callback toe. Publiceer nooit een callback-URL.",
         "data": {
           "callback_url": "Volledige callback-URL na het inloggen"
         }
@@ -50,11 +50,19 @@
             "description": "Deze waarden gelden voor ieder kind in dit Somtoday-account.",
             "data": {
               "days_ahead": "Dagen vooruit (1–60)",
-              "scan_interval": "Bijwerkinterval in minuten (5–120)"
+              "scan_interval": "Bijwerkinterval in minuten (5–120)",
+              "morning_poll_enabled": "Versneld bijwerken tijdens een tijdvenster",
+              "morning_poll_interval": "Bijwerkinterval in tijdvenster (5–120 minuten)",
+              "morning_poll_start_hour": "Startuur lokaal (0–23)",
+              "morning_poll_end_hour": "Einduur lokaal (1–24)"
             },
             "data_description": {
               "days_ahead": "Begin met 1 dag om je agenda-export te controleren.",
-              "scan_interval": "Hoe vaak Somtoday wordt vernieuwd."
+              "scan_interval": "Hoe vaak Somtoday wordt vernieuwd.",
+              "morning_poll_enabled": "Standaard uit. Geldt voor alle kinderen op dit account.",
+              "morning_poll_interval": "Bijvoorbeeld elke 5 minuten tussen 07:00 en 08:00. Buiten het tijdvenster geldt het normale interval.",
+              "morning_poll_start_hour": "Hele lokale uren. 7 betekent 07:00.",
+              "morning_poll_end_hour": "Hele lokale uren. 24 betekent middernacht. Een tijdvenster over middernacht is mogelijk."
             }
           }
         }

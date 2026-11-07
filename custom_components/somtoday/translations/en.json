@@ -16,7 +16,7 @@
       },
       "authorize": {
         "title": "Sign in to Somtoday",
-        "description": "1. [Open the Somtoday sign-in page]({authorize_url}) in a new tab. Keep this setup open.\n\n2. Before signing in, press F12. Open Network, enable Preserve log and select All.\n\n3. Sign in. Find the last redirect: Headers → Response Headers → Location. Copy the entire value starting with `somtoday://`, including `code=` and `state=`. It may instead appear as a failed request or in Console. Do not copy the timetable URL or export a HAR.\n\n4. Paste the full callback below. Do not share this temporary credential.",
+        "description": "Optional: use the Chrome/Edge login helper to sign in without DevTools. Without the helper:\n\n1. [Open the Somtoday sign-in page]({authorize_url}) in a new tab. Keep this setup open.\n\n2. Before signing in, press F12. Open Network, enable Preserve log and select All.\n\n3. Sign in. Find the last redirect: Headers → Response Headers → Location. Copy the entire value starting with `somtoday://`, including `code=` and `state=`. It may instead appear as a failed request or in Console. Do not copy the timetable URL or export a HAR.\n\n4. Paste the full callback below. Do not share this temporary credential.\n\nA warning that somtoday:// has no registered handler is expected. Some browsers add :443 to the callback. Never post a callback URL.",
         "data": {
           "callback_url": "Complete callback URL after signing in"
         }
@@ -50,11 +50,19 @@
             "description": "These values apply to every child in this Somtoday account.",
             "data": {
               "days_ahead": "Days ahead (1–60)",
-              "scan_interval": "Update interval in minutes (5–120)"
+              "scan_interval": "Update interval in minutes (5–120)",
+              "morning_poll_enabled": "Faster updates during a time window",
+              "morning_poll_interval": "Window update interval (5–120 minutes)",
+              "morning_poll_start_hour": "Local start hour (0–23)",
+              "morning_poll_end_hour": "Local end hour (1–24)"
             },
             "data_description": {
               "days_ahead": "Start with 1 day to verify your calendar exports.",
-              "scan_interval": "How often Somtoday data is refreshed."
+              "scan_interval": "How often Somtoday data is refreshed.",
+              "morning_poll_enabled": "Off by default. Applies to every child in this account.",
+              "morning_poll_interval": "For example, every 5 minutes from 07:00 to 08:00. Outside the window the normal interval applies.",
+              "morning_poll_start_hour": "Local whole hours; 7 means 07:00.",
+              "morning_poll_end_hour": "Local whole hours; 24 means midnight. Overnight windows are supported."
             }
           }
         }

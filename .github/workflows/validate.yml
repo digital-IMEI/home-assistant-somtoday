@@ -17,6 +17,17 @@ jobs:
       - run: pip install homeassistant==2026.8.2 pytest pytest-asyncio
       - run: python -m pytest -q
 
+  login-helper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check login_helper/background.js && node --check login_helper/popup.js
+      - run: node --test login_helper/test_callback.mjs
+      - run: node -e "const m=require('./login_helper/manifest.json'); if(m.manifest_version!==3) process.exit(1)"
+
   hacs:
     runs-on: ubuntu-latest
     steps:

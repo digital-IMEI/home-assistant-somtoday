@@ -43,6 +43,7 @@ depends on school/account permissions and has not been confirmed for all account
 - Optional per-child timetable Live Activity: current lesson, next lesson and the
   next classroom on the Lock Screen and Dynamic Island, controlled by a switch.
 - Adjustable look-ahead (1–60 days; default 14) and polling (5–120 minutes, default 15).
+- Optional faster morning refresh window with custom start/end hours and interval (off by default; e.g. every 5 minutes from 07:00–08:00).
 - Default titles include the child's name: `School · Seth`, `Seth · Mathematics`.
 
 ## Installation and updates
@@ -127,6 +128,28 @@ for supported app versions, configuration and platform limitations.
 
 ## Signing in — read this before opening the login link
 
+### Optional Chrome/Edge login helper
+
+The bundled [login helper](login_helper/) catches Somtoday's temporary callback
+locally and offers one-click insertion into the currently open Home Assistant
+configuration form. It is **optional**, requires a separately installed unpacked
+Chrome/Edge extension and has not been tested on every school's SSO provider.
+
+1. Download this repository. Open `chrome://extensions` or `edge://extensions`,
+   enable Developer mode and choose **Load unpacked** → `login_helper`.
+2. Open Somtoday's login link **from the current HA setup dialog** and sign in.
+3. Return to the Home Assistant tab, open the helper icon and select **Fill and
+   submit**. If the field is not found, choose **Copy callback** and paste it.
+4. The temporary code is cleared after successful insertion, or expires after
+   five minutes. For expired codes, repeat login.
+
+A browser message about `somtoday://` having no registered handler is expected;
+Chromium sometimes adds `:443` to that URL. The extension normalizes it.
+Never paste a full callback URL in a GitHub issue: it is a temporary credential.
+
+The manual Developer Tools method below remains supported.
+
+
 Use a desktop browser (Chrome, Edge or Firefox) for initial setup. A phone may open
 the Somtoday app before you can copy the return URL.
 
@@ -163,7 +186,10 @@ and tested. The callback flow has been verified by a Sophianum user; browser beh
 and other schools' identity providers may differ.
 
 You can use a parent account to read children visible to that account, or a student
-account for that student. Reading homework does not prove permission to mark it completed.
+account for that student. On parent accounts with multiple children, study-guide
+assignments are used only when Somtoday identifies the owning child. If that
+metadata is missing, assessments/homework sync pauses instead of risking sibling
+data exposure or deleting existing tasks. Report only redacted diagnostics. Reading homework does not prove permission to mark it completed.
 Student-account write-back has not been verified; it is not a guaranteed workaround.
 
 #### Where to find the callback
@@ -176,6 +202,15 @@ Student-account write-back has not been verified; it is not a guaranteed workaro
 | Original HA popup → callback URL | Paste that value and submit. |
 
 This is a navigation guide, not a screenshot of a particular school's sign-in screen.
+
+### Optional time-window polling
+
+In **Configure → Account settings → Synchronization**, enable **Faster updates
+during a time window** if desired. Set normal interval, faster interval and
+start/end as local whole hours. Example: 15 minutes normally, 5 minutes
+between 07:00 and 08:00. Starts are inclusive, ends exclusive. The setting
+defaults to off and applies to all children on the account. Polling is not
+instantaneous; a school may rate-limit frequent queries.
 
 ## Configure calendar export
 

@@ -263,3 +263,45 @@ async def test_invalid_token_payload_is_transient_and_retains_credential():
         await client.refresh()
     assert not isinstance(caught.value, SomtodayAuthenticationError)
     assert client.token == original
+
+
+@pytest.mark.asyncio
+async def test_parent_account_assignments_are_scoped_to_selected_child():
+    def item(identifier, *children):
+        return {"links": [{"id": identifier}], "additionalObjects": {
+            "leerlingen": {"items": [{"links": [{"id": child}]} for child in children]}}}
+    client = SomtodayClient(None, {"access_token": "token", "expires_at": 9999999999})
+    client._get_all = AsyncMock(side_effect=[
+        [item("a", 1), item("b", 2), item("c", 1, 2)],
+        [item("d", 2)], [item("e", 1)],
+    ])
+    values = await client.assessments("2", date(2026, 10, 1), require_student_scope=True)
+    assert [value["links"][0]["id"] for value in values] == ["b", "c", "d"]
+    assert all(("additional", "leerlingen") in call.kwargs["params"]
+               for call in client._get_all.await_args_list)
+
+
+@pytest.mark.asyncio
+async def test_parent_missing_owners_preserves_previous_snapshots():
+    from custom_components.somtoday.api import SomtodayAssignmentsError
+    client = SomtodayClient(None, {"access_token": "token", "expires_at": 9999999999})
+    client._get_all = AsyncMock(side_effect=[
+        [{"links": [{"id": "unknown"}]}],
+        [{"links": [{"id": "empty"}], "additionalObjects": {"leerlingen": {"items": []}}}],
+        [],
+    ])
+    with pytest.raises(SomtodayAssignmentsError) as caught:
+        await client.assessments("2", date(2026, 10, 1), require_student_scope=True)
+    assert caught.value.failures == [
+        {"source": "appointment", "category": "student_scope_unavailable"},
+        {"source": "day", "category": "student_scope_unavailable"},
+    ]
+    assert client.assignment_reports["2"][0]["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_single_student_keeps_legacy_ownerless_assignments():
+    client = SomtodayClient(None, {"access_token": "token", "expires_at": 9999999999})
+    client._get_all = AsyncMock(side_effect=[[{"links": [{"id": "one"}]}], [], []])
+    values = await client.assessments("1", date(2026, 10, 1))
+    assert [value["links"][0]["id"] for value in values] == ["one"]

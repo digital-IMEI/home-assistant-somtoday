@@ -85,6 +85,27 @@ def build_authorize_url(
     return f"{AUTHORIZE_URL}?{urlencode(params)}"
 
 
+def _assignment_ownership(item: dict[str, Any], student_id: str) -> bool | None:
+    """Return confirmed assignment ownership; None means unverified.
+
+    A differentiation parameter does not scope assignment queries for parent
+    accounts. Absent or empty pupil lists never mean 'all pupils'.
+    """
+    extra = item.get("additionalObjects")
+    wrapper = extra.get("leerlingen") if isinstance(extra, dict) else None
+    owners = wrapper.get("items") if isinstance(wrapper, dict) else None
+    if not isinstance(owners, list) or not owners:
+        return None
+    ids = set()
+    for owner in owners:
+        links = owner.get("links") if isinstance(owner, dict) else None
+        identifier = links[0].get("id") if isinstance(links, list) and links and isinstance(links[0], dict) else None
+        if identifier is None or identifier == "":
+            return None
+        ids.add(str(identifier))
+    return str(student_id) in ids
+
+
 class SomtodayClient:
     """Async Somtoday client using Home Assistant's shared HTTP session."""
 
@@ -212,7 +233,7 @@ class SomtodayClient:
         )
 
     async def assessments(
-        self, student_id: str, start: date
+        self, student_id: str, start: date, *, require_student_scope: bool = False
     ) -> list[dict[str, Any]]:
         """Fetch test and homework assignments from all three assignment scopes."""
         common = [
@@ -221,6 +242,7 @@ class SomtodayClient:
             ("additional", "swigemaaktVinkjes"),
             ("additional", "huiswerkgemaakt"),
             ("additional", "lesgroep"),
+            ("additional", "leerlingen"),
         ]
         sources = (
             ("appointment", "/rest/v1/studiewijzeritemafspraaktoekenningen"),
@@ -251,9 +273,27 @@ class SomtodayClient:
             # otherwise be mistaken for deleted homework or tests.
             raise SomtodayAssignmentsError(failures)
         result = []
+        unresolved_sources = set()
         for (kind, _), items in zip(sources, pages, strict=True):
             for item in items:
+                if require_student_scope:
+                    ownership = _assignment_ownership(item, student_id)
+                    if ownership is None:
+                        unresolved_sources.add(kind)
+                        continue
+                    if ownership is False:
+                        continue
                 result.append({**item, "_somtoday_assignment_kind": kind})
+        if unresolved_sources:
+            # Preserve previous tasks and calendars instead of deleting them
+            # from a partially scoped API response.
+            for report in self.assignment_reports[student_id]:
+                if report["source"] in unresolved_sources:
+                    report.update(status="failed", category="student_scope_unavailable")
+            raise SomtodayAssignmentsError([
+                {"source": kind, "category": "student_scope_unavailable"}
+                for kind, _ in sources if kind in unresolved_sources
+            ])
         return result
 
     async def set_homework_done(self, student_id: str, assignment_id: str, made: bool) -> None:
