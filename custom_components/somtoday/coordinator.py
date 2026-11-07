@@ -18,6 +18,7 @@ from .api import (SomtodayApiError, SomtodayClient, SomtodayAuthenticationError,
                   SomtodayAssignmentsError, assignment_failure)
 from .const import CONF_TOKEN, DOMAIN, SCHEDULE_DAYS, UPDATE_INTERVAL
 from .models import school_day_bounds, school_day_appointments
+from .polling import poll_interval
 from .assessments import normalize_assessments
 from .export import (
     desired_assessment_events,
@@ -43,7 +44,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass,
             logger=__import__("logging").getLogger(__name__),
             name=DOMAIN,
-            update_interval=timedelta(minutes=entry.options.get("scan_interval", 15)),
+            update_interval=poll_interval(dt_util.now(), entry.options),
         )
         self.entry = entry
         self.options_snapshot = dict(entry.options)
@@ -86,6 +87,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return value, {**report, "status": "ok"}
 
     async def _async_update_data(self) -> dict[str, Any]:
+        self.update_interval = poll_interval(dt_util.now(), self.entry.options)
         try:
             start = dt_util.now().date()
             students = await self.client.students()
@@ -156,7 +158,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.client.assignment_reports = {}
             assessment_results = await asyncio.gather(
                 *(
-                    self.client.assessments(student_id, start - timedelta(days=30) if any(route.get("homework_list") for route in self.entry.options.get("exports", {}).values()) else start)
+                    self.client.assessments(student_id, start - timedelta(days=30) if any(route.get("homework_list") for route in self.entry.options.get("exports", {}).values()) else start, require_student_scope=len(student_ids) > 1)
                     for student_id in student_ids
                 ),
                 return_exceptions=True,

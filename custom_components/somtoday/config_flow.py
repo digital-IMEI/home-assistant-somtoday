@@ -292,11 +292,22 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         students = self._students()
         old = self.config_entry.options
-        defaults = {"days_ahead": old.get("days_ahead", 14), "scan_interval": old.get("scan_interval", 15)}
+        defaults = {
+            "days_ahead": old.get("days_ahead", 14),
+            "scan_interval": old.get("scan_interval", 15),
+            "morning_poll_enabled": old.get("morning_poll_enabled", False),
+            "morning_poll_interval": old.get("morning_poll_interval", 5),
+            "morning_poll_start_hour": old.get("morning_poll_start_hour", 7),
+            "morning_poll_end_hour": old.get("morning_poll_end_hour", 8),
+        }
         schema = vol.Schema({
             vol.Required("synchronization", default=defaults): section(vol.Schema({
                 vol.Required("days_ahead", default=defaults["days_ahead"]): NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Required("scan_interval", default=defaults["scan_interval"]): NumberSelector(NumberSelectorConfig(min=5, max=120, step=1, mode=NumberSelectorMode.BOX)),
+                vol.Required("morning_poll_enabled", default=defaults["morning_poll_enabled"]): bool,
+                vol.Required("morning_poll_interval", default=defaults["morning_poll_interval"]): NumberSelector(NumberSelectorConfig(min=5, max=120, step=1, mode=NumberSelectorMode.BOX)),
+                vol.Required("morning_poll_start_hour", default=defaults["morning_poll_start_hour"]): NumberSelector(NumberSelectorConfig(min=0, max=23, step=1, mode=NumberSelectorMode.BOX)),
+                vol.Required("morning_poll_end_hour", default=defaults["morning_poll_end_hour"]): NumberSelector(NumberSelectorConfig(min=1, max=24, step=1, mode=NumberSelectorMode.BOX)),
             }), {"collapsed": False}),
             vol.Required("student_id"): vol.In(students),
         })
@@ -309,7 +320,7 @@ class SomtodayOptionsFlow(config_entries.OptionsFlow):
                     errors={"base": "invalid_student"},
                 )
             self.student = student
-            self._pending_settings = {key: int(value) for key, value in user_input.get("synchronization", defaults).items()}
+            self._pending_settings = {key: (bool(value) if key == "morning_poll_enabled" else int(value)) for key, value in user_input.get("synchronization", defaults).items()}
             return await self.async_step_settings()
         return self.async_show_form(
             step_id="init",

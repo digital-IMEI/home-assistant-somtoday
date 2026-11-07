@@ -326,7 +326,7 @@ async def test_sectioned_settings_preserve_account_and_sibling_options():
     form = await flow.async_step_init({"student_id": "a"})
     values = form["data_schema"]({})
     assert [key.schema for key in form["data_schema"].schema] == ["exports"]
-    assert flow._pending_settings == {"days_ahead": 30, "scan_interval": 60}
+    assert {k: flow._pending_settings[k] for k in ("days_ahead", "scan_interval")} == {"days_ahead": 30, "scan_interval": 60}
     destinations = await flow.async_step_settings(values)
     titles = destinations["data_schema"]({})
     assert titles["school_days"]["automatic_day_title"] is True
@@ -348,13 +348,13 @@ async def test_serialized_forms_defaults_translations_and_roundtrip():
     settings = await flow.async_step_init({"student_id": "a"})
     initial = await flow.async_step_init()
     initial_fields = convert(initial["data_schema"], custom_serializer=custom_serializer)
-    assert initial_fields[0]["default"] == {"days_ahead": 30, "scan_interval": 60}
+    assert {k: initial_fields[0]["default"][k] for k in ("days_ahead", "scan_interval")} == {"days_ahead": 30, "scan_interval": 60}
     serialized = convert(settings["data_schema"], custom_serializer=custom_serializer)
     # Match the actual data supplied to the frontend, not schema({}) which fills
     # missing nested defaults and used to hide the empty-section regression.
     values = {field["name"]: field["default"] for field in serialized}
     assert values["exports"]["enable_day"] is True
-    assert flow._pending_settings == {"days_ahead": 30, "scan_interval": 60}
+    assert {k: flow._pending_settings[k] for k in ("days_ahead", "scan_interval")} == {"days_ahead": 30, "scan_interval": 60}
     destinations = await flow.async_step_calendar_settings(values)
     serialized_dest = convert(destinations["data_schema"], custom_serializer=custom_serializer)
     values = {field["name"]: field["default"] for field in serialized_dest}
