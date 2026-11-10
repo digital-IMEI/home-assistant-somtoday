@@ -20,6 +20,27 @@ from .export import item_id
 from .text import plain_text
 
 
+def _lesson_description(item, cancelled: bool) -> str | None:
+    """Status, change text and lesson hour first, then Somtoday's own text.
+
+    Lines are "Key: value" so automations and templates can parse them.
+    """
+    change = str(item.get("_somtoday_change") or "").strip()
+    lines = []
+    if cancelled:
+        lines.append("Status: uitval")
+    elif change:
+        lines.append("Status: gewijzigd")
+    if change:
+        lines.append(f"Wijziging: {change}")
+    first, last = item.get("beginLesuur"), item.get("eindLesuur")
+    if first:
+        lines.append(f"Lesuur: {first}" if not last or last == first else f"Lesuur: {first}-{last}")
+    if text := plain_text(item.get("omschrijving")):
+        lines.append(text)
+    return "\n".join(lines) or None
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -70,7 +91,8 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
         for item in self.coordinator.data.get("appointments_by_student", {}).get(self.student, []):
             if appointment_category(item) != "rooster":
                 continue
-            if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF":
+            cancelled = bool(item.get("_somtoday_cancelled"))
+            if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF" and not cancelled:
                 continue
             try:
                 event_start = parse_datetime(item["beginDatumTijd"])
@@ -81,14 +103,16 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
                 continue
             additional = item.get("additionalObjects") or {}
             subject = (additional.get("vak") or {}).get("naam")
-            summary = subject or item.get("titel") or "Somtoday"
+            summary = str(subject or item.get("titel") or "Somtoday")
+            if cancelled:
+                summary += " (valt uit)"
             events.append(
                 CalendarEvent(
                     start=event_start,
                     end=event_end,
-                    summary=str(summary),
+                    summary=summary,
                     location=item.get("locatie"),
-                    description=plain_text(item.get("omschrijving")) or None,
+                    description=_lesson_description(item, cancelled),
                     uid=str((item.get("links") or [{}])[0].get("id", "")) or None,
                 )
             )

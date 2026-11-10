@@ -333,6 +333,27 @@ class SomtodayClient:
             ],
         )
 
+    async def appointment_items(self, student_id: str, start: date, end: date) -> list[dict[str, Any]]:
+        """Return the pupil portal's week items, which carry schedule changes.
+
+        Unlike ``/afspraken`` these include cancelled lessons and the change
+        text the app shows ("De les is verplaatst ..."). One call per ISO week.
+        """
+        from urllib.parse import quote
+
+        from .changes import iso_weeks
+
+        result: list[dict[str, Any]] = []
+        for year, week in iso_weeks(start, end):
+            payload = await self._get(
+                f"/rest/v1/afspraakitems/{quote(str(student_id), safe='')}/jaar/{year}/week/{week}"
+            )
+            items = payload.get("items")
+            if not isinstance(items, list):
+                raise SomtodayApiError("Invalid afspraakitems response")
+            result.extend(item for item in items if isinstance(item, dict))
+        return result
+
     async def _get_all(self, path, params=None):
         """Never expose a partial snapshot to calendar reconciliation."""
         result = []
