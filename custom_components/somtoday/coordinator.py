@@ -33,6 +33,7 @@ from .holidays import holiday_status
 from .homework import HomeworkSync, lesson_homework
 from .absences import outstanding_measures, registration_snapshot
 from .changes import merge_changes
+from .grades import normalize_grades
 
 
 class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -119,6 +120,18 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "unavailable" if changes_failed else "recovered",
                 )
             self._changes_failed = changes_failed
+            # Optional: latest grades. On a failure the last known list stays,
+            # a pupil without any readable grades yet becomes unavailable.
+            grades = getattr(self, "_grades", {})
+            for pupil in students:
+                pupil_id = item_id(pupil)
+                try:
+                    grades[pupil_id] = normalize_grades(await self.client.grades(pupil_id))
+                except SomtodayAuthenticationError:
+                    raise
+                except (SomtodayApiError, ValueError, TypeError):
+                    grades.setdefault(pupil_id, None)
+            self._grades = grades
             now = dt_util.now()
             if self._holidays_checked is None or now - self._holidays_checked >= timedelta(hours=6):
                 holiday_data = {}
@@ -398,4 +411,5 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "assessments_by_student": assessments_by_student,
             "absences_by_student": self._absences,
             "measures_by_student": self._measures,
+            "grades_by_student": getattr(self, "_grades", {}),
         }

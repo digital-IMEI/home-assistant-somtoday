@@ -354,6 +354,17 @@ class SomtodayClient:
             result.extend(item for item in items if isinstance(item, dict))
         return result
 
+    async def grades(self, student_id: str) -> list[dict[str, Any]]:
+        """Latest grades as the pupil portal shows them ("Laatste cijfers")."""
+        from urllib.parse import quote
+
+        from .grades import grade_params
+
+        return await self._get_all(
+            f"/rest/v1/geldendvoortgangsdossierresultaten/leerling/{quote(str(student_id), safe='')}",
+            grade_params(),
+        )
+
     async def _get_all(self, path, params=None):
         """Never expose a partial snapshot to calendar reconciliation."""
         result = []

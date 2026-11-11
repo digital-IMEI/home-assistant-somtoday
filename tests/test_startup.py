@@ -20,7 +20,7 @@ async def test_optional_source_expired_login_requests_reauthentication(source):
     coordinator.entry = SimpleNamespace(entry_id="test", data={"token": {}}, options={})
     coordinator.client = SimpleNamespace(
         token={}, students=AsyncMock(return_value=[{"links": [{"id": "a"}]}]),
-        appointments=AsyncMock(return_value=[]), appointment_items=AsyncMock(return_value=[]), holidays=AsyncMock(return_value=[]),
+        appointments=AsyncMock(return_value=[]), appointment_items=AsyncMock(return_value=[]), grades=AsyncMock(return_value=[]), holidays=AsyncMock(return_value=[]),
         assessments=AsyncMock(return_value=[]),
     )
     coordinator._holidays_checked = None
@@ -83,7 +83,7 @@ async def test_startup_defers_export_but_preserves_source(monkeypatch):
     coordinator.hass = SimpleNamespace()
     coordinator.client = SimpleNamespace(
         token={}, students=AsyncMock(return_value=[{"links": [{"id": "a"}]}]),
-        appointments=AsyncMock(return_value=[]), appointment_items=AsyncMock(return_value=[]), holidays=AsyncMock(return_value=[]),
+        appointments=AsyncMock(return_value=[]), appointment_items=AsyncMock(return_value=[]), grades=AsyncMock(return_value=[]), holidays=AsyncMock(return_value=[]),
         assessments=AsyncMock(return_value=[]),
     )
     coordinator._holidays = {}
@@ -122,7 +122,7 @@ async def test_optional_source_failure_exposes_safe_details_and_recovers(monkeyp
     failure = {"source": "day", "category": "http_error", "http_status": 403}
     coordinator.client = SimpleNamespace(
         token={}, students=AsyncMock(return_value=[{"links": [{"id": "private-child"}]}]),
-        appointments=AsyncMock(return_value=[]), appointment_items=AsyncMock(return_value=[]), holidays=AsyncMock(return_value=[]),
+        appointments=AsyncMock(return_value=[]), appointment_items=AsyncMock(return_value=[]), grades=AsyncMock(return_value=[]), holidays=AsyncMock(return_value=[]),
         assessments=AsyncMock(side_effect=SomtodayAssignmentsError([failure])),
     )
     coordinator._holidays = {}

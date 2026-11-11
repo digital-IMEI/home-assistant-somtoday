@@ -28,6 +28,10 @@ async def async_setup_entry(
         SomtodayNextAssessmentSensor(coordinator, entry, student)
         for student in coordinator.data.get("students", [])
     )
+    entities.extend(
+        SomtodayLatestGradeSensor(coordinator, entry, student)
+        for student in coordinator.data.get("students", [])
+    )
     for student in coordinator.data.get("students", []):
         route = entry.options.get("exports", {}).get(item_id(student), {})
         if isinstance(route, dict) and route.get("absences_enabled"):
@@ -134,6 +138,47 @@ class SomtodayNextAssessmentSensor(
                 days_until=(start_day - dt_util.now().date()).days,
                 all_day=value["all_day"],
                 made=value["made"],
+            )
+        return attributes
+
+
+class SomtodayLatestGradeSensor(CoordinatorEntity[SomtodayCoordinator], SensorEntity):
+    """The most recent grade; the attribute "cijfers" holds the latest ones."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:numeric-10-box-multiple-outline"
+    # The list changes with every new grade; keep it out of the recorder history.
+    _unrecorded_attributes = frozenset({"cijfers"})
+    MAX_GRADES = 20
+
+    def __init__(self, coordinator, entry, student):
+        super().__init__(coordinator)
+        self.student = item_id(student)
+        self._attr_device_info = student_device_info(entry, student)
+        self._attr_name = "Laatste cijfer"
+        self._attr_unique_id = f"{entry.entry_id}_{self.student}_latest_grade"
+
+    def _grades(self):
+        return self.coordinator.data.get("grades_by_student", {}).get(self.student)
+
+    @property
+    def available(self):
+        return super().available and self._grades() is not None
+
+    @property
+    def native_value(self):
+        grades = self._grades() or []
+        return grades[0]["resultaat"] if grades else None
+
+    @property
+    def extra_state_attributes(self):
+        grades = self._grades() or []
+        attributes = {"cijfers": grades[: self.MAX_GRADES]}
+        if grades:
+            latest = grades[0]
+            attributes.update(
+                vak=latest["vak"], omschrijving=latest["omschrijving"],
+                weging=latest["weging"], voldoende=latest["voldoende"], datum=latest["datum"],
             )
         return attributes
 
