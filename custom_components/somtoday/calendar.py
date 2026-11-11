@@ -51,6 +51,7 @@ async def async_setup_entry(
         entities.extend(
             (
                 SomtodayCalendar(coordinator, entry, student, legacy),
+                SomtodayScheduleTestCalendar(coordinator, entry, student),
                 SomtodaySchoolDayCalendar(coordinator, entry, student, legacy),
                 SomtodayAssessmentCalendar(coordinator, entry, student),
             )
@@ -64,6 +65,7 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
     _attr_has_entity_name = True
     _attr_name = "Rooster"
     _attr_icon = "mdi:calendar-clock"
+    _category = "rooster"
 
     def __init__(self, coordinator: SomtodayCoordinator, entry: ConfigEntry, student, legacy=False) -> None:
         super().__init__(coordinator)
@@ -89,7 +91,7 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
     def _events(self, start: datetime, end: datetime | None) -> list[CalendarEvent]:
         events: list[CalendarEvent] = []
         for item in self.coordinator.data.get("appointments_by_student", {}).get(self.student, []):
-            if appointment_category(item) != "rooster":
+            if appointment_category(item) != self._category:
                 continue
             cancelled = bool(item.get("_somtoday_cancelled"))
             if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF" and not cancelled:
@@ -261,3 +263,19 @@ class SomtodayAssessmentCalendar(
                 )
             )
         return sorted(result, key=lambda event: event.start.isoformat())
+
+
+class SomtodayScheduleTestCalendar(SomtodayCalendar):
+    """Tests scheduled in the timetable (Somtoday category "Toets").
+
+    The pupil app shows these inside the timetable, e.g. during a test week.
+    They are kept out of the Rooster calendar, which only holds lessons.
+    """
+
+    _attr_icon = "mdi:clipboard-text-clock"
+    _category = "toets"
+
+    def __init__(self, coordinator: SomtodayCoordinator, entry: ConfigEntry, student) -> None:
+        super().__init__(coordinator, entry, student)
+        self._attr_name = "Roostertoetsen"
+        self._attr_unique_id = f"{entry.entry_id}_{self.student}_schedule_tests"

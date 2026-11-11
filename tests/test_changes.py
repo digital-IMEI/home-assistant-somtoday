@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from types import SimpleNamespace
 
-from custom_components.somtoday.calendar import SomtodayCalendar
+from custom_components.somtoday.calendar import SomtodayCalendar, SomtodayScheduleTestCalendar
 from custom_components.somtoday.changes import iso_weeks, merge_changes
 from custom_components.somtoday.export import desired_events
 from custom_components.somtoday.models import school_day_bounds
@@ -100,3 +100,25 @@ def test_calendar_shows_status_change_and_lesson_hour():
 
 def test_without_week_items_nothing_changes():
     assert merge_changes(APPOINTMENTS, []) == APPOINTMENTS
+
+
+def test_schedule_tests_get_their_own_calendar():
+    toets = appointment("2026-11-11T08:30", "2026-11-11T09:30", "Nederlands", "ne", None, "a3")
+    toets["afspraakType"] = {"categorie": "Toets", "naam": "Toets"}
+    les = appointment("2026-11-11T09:30", "2026-11-11T10:10", "wiskunde", "wi", 2)
+    items = [{**item("2026-11-11T08:30", "2026-11-11T09:30", "ne", "Nederlands", None,
+                     "De toets is verplaatst (komt van wo 9:20u)."), "afspraakItemType": "ROOSTERTOETS"}]
+    data = {"appointments_by_student": {"a": merge_changes([toets, les], items)}}
+    window = (datetime.fromisoformat("2026-11-11T00:00:00+01:00"),
+              datetime.fromisoformat("2026-11-12T00:00:00+01:00"))
+    calendars = {}
+    for cls in (SomtodayCalendar, SomtodayScheduleTestCalendar):
+        calendar = object.__new__(cls)
+        calendar.student = "a"
+        calendar.coordinator = SimpleNamespace(data=data)
+        calendars[cls] = calendar._events(*window)
+    assert [e.summary for e in calendars[SomtodayCalendar]] == ["wiskunde"]
+    tests = calendars[SomtodayScheduleTestCalendar]
+    assert [e.summary for e in tests] == ["Nederlands"]
+    assert tests[0].description.splitlines()[:2] == [
+        "Status: gewijzigd", "Wijziging: De toets is verplaatst (komt van wo 9:20u)."]
