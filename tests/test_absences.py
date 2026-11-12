@@ -411,7 +411,6 @@ def _coordinator(monkeypatch, **client):
     methods = {
         "students": AsyncMock(return_value=[{"links": [{"id": PUPIL}], "roepnaam": "Seth"}]),
         "appointments": AsyncMock(return_value=[]),
-        "appointment_items": AsyncMock(return_value=[]),
         "grades": AsyncMock(return_value=[]),
         "holidays": AsyncMock(return_value=[]),
         "assessments": AsyncMock(return_value=[]),

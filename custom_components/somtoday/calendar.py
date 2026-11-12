@@ -20,27 +20,6 @@ from .export import item_id
 from .text import plain_text
 
 
-def _lesson_description(item, cancelled: bool) -> str | None:
-    """Status, change text and lesson hour first, then Somtoday's own text.
-
-    Lines are "Key: value" so automations and templates can parse them.
-    """
-    change = str(item.get("_somtoday_change") or "").strip()
-    lines = []
-    if cancelled:
-        lines.append("Status: uitval")
-    elif change:
-        lines.append("Status: gewijzigd")
-    if change:
-        lines.append(f"Wijziging: {change}")
-    first, last = item.get("beginLesuur"), item.get("eindLesuur")
-    if first:
-        lines.append(f"Lesuur: {first}" if not last or last == first else f"Lesuur: {first}-{last}")
-    if text := plain_text(item.get("omschrijving")):
-        lines.append(text)
-    return "\n".join(lines) or None
-
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -51,7 +30,6 @@ async def async_setup_entry(
         entities.extend(
             (
                 SomtodayCalendar(coordinator, entry, student, legacy),
-                SomtodayScheduleTestCalendar(coordinator, entry, student),
                 SomtodaySchoolDayCalendar(coordinator, entry, student, legacy),
                 SomtodayAssessmentCalendar(coordinator, entry, student),
             )
@@ -65,7 +43,6 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
     _attr_has_entity_name = True
     _attr_name = "Rooster"
     _attr_icon = "mdi:calendar-clock"
-    _category = "rooster"
 
     def __init__(self, coordinator: SomtodayCoordinator, entry: ConfigEntry, student, legacy=False) -> None:
         super().__init__(coordinator)
@@ -91,10 +68,9 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
     def _events(self, start: datetime, end: datetime | None) -> list[CalendarEvent]:
         events: list[CalendarEvent] = []
         for item in self.coordinator.data.get("appointments_by_student", {}).get(self.student, []):
-            if appointment_category(item) != self._category:
+            if appointment_category(item) != "rooster":
                 continue
-            cancelled = bool(item.get("_somtoday_cancelled"))
-            if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF" and not cancelled:
+            if str(item.get("afspraakStatus", "ACTIEF")).upper() != "ACTIEF":
                 continue
             try:
                 event_start = parse_datetime(item["beginDatumTijd"])
@@ -105,16 +81,14 @@ class SomtodayCalendar(CoordinatorEntity[SomtodayCoordinator], CalendarEntity):
                 continue
             additional = item.get("additionalObjects") or {}
             subject = (additional.get("vak") or {}).get("naam")
-            summary = str(subject or item.get("titel") or "Somtoday")
-            if cancelled:
-                summary += " (valt uit)"
+            summary = subject or item.get("titel") or "Somtoday"
             events.append(
                 CalendarEvent(
                     start=event_start,
                     end=event_end,
-                    summary=summary,
+                    summary=str(summary),
                     location=item.get("locatie"),
-                    description=_lesson_description(item, cancelled),
+                    description=plain_text(item.get("omschrijving")) or None,
                     uid=str((item.get("links") or [{}])[0].get("id", "")) or None,
                 )
             )
@@ -263,19 +237,3 @@ class SomtodayAssessmentCalendar(
                 )
             )
         return sorted(result, key=lambda event: event.start.isoformat())
-
-
-class SomtodayScheduleTestCalendar(SomtodayCalendar):
-    """Tests scheduled in the timetable (Somtoday category "Toets").
-
-    The pupil app shows these inside the timetable, e.g. during a test week.
-    They are kept out of the Rooster calendar, which only holds lessons.
-    """
-
-    _attr_icon = "mdi:clipboard-text-clock"
-    _category = "toets"
-
-    def __init__(self, coordinator: SomtodayCoordinator, entry: ConfigEntry, student) -> None:
-        super().__init__(coordinator, entry, student)
-        self._attr_name = "Roostertoetsen"
-        self._attr_unique_id = f"{entry.entry_id}_{self.student}_schedule_tests"
