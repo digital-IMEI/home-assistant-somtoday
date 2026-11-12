@@ -32,6 +32,8 @@ from .sync import CalendarSync
 from .holidays import holiday_status
 from .homework import HomeworkSync, lesson_homework
 from .absences import outstanding_measures, registration_snapshot
+from .changes import merge_changes
+from .grades import normalize_grades
 
 
 class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -60,6 +62,7 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._registration_source_errors = []
         self._assessment_assignments = {}
         self._assignment_source_errors = []
+        self._changes_failed = False
         self.export_ready = False
 
     def _persist_token(self, token):
@@ -94,6 +97,41 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             appointments = await self.client.appointments(
                 start, start + timedelta(days=self.entry.options.get("days_ahead", 14))
             )
+            # Optional: schedule changes and cancellations. A failure only
+            # means no change markers; the roster itself stays available.
+            changes_by_student: dict[str, list[dict[str, Any]] | None] = {}
+            changes_failed = False
+            for pupil in students:
+                pupil_id = item_id(pupil)
+                try:
+                    changes_by_student[pupil_id] = await self.client.appointment_items(
+                        pupil_id, start,
+                        start + timedelta(days=self.entry.options.get("days_ahead", 14)),
+                    )
+                except SomtodayAuthenticationError:
+                    raise
+                except SomtodayApiError:
+                    changes_by_student[pupil_id] = None
+                    changes_failed = True
+            if changes_failed != getattr(self, "_changes_failed", False):
+                logging.getLogger(__name__).log(
+                    logging.WARNING if changes_failed else logging.INFO,
+                    "Somtoday schedule changes %s",
+                    "unavailable" if changes_failed else "recovered",
+                )
+            self._changes_failed = changes_failed
+            # Optional: latest grades. On a failure the last known list stays,
+            # a pupil without any readable grades yet becomes unavailable.
+            grades = getattr(self, "_grades", {})
+            for pupil in students:
+                pupil_id = item_id(pupil)
+                try:
+                    grades[pupil_id] = normalize_grades(await self.client.grades(pupil_id))
+                except SomtodayAuthenticationError:
+                    raise
+                except (SomtodayApiError, ValueError, TypeError):
+                    grades.setdefault(pupil_id, None)
+            self._grades = grades
             now = dt_util.now()
             if self._holidays_checked is None or now - self._holidays_checked >= timedelta(hours=6):
                 holiday_data = {}
@@ -231,6 +269,8 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if route.get("lesson_homework") and self._assessment_assignments.get(student) is not None:
                     selected = lesson_homework(selected, self._assessment_assignments[student], student,
                                                start, start + timedelta(days=self.entry.options.get("days_ahead", 14)))
+                if changes_by_student.get(student) is not None:
+                    selected = merge_changes(selected, changes_by_student[student])
                 by_student[student] = selected
                 days_by_student[student] = school_day_bounds(school_day_appointments(selected, route))
                 route = dict(self.entry.options.get("exports", {}).get(student, {}))
@@ -371,4 +411,5 @@ class SomtodayCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "assessments_by_student": assessments_by_student,
             "absences_by_student": self._absences,
             "measures_by_student": self._measures,
+            "grades_by_student": getattr(self, "_grades", {}),
         }
