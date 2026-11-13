@@ -6,7 +6,7 @@ Not affiliated with Somtoday or Topicus. The underlying API is unofficial and ma
 
 ## Features
 
-### Version 0.11.6 — production release
+### Current features
 
 Timetable Live Activities on iPhone and Live Updates on Android show the current
 lesson, upcoming subject and next classroom. Compact text, subject icons and silent
@@ -28,6 +28,7 @@ depends on school/account permissions and has not been confirmed for all account
 ### Available features
 
 - School dropdown and browser login (password stays on the school's login page).
+- Per-child **Laatste cijfer** sensor with up to 20 recent results in the `cijfers` attribute.
 - Two source calendars per child: **Name · Rooster** with only category Rooster appointments and
   **Name · Schooldag** with one event from the first lesson start through the last lesson end.
 - Export one event per school day, from the first lesson to the end of the last lesson.
